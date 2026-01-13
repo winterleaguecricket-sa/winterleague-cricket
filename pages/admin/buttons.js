@@ -114,60 +114,80 @@ export default function AdminButtons() {
   }, {});
 
   return (
-    <div className={styles.container}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)' }}>
       <Head>
         <title>Button Manager - Admin Panel</title>
       </Head>
 
       <header style={{
-        background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-        padding: '0.85rem 1.5rem',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+        background: 'rgba(0,0,0,0.8)',
+        borderBottom: '2px solid #dc0000',
+        padding: '1rem 2rem'
       }}>
         <div style={{ maxWidth: '1600px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '1.3rem', fontWeight: '800', margin: 0, color: 'white' }}>🔘 Button Manager</h1>
-          <nav style={{ display: 'flex', gap: '1.25rem' }}>
-            <Link href="/admin" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem', fontWeight: '600' }}>← Back to Admin</Link>
-            <Link href="/" style={{ color: 'white', textDecoration: 'none', fontSize: '0.9rem', fontWeight: '600' }}>View Store</Link>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: '800', margin: 0, color: 'white' }}>🔘 Button Manager</h1>
+          <nav style={{ display: 'flex', gap: '1.5rem' }}>
+            <Link href="/admin" style={{ color: '#dc0000', textDecoration: 'none', fontSize: '0.95rem', fontWeight: '600' }}>← Back to Admin</Link>
+            <Link href="/" style={{ color: 'white', textDecoration: 'none', fontSize: '0.95rem', fontWeight: '600', opacity: 0.8 }}>View Store</Link>
           </nav>
         </div>
       </header>
 
-      <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: '700', margin: 0 }}>Manage Buttons</h2>
+      <main style={{ maxWidth: '1600px', margin: '0 auto', padding: '1.5rem' }}>
+        {/* Top Action Bar */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '1.5rem',
+          background: 'rgba(255,255,255,0.05)',
+          padding: '1rem 1.5rem',
+          borderRadius: '12px',
+          border: '1px solid rgba(255,255,255,0.1)'
+        }}>
+          <div>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: '700', margin: 0, color: 'white' }}>
+              {buttons.length} Button{buttons.length !== 1 ? 's' : ''} Configured
+            </h2>
+            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>
+              Manage call-to-action buttons across your site
+            </p>
+          </div>
           <button 
             onClick={() => setShowForm(!showForm)}
             style={{
-              padding: '0.6rem 1rem',
-              background: showForm ? '#e5e7eb' : 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-              color: showForm ? '#374151' : 'white',
+              padding: '0.6rem 1.25rem',
+              background: showForm ? '#374151' : 'linear-gradient(135deg, #dc0000 0%, #ff0000 100%)',
+              color: 'white',
               border: 'none',
               borderRadius: '8px',
               fontSize: '0.85rem',
               fontWeight: '700',
               cursor: 'pointer',
               transition: 'all 0.3s',
-              boxShadow: showForm ? 'none' : '0 4px 12px rgba(220, 0, 0, 0.2)'
+              boxShadow: showForm ? 'none' : '0 4px 12px rgba(220, 0, 0, 0.3)'
             }}
           >
-            {showForm ? 'Cancel' : '+ Add New Button'}
+            {showForm ? '✕ Cancel' : '+ Add Button'}
           </button>
         </div>
 
         {showForm && (
           <div style={{
-            background: 'white',
+            background: 'linear-gradient(135deg, #1a1a1a 0%, #252525 100%)',
             borderRadius: '12px',
-            padding: '1.25rem',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-            marginBottom: '1.25rem'
+            padding: '1.5rem',
+            marginBottom: '1.5rem',
+            border: '2px solid #dc0000',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
           }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '700', marginBottom: '1rem' }}>{editingButton ? 'Edit Button' : 'Create New Button'}</h3>
+            <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '1rem', color: 'white' }}>
+              {editingButton ? '✏️ Edit Button' : '➕ Create New Button'}
+            </h3>
             <form onSubmit={handleSubmit}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.85rem' }}>Button Name *</label>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.8rem', color: '#dc0000' }}>Button Name *</label>
                   <input
                     type="text"
                     name="name"
@@ -177,16 +197,19 @@ export default function AdminButtons() {
                     placeholder="e.g., Shop Now"
                     style={{
                       width: '100%',
-                      padding: '0.55rem',
-                      border: '2px solid #e5e7eb',
+                      padding: '0.5rem',
+                      border: '2px solid #333',
                       borderRadius: '6px',
-                      fontSize: '0.85rem'
+                      fontSize: '0.85rem',
+                      background: '#000',
+                      color: 'white',
+                      boxSizing: 'border-box'
                     }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.85rem' }}>Location *</label>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.8rem', color: '#dc0000' }}>Location *</label>
                   <select
                     name="location"
                     value={formData.location}
@@ -194,11 +217,13 @@ export default function AdminButtons() {
                     required
                     style={{
                       width: '100%',
-                      padding: '0.55rem',
-                      border: '2px solid #e5e7eb',
+                      padding: '0.5rem',
+                      border: '2px solid #333',
                       borderRadius: '6px',
                       fontSize: '0.85rem',
-                      background: 'white'
+                      background: '#000',
+                      color: 'white',
+                      boxSizing: 'border-box'
                     }}
                   >
                     {locationOptions.map(opt => (
@@ -210,55 +235,7 @@ export default function AdminButtons() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.85rem' }}>Destination URL</label>
-                  <input
-                    type="text"
-                    name="href"
-                    value={formData.href}
-                    onChange={handleInputChange}
-                    placeholder="/premium or https://example.com"
-                    style={{
-                      width: '100%',
-                      padding: '0.55rem',
-                      border: '2px solid #e5e7eb',
-                      borderRadius: '6px',
-                      fontSize: '0.85rem'
-                    }}
-                  />
-                  <small style={{ display: 'block', marginTop: '0.25rem', color: '#6b7280', fontSize: '0.72rem' }}>
-                    Leave empty if using a funnel
-                  </small>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.85rem' }}>Attach Funnel (Optional)</label>
-                  <select
-                    name="funnelId"
-                    value={formData.funnelId || ''}
-                    onChange={handleInputChange}
-                    style={{
-                      width: '100%',
-                      padding: '0.55rem',
-                      border: '2px solid #e5e7eb',
-                      borderRadius: '6px',
-                      fontSize: '0.85rem',
-                      background: 'white'
-                    }}
-                  >
-                    <option value="">No Funnel</option>
-                    {funnels.map(funnel => (
-                      <option key={funnel.id} value={funnel.id}>
-                        {funnel.name}
-                      </option>
-                    ))}
-                  </select>
-                  <small style={{ display: 'block', marginTop: '0.25rem', color: '#6b7280', fontSize: '0.72rem' }}>
-                    Funnel takes priority over URL
-                  </small>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.85rem' }}>Icon (Emoji)</label>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.8rem', color: '#dc0000' }}>Icon (Emoji)</label>
                   <input
                     type="text"
                     name="icon"
@@ -268,16 +245,66 @@ export default function AdminButtons() {
                     maxLength="2"
                     style={{
                       width: '100%',
-                      padding: '0.55rem',
-                      border: '2px solid #e5e7eb',
+                      padding: '0.5rem',
+                      border: '2px solid #333',
                       borderRadius: '6px',
-                      fontSize: '0.85rem'
+                      fontSize: '0.85rem',
+                      background: '#000',
+                      color: 'white',
+                      boxSizing: 'border-box'
                     }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.85rem' }}>Display Order</label>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.8rem', color: '#dc0000' }}>Destination URL</label>
+                  <input
+                    type="text"
+                    name="href"
+                    value={formData.href}
+                    onChange={handleInputChange}
+                    placeholder="/premium or https://..."
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      border: '2px solid #333',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      background: '#000',
+                      color: 'white',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.8rem', color: '#dc0000' }}>Attach Funnel</label>
+                  <select
+                    name="funnelId"
+                    value={formData.funnelId || ''}
+                    onChange={handleInputChange}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      border: '2px solid #333',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      background: '#000',
+                      color: 'white',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <option value="">No Funnel</option>
+                    {funnels.map(funnel => (
+                      <option key={funnel.id} value={funnel.id}>
+                        {funnel.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.8rem', color: '#dc0000' }}>Order</label>
                   <input
                     type="number"
                     name="order"
@@ -286,60 +313,63 @@ export default function AdminButtons() {
                     min="1"
                     style={{
                       width: '100%',
-                      padding: '0.55rem',
-                      border: '2px solid #e5e7eb',
+                      padding: '0.5rem',
+                      border: '2px solid #333',
                       borderRadius: '6px',
-                      fontSize: '0.85rem'
+                      fontSize: '0.85rem',
+                      background: '#000',
+                      color: 'white',
+                      boxSizing: 'border-box'
                     }}
                   />
                 </div>
               </div>
 
-              <div style={{ marginTop: '1rem' }}>
-                <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.85rem' }}>Description</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="Button description or subtitle"
-                  rows="2"
-                  style={{
-                    width: '100%',
-                    padding: '0.55rem',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    fontFamily: 'inherit',
-                    resize: 'vertical'
-                  }}
-                />
-              </div>
-
-              <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#f9fafb', borderRadius: '6px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+              <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', alignItems: 'end' }}>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.35rem', fontSize: '0.8rem', color: '#dc0000' }}>Description</label>
+                  <input
+                    type="text"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    placeholder="Button description or subtitle"
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      border: '2px solid #333',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      background: '#000',
+                      color: 'white',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.5rem', background: 'rgba(220,0,0,0.1)', borderRadius: '6px', border: '1px solid #333' }}>
                   <input
                     type="checkbox"
                     name="visible"
                     checked={formData.visible}
                     onChange={handleInputChange}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#dc0000' }}
                   />
-                  <span style={{ fontWeight: '600', fontSize: '0.85rem' }}>Visible on website</span>
+                  <span style={{ fontWeight: '600', fontSize: '0.85rem', color: 'white' }}>Visible on site</span>
                 </label>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '2px solid #e5e7eb' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #333' }}>
                 <button type="submit" style={{
                   flex: 1,
-                  padding: '0.65rem',
-                  background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                  padding: '0.6rem',
+                  background: 'linear-gradient(135deg, #dc0000 0%, #ff0000 100%)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '0.9rem',
                   fontWeight: '700',
                   cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(220, 0, 0, 0.2)'
+                  boxShadow: '0 4px 12px rgba(220, 0, 0, 0.3)'
                 }}>
                   {editingButton ? 'Update Button' : 'Create Button'}
                 </button>
@@ -347,9 +377,9 @@ export default function AdminButtons() {
                   type="button" 
                   onClick={resetForm}
                   style={{
-                    padding: '0.65rem 1.25rem',
-                    background: '#e5e7eb',
-                    color: '#374151',
+                    padding: '0.6rem 1.5rem',
+                    background: '#374151',
+                    color: 'white',
                     border: 'none',
                     borderRadius: '8px',
                     fontSize: '0.9rem',
@@ -364,117 +394,140 @@ export default function AdminButtons() {
           </div>
         )}
 
-        <div>
-          {Object.keys(groupedButtons).map(location => (
-            <div key={location} style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '0.85rem', color: '#374151' }}>
-                {locationOptions.find(opt => opt.value === location)?.label || location}
-              </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
-                {groupedButtons[location]
-                  .sort((a, b) => a.order - b.order)
-                  .map(button => (
-                    <div key={button.id} style={{
-                      background: 'white',
-                      borderRadius: '10px',
-                      padding: '1rem',
-                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                      border: '2px solid #f3f4f6'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {button.icon && <span style={{ fontSize: '1.15rem' }}>{button.icon}</span>}
-                          <span style={{ fontSize: '0.95rem', fontWeight: '700' }}>{button.name}</span>
-                        </div>
-                        <span style={{
-                          padding: '0.25rem 0.65rem',
-                          borderRadius: '6px',
-                          fontSize: '0.75rem',
-                          fontWeight: '600',
-                          background: button.visible ? '#d1fae5' : '#fee2e2',
-                          color: button.visible ? '#065f46' : '#991b1b'
-                        }}>
-                          {button.visible ? 'Visible' : 'Hidden'}
-                        </span>
-                      </div>
-                      
-                      <div style={{ marginBottom: '0.75rem' }}>
-                        {button.description && (
-                          <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.5rem' }}>{button.description}</p>
-                        )}
-                        
-                        <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                          <div style={{ marginBottom: '0.25rem' }}>
-                            <span style={{ fontWeight: '600' }}>Order:</span> {button.order}
-                          </div>
-                          
-                          {button.funnelId ? (
-                            <div>
-                              <span style={{ fontWeight: '600' }}>Funnel:</span> {funnels.find(f => f.id === button.funnelId)?.name || `ID: ${button.funnelId}`}
-                            </div>
-                          ) : button.href ? (
-                            <div>
-                              <span style={{ fontWeight: '600' }}>URL:</span> {button.href}
-                            </div>
-                          ) : (
-                            <div>
-                              <span style={{ fontWeight: '600' }}>Action:</span> Not configured
-                            </div>
-                          )}
-                        </div>
-                      </div>
+        {/* Buttons Grid - All buttons in a single compact grid */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', 
+          gap: '1rem' 
+        }}>
+          {buttons
+            .sort((a, b) => {
+              // Sort by location first, then by order
+              if (a.location !== b.location) return a.location.localeCompare(b.location);
+              return a.order - b.order;
+            })
+            .map(button => (
+              <div key={button.id} style={{
+                background: 'linear-gradient(135deg, #1a1a1a 0%, #252525 100%)',
+                borderRadius: '10px',
+                padding: '0.85rem',
+                border: `2px solid ${button.visible ? '#dc0000' : '#333'}`,
+                opacity: button.visible ? 1 : 0.7,
+                transition: 'all 0.3s',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                {/* Location Badge */}
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  background: button.visible ? 'linear-gradient(135deg, #dc0000 0%, #ff0000 100%)' : '#374151',
+                  padding: '0.2rem 0.5rem',
+                  borderBottomLeftRadius: '8px',
+                  fontSize: '0.6rem',
+                  fontWeight: '700',
+                  color: 'white',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  {locationOptions.find(opt => opt.value === button.location)?.label.split(' ')[0] || button.location}
+                </div>
 
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button 
-                          onClick={() => handleEdit(button)}
-                          style={{
-                            padding: '0.45rem 0.85rem',
-                            background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            fontSize: '0.8rem',
-                            fontWeight: '700',
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 8px rgba(220, 0, 0, 0.2)'
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(button.id)}
-                          style={{
-                            padding: '0.45rem 0.85rem',
-                            background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            fontSize: '0.8rem',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                {/* Button Info */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', marginTop: '0.25rem' }}>
+                  {button.icon && <span style={{ fontSize: '1.25rem' }}>{button.icon}</span>}
+                  <span style={{ fontSize: '0.9rem', fontWeight: '700', color: 'white' }}>{button.name}</span>
+                </div>
+
+                {button.description && (
+                  <p style={{ 
+                    fontSize: '0.7rem', 
+                    color: 'rgba(255,255,255,0.5)', 
+                    margin: '0 0 0.5rem 0',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    {button.description}
+                  </p>
+                )}
+                
+                {/* Destination Info */}
+                <div style={{ 
+                  fontSize: '0.7rem', 
+                  color: 'rgba(255,255,255,0.6)', 
+                  marginBottom: '0.65rem',
+                  padding: '0.35rem 0.5rem',
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: '4px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {button.funnelId ? (
+                    <span>🎯 {funnels.find(f => f.id === button.funnelId)?.name || `Funnel #${button.funnelId}`}</span>
+                  ) : button.href ? (
+                    <span>🔗 {button.href}</span>
+                  ) : (
+                    <span style={{ color: 'rgba(255,255,255,0.3)' }}>⚠️ No action</span>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button 
+                    onClick={() => handleEdit(button)}
+                    style={{
+                      flex: 1,
+                      padding: '0.4rem',
+                      background: 'rgba(220, 0, 0, 0.2)',
+                      color: '#dc0000',
+                      border: '1px solid #dc0000',
+                      borderRadius: '5px',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(button.id)}
+                    style={{
+                      padding: '0.4rem 0.6rem',
+                      background: 'rgba(239, 68, 68, 0.2)',
+                      color: '#ef4444',
+                      border: '1px solid #ef4444',
+                      borderRadius: '5px',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    🗑
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-
-          {buttons.length === 0 && (
-            <div style={{
-              background: 'white',
-              borderRadius: '12px',
-              padding: '3rem',
-              textAlign: 'center',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
-            }}>
-              <p style={{ color: '#6b7280', fontSize: '0.95rem' }}>No buttons created yet. Click "Add New Button" to get started!</p>
-            </div>
-          )}
+            ))}
         </div>
+
+        {buttons.length === 0 && (
+          <div style={{
+            background: 'linear-gradient(135deg, #1a1a1a 0%, #252525 100%)',
+            borderRadius: '12px',
+            padding: '3rem',
+            textAlign: 'center',
+            border: '2px dashed #333'
+          }}>
+            <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>🔘</div>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.95rem', margin: 0 }}>
+              No buttons created yet. Click "+ Add Button" to get started!
+            </p>
+          </div>
+        )}
       </main>
     </div>
   );
