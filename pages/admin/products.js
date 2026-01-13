@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import styles from '../../styles/adminProducts.module.css'
-import { products as initialProducts } from '../../data/products'
 import { getCategories } from '../../data/categories'
 
 export default function AdminProducts() {
-  const [products, setProducts] = useState(initialProducts);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingName, setEditingName] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -22,7 +22,23 @@ export default function AdminProducts() {
     image: ''
   });
 
+  // Fetch products from API
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch('/api/products');
+      const data = await response.json();
+      if (data.success) {
+        setProducts(data.products);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    fetchProducts();
     setCategories(getCategories());
   }, []);
 
@@ -55,27 +71,40 @@ export default function AdminProducts() {
     }
   };
 
-  const handleAddProduct = (e) => {
+  const handleAddProduct = async (e) => {
     e.preventDefault();
-    const newProduct = {
-      id: Math.max(...products.map(p => p.id)) + 1,
-      ...formData,
-      price: parseFloat(formData.price),
-      stock: parseInt(formData.stock),
-      image: formData.image || '/images/placeholder.jpg'
-    };
-    setProducts([...products, newProduct]);
-    setFormData({
-      name: '',
-      category: 'premium',
-      price: '',
-      description: '',
-      stock: '',
-      featured: false,
-      sizes: [],
-      image: ''
-    });
-    setShowAddForm(false);
+    try {
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          price: parseFloat(formData.price),
+          stock: parseInt(formData.stock),
+          image: formData.image || '/images/placeholder.jpg'
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setProducts(data.products);
+        setFormData({
+          name: '',
+          category: 'premium',
+          price: '',
+          description: '',
+          stock: '',
+          featured: false,
+          sizes: [],
+          image: ''
+        });
+        setShowAddForm(false);
+      } else {
+        alert('Failed to add product: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error adding product:', error);
+      alert('Failed to add product. Please try again.');
+    }
   };
 
   const handleEditProduct = (product) => {
@@ -92,33 +121,57 @@ export default function AdminProducts() {
     });
   };
 
-  const handleUpdateProduct = (e) => {
+  const handleUpdateProduct = async (e) => {
     e.preventDefault();
-    setProducts(products.map(p => 
-      p.id === editingProduct 
-        ? {
-            ...p,
-            ...formData,
-            price: parseFloat(formData.price),
-            stock: parseInt(formData.stock)
-          }
-        : p
-    ));
-    setEditingProduct(null);
-    setFormData({
-      name: '',
-      category: 'premium',
-      price: '',
-      description: '',
-      stock: '',
-      featured: false,
-      sizes: []
-    });
+    try {
+      const response = await fetch('/api/products', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingProduct,
+          ...formData,
+          price: parseFloat(formData.price),
+          stock: parseInt(formData.stock)
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setProducts(data.products);
+        setEditingProduct(null);
+        setFormData({
+          name: '',
+          category: 'premium',
+          price: '',
+          description: '',
+          stock: '',
+          featured: false,
+          sizes: []
+        });
+      } else {
+        alert('Failed to update product: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error updating product:', error);
+      alert('Failed to update product. Please try again.');
+    }
   };
 
-  const handleDeleteProduct = (id) => {
+  const handleDeleteProduct = async (id) => {
     if (confirm('Are you sure you want to delete this product?')) {
-      setProducts(products.filter(p => p.id !== id));
+      try {
+        const response = await fetch(`/api/products?id=${id}`, {
+          method: 'DELETE'
+        });
+        const data = await response.json();
+        if (data.success) {
+          setProducts(data.products);
+        } else {
+          alert('Failed to delete product: ' + (data.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        alert('Failed to delete product. Please try again.');
+      }
     }
   };
 
@@ -357,7 +410,11 @@ export default function AdminProducts() {
       </>
         )}
 
-        {!(showAddForm || editingProduct) && (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '3rem', color: '#dc0000' }}>
+            Loading products...
+          </div>
+        ) : !(showAddForm || editingProduct) && (
           <div className={styles.productsTable}>
           {categories.map(category => {
             const categoryProducts = products.filter(p => p.category === category.slug);
