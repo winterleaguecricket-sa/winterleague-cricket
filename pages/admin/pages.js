@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
-import styles from '../../styles/adminManage.module.css'
 
 export default function AdminPages() {
   const [pages, setPages] = useState([]);
@@ -189,23 +188,23 @@ export default function AdminPages() {
   }, {});
 
   return (
-    <div className={styles.container}>
+    <div className="container">
       <Head>
         <title>Page Management - Admin Panel</title>
       </Head>
 
-      <header className={styles.header}>
-        <div className={styles.headerContent}>
-          <h1 className={styles.logo}>📄 Page Management</h1>
-          <nav className={styles.nav}>
-            <Link href="/admin" className={styles.navLink}>← Back to Admin</Link>
-            <Link href="/" className={styles.navLink}>View Store</Link>
+      <header className="header">
+        <div className="headerContent">
+          <h1 className="logo">📄 Page Management</h1>
+          <nav className="nav">
+            <Link href="/admin" className="navLink">← Back to Admin</Link>
+            <Link href="/" className="navLink">View Store</Link>
           </nav>
         </div>
       </header>
 
-      <main className={styles.main}>
-        <div className={styles.toolbar}>
+      <main className="main">
+        <div className="toolbar">
           <h2>Manage Pages ({pages.length} pages)</h2>
           <button 
             onClick={() => {
@@ -221,21 +220,14 @@ export default function AdminPages() {
                 });
               }
             }} 
-            className={styles.addButton}
+            className="addButton"
           >
             {showAddForm ? 'Cancel' : '+ Add New Page'}
           </button>
         </div>
 
         {/* Info box */}
-        <div style={{
-          backgroundColor: '#1a3a1a',
-          border: '1px solid #2d5a2d',
-          borderRadius: '8px',
-          padding: '15px 20px',
-          marginBottom: '20px',
-          color: '#90ee90'
-        }}>
+        <div className="infoBox">
           <strong>ℹ️ Footer Pages:</strong> These pages are linked from the footer. Edit content using Markdown formatting. 
           Pages marked as inactive will show a 404 error.
         </div>
@@ -243,16 +235,15 @@ export default function AdminPages() {
         {(showAddForm || editingPage) && (
           <form 
             onSubmit={editingPage ? handleUpdatePage : handleAddPage}
-            className={styles.form}
-            style={{ backgroundColor: '#1a1a1a', padding: '25px', borderRadius: '10px', marginBottom: '30px' }}
+            className="form"
           >
-            <h3 style={{ color: '#dc0000', marginBottom: '20px' }}>
+            <h3 className="formTitle">
               {editingPage ? '✏️ Edit Page' : '➕ Create New Page'}
             </h3>
             
-            <div className={styles.formRow} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
-              <div className={styles.formGroup}>
-                <label style={{ color: '#ccc', marginBottom: '5px', display: 'block' }}>Page Title *</label>
+            <div className="formRow">
+              <div className="formGroup">
+                <label>Page Title *</label>
                 <input
                   type="text"
                   name="title"
@@ -260,20 +251,11 @@ export default function AdminPages() {
                   onChange={handleInputChange}
                   required
                   placeholder="e.g., About Us"
-                  className={styles.input}
-                  style={{ 
-                    width: '100%', 
-                    padding: '10px', 
-                    backgroundColor: '#222', 
-                    border: '1px solid #444', 
-                    borderRadius: '5px',
-                    color: 'white'
-                  }}
                 />
               </div>
 
-              <div className={styles.formGroup}>
-                <label style={{ color: '#ccc', marginBottom: '5px', display: 'block' }}>URL Slug *</label>
+              <div className="formGroup">
+                <label>URL Slug *</label>
                 <input
                   type="text"
                   name="slug"
@@ -281,33 +263,16 @@ export default function AdminPages() {
                   onChange={handleInputChange}
                   required
                   placeholder="e.g., about-us"
-                  className={styles.input}
-                  style={{ 
-                    width: '100%', 
-                    padding: '10px', 
-                    backgroundColor: '#222', 
-                    border: '1px solid #444', 
-                    borderRadius: '5px',
-                    color: 'white'
-                  }}
                 />
-                <small style={{ color: '#888', fontSize: '0.85rem' }}>URL: /{formData.slug}</small>
+                <small>URL: /{formData.slug}</small>
               </div>
 
-              <div className={styles.formGroup}>
-                <label style={{ color: '#ccc', marginBottom: '5px', display: 'block' }}>Category</label>
+              <div className="formGroup">
+                <label>Category</label>
                 <select
                   name="category"
                   value={formData.category}
                   onChange={handleInputChange}
-                  style={{ 
-                    width: '100%', 
-                    padding: '10px', 
-                    backgroundColor: '#222', 
-                    border: '1px solid #444', 
-                    borderRadius: '5px',
-                    color: 'white'
-                  }}
                 >
                   {categoryOptions.map(cat => (
                     <option key={cat.value} value={cat.value}>{cat.label}</option>
@@ -316,8 +281,8 @@ export default function AdminPages() {
               </div>
             </div>
 
-            <div className={styles.formGroup} style={{ marginTop: '20px' }}>
-              <label style={{ color: '#ccc', marginBottom: '5px', display: 'block' }}>
+            <div className="formGroup contentGroup">
+              <label>
                 Page Content (Markdown supported) *
               </label>
               <textarea
@@ -336,65 +301,28 @@ Write your content here using **Markdown** formatting.
 - Are supported
 
 [Links](https://example.com) work too!"
-                style={{ 
-                  width: '100%', 
-                  padding: '15px', 
-                  backgroundColor: '#222', 
-                  border: '1px solid #444', 
-                  borderRadius: '5px',
-                  color: 'white',
-                  fontFamily: 'monospace',
-                  fontSize: '14px',
-                  lineHeight: '1.5',
-                  resize: 'vertical'
-                }}
               />
-              <small style={{ color: '#888', fontSize: '0.85rem' }}>
+              <small>
                 Supports Markdown: # headings, **bold**, *italic*, - lists, [links](url), | tables |
               </small>
             </div>
 
-            <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="checkboxGroup">
               <input
                 type="checkbox"
                 name="active"
                 id="active"
                 checked={formData.active}
                 onChange={handleInputChange}
-                style={{ width: '18px', height: '18px' }}
               />
-              <label htmlFor="active" style={{ color: '#ccc' }}>Page is active (visible on website)</label>
+              <label htmlFor="active">Page is active (visible on website)</label>
             </div>
 
-            <div className={styles.formActions} style={{ marginTop: '25px', display: 'flex', gap: '15px' }}>
-              <button 
-                type="submit" 
-                disabled={saving}
-                style={{
-                  padding: '12px 30px',
-                  backgroundColor: '#dc0000',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '5px',
-                  fontWeight: 'bold',
-                  cursor: saving ? 'not-allowed' : 'pointer',
-                  opacity: saving ? 0.7 : 1
-                }}
-              >
+            <div className="formActions">
+              <button type="submit" disabled={saving} className="submitBtn">
                 {saving ? 'Saving...' : editingPage ? 'Update Page' : 'Create Page'}
               </button>
-              <button 
-                type="button" 
-                onClick={resetForm}
-                style={{
-                  padding: '12px 30px',
-                  backgroundColor: '#333',
-                  color: 'white',
-                  border: '1px solid #555',
-                  borderRadius: '5px',
-                  cursor: 'pointer'
-                }}
-              >
+              <button type="button" onClick={resetForm} className="cancelBtn">
                 Cancel
               </button>
             </div>
@@ -402,111 +330,67 @@ Write your content here using **Markdown** formatting.
         )}
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '50px', color: '#888' }}>
+          <div className="loadingState">
             Loading pages...
           </div>
         ) : (
-          <div>
+          <div className="pagesList">
             {categoryOptions.map(cat => {
               const categoryPages = groupedPages[cat.value] || [];
               if (categoryPages.length === 0) return null;
               
               return (
-                <div key={cat.value} style={{ marginBottom: '30px' }}>
-                  <h3 style={{ 
-                    color: '#dc0000', 
-                    borderBottom: '1px solid #333', 
-                    paddingBottom: '10px',
-                    marginBottom: '15px'
-                  }}>
+                <div key={cat.value} className="categorySection">
+                  <h3 className="categoryTitle">
                     {cat.label} ({categoryPages.length})
                   </h3>
                   
-                  <div className={styles.tableContainer}>
-                    <table className={styles.table} style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <div className="tableWrapper">
+                    <table className="table">
                       <thead>
-                        <tr style={{ backgroundColor: '#1a1a1a' }}>
-                          <th style={{ padding: '12px', textAlign: 'left', color: '#888', borderBottom: '1px solid #333' }}>Title</th>
-                          <th style={{ padding: '12px', textAlign: 'left', color: '#888', borderBottom: '1px solid #333' }}>URL</th>
-                          <th style={{ padding: '12px', textAlign: 'center', color: '#888', borderBottom: '1px solid #333' }}>Status</th>
-                          <th style={{ padding: '12px', textAlign: 'right', color: '#888', borderBottom: '1px solid #333' }}>Actions</th>
+                        <tr>
+                          <th>Title</th>
+                          <th>URL</th>
+                          <th style={{ textAlign: 'center' }}>Status</th>
+                          <th style={{ textAlign: 'right' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {categoryPages.map(page => (
-                          <tr key={page.id} style={{ borderBottom: '1px solid #222' }}>
-                            <td style={{ padding: '12px', color: 'white' }}>
-                              {page.title}
+                          <tr key={page.id}>
+                            <td className="titleCell">
+                              <span className="pageTitle">{page.title}</span>
                             </td>
-                            <td style={{ padding: '12px' }}>
-                              <code style={{ 
-                                backgroundColor: '#222', 
-                                padding: '3px 8px', 
-                                borderRadius: '4px',
-                                color: '#dc0000',
-                                fontSize: '0.9rem'
-                              }}>
-                                /{page.slug}
-                              </code>
+                            <td>
+                              <code className="slugCode">/{page.slug}</code>
                             </td>
-                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                            <td style={{ textAlign: 'center' }}>
                               <button
                                 onClick={() => togglePageActive(page)}
-                                style={{
-                                  padding: '4px 12px',
-                                  backgroundColor: page.active ? '#1a3a1a' : '#3a1a1a',
-                                  color: page.active ? '#90ee90' : '#ff6b6b',
-                                  border: `1px solid ${page.active ? '#2d5a2d' : '#5a2d2d'}`,
-                                  borderRadius: '12px',
-                                  cursor: 'pointer',
-                                  fontSize: '0.85rem'
-                                }}
+                                className={`statusBtn ${page.active ? 'active' : 'inactive'}`}
                               >
                                 {page.active ? '✓ Active' : '✗ Inactive'}
                               </button>
                             </td>
-                            <td style={{ padding: '12px', textAlign: 'right' }}>
-                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <td>
+                              <div className="actions">
                                 <a 
                                   href={`/${page.slug}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  style={{
-                                    padding: '6px 12px',
-                                    backgroundColor: '#222',
-                                    color: '#888',
-                                    textDecoration: 'none',
-                                    borderRadius: '4px',
-                                    fontSize: '0.9rem'
-                                  }}
+                                  className="viewBtn"
                                 >
                                   View
                                 </a>
                                 <button 
                                   onClick={() => handleEditPage(page)}
-                                  style={{
-                                    padding: '6px 12px',
-                                    backgroundColor: '#2a4a2a',
-                                    color: '#90ee90',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '0.9rem'
-                                  }}
+                                  className="editBtn"
                                 >
                                   Edit
                                 </button>
                                 <button 
                                   onClick={() => handleDeletePage(page.id)}
-                                  style={{
-                                    padding: '6px 12px',
-                                    backgroundColor: '#4a2a2a',
-                                    color: '#ff6b6b',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '0.9rem'
-                                  }}
+                                  className="deleteBtn"
                                 >
                                   Delete
                                 </button>
@@ -528,6 +412,386 @@ Write your content here using **Markdown** formatting.
         .container {
           min-height: 100vh;
           background: #0d0d0d;
+        }
+        
+        .header {
+          background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+          color: white;
+          padding: 1.25rem 2rem;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .headerContent {
+          max-width: 1400px;
+          margin: 0 auto;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        
+        .logo {
+          margin: 0;
+          font-size: 1.8rem;
+          font-weight: 800;
+        }
+        
+        .nav {
+          display: flex;
+          gap: 2rem;
+        }
+        
+        .navLink {
+          color: white;
+          text-decoration: none;
+          font-weight: 600;
+          transition: opacity 0.3s;
+        }
+        
+        .navLink:hover {
+          opacity: 0.8;
+        }
+        
+        .main {
+          max-width: 1400px;
+          margin: 0 auto;
+          padding: 2rem;
+        }
+        
+        .toolbar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1.5rem;
+        }
+        
+        .toolbar h2 {
+          margin: 0;
+          color: white;
+          font-weight: 800;
+          font-size: 1.8rem;
+        }
+        
+        .addButton {
+          padding: 0.75rem 1.5rem;
+          background: linear-gradient(135deg, #dc0000 0%, #a00000 100%);
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .addButton:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 15px rgba(220, 0, 0, 0.4);
+        }
+        
+        .infoBox {
+          background-color: #1a3a1a;
+          border: 1px solid #2d5a2d;
+          border-radius: 8px;
+          padding: 15px 20px;
+          margin-bottom: 25px;
+          color: #90ee90;
+        }
+        
+        .form {
+          background-color: #1a1a1a;
+          padding: 25px;
+          border-radius: 12px;
+          margin-bottom: 30px;
+          border: 1px solid #333;
+        }
+        
+        .formTitle {
+          color: #dc0000;
+          margin: 0 0 20px 0;
+          font-size: 1.3rem;
+        }
+        
+        .formRow {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+          .formRow {
+            grid-template-columns: 1fr;
+          }
+        }
+        
+        .formGroup {
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .formGroup label {
+          color: #ccc;
+          margin-bottom: 8px;
+          font-weight: 500;
+        }
+        
+        .formGroup input,
+        .formGroup select {
+          padding: 12px;
+          background-color: #222;
+          border: 1px solid #444;
+          border-radius: 6px;
+          color: white;
+          font-size: 1rem;
+        }
+        
+        .formGroup input:focus,
+        .formGroup select:focus,
+        .formGroup textarea:focus {
+          outline: none;
+          border-color: #dc0000;
+        }
+        
+        .formGroup small {
+          color: #888;
+          font-size: 0.85rem;
+          margin-top: 5px;
+        }
+        
+        .contentGroup {
+          margin-top: 20px;
+        }
+        
+        .contentGroup textarea {
+          padding: 15px;
+          background-color: #222;
+          border: 1px solid #444;
+          border-radius: 6px;
+          color: white;
+          font-family: 'Monaco', 'Menlo', monospace;
+          font-size: 14px;
+          line-height: 1.6;
+          resize: vertical;
+          width: 100%;
+        }
+        
+        .checkboxGroup {
+          margin-top: 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        
+        .checkboxGroup input[type="checkbox"] {
+          width: 18px;
+          height: 18px;
+          cursor: pointer;
+        }
+        
+        .checkboxGroup label {
+          color: #ccc;
+          cursor: pointer;
+        }
+        
+        .formActions {
+          margin-top: 25px;
+          display: flex;
+          gap: 15px;
+        }
+        
+        .submitBtn {
+          padding: 12px 30px;
+          background: linear-gradient(135deg, #dc0000 0%, #a00000 100%);
+          color: white;
+          border: none;
+          border-radius: 6px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: transform 0.2s;
+        }
+        
+        .submitBtn:hover:not(:disabled) {
+          transform: translateY(-2px);
+        }
+        
+        .submitBtn:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+        
+        .cancelBtn {
+          padding: 12px 30px;
+          background-color: #333;
+          color: white;
+          border: 1px solid #555;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background-color 0.2s;
+        }
+        
+        .cancelBtn:hover {
+          background-color: #444;
+        }
+        
+        .loadingState {
+          text-align: center;
+          padding: 60px;
+          color: #888;
+          font-size: 1.1rem;
+        }
+        
+        .pagesList {
+          display: flex;
+          flex-direction: column;
+          gap: 30px;
+        }
+        
+        .categorySection {
+          background: #1a1a1a;
+          border-radius: 12px;
+          padding: 20px;
+          border: 1px solid #333;
+        }
+        
+        .categoryTitle {
+          color: #dc0000;
+          margin: 0 0 15px 0;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #333;
+          font-size: 1.2rem;
+        }
+        
+        .tableWrapper {
+          overflow-x: auto;
+        }
+        
+        .table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        
+        .table thead tr {
+          background: #222;
+        }
+        
+        .table th {
+          padding: 12px 15px;
+          text-align: left;
+          color: #888;
+          font-weight: 600;
+          font-size: 0.9rem;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          border-bottom: 1px solid #333;
+        }
+        
+        .table tbody tr {
+          border-bottom: 1px solid #2a2a2a;
+          transition: background-color 0.2s;
+        }
+        
+        .table tbody tr:hover {
+          background-color: #222;
+        }
+        
+        .table td {
+          padding: 15px;
+        }
+        
+        .titleCell {
+          min-width: 200px;
+        }
+        
+        .pageTitle {
+          color: white;
+          font-weight: 600;
+          font-size: 1rem;
+        }
+        
+        .slugCode {
+          background-color: #2a2a2a;
+          padding: 4px 10px;
+          border-radius: 4px;
+          color: #dc0000;
+          font-size: 0.9rem;
+          font-family: 'Monaco', 'Menlo', monospace;
+        }
+        
+        .statusBtn {
+          padding: 5px 14px;
+          border: none;
+          border-radius: 20px;
+          cursor: pointer;
+          font-size: 0.85rem;
+          font-weight: 500;
+          transition: transform 0.2s;
+        }
+        
+        .statusBtn:hover {
+          transform: scale(1.05);
+        }
+        
+        .statusBtn.active {
+          background-color: #1a3a1a;
+          color: #90ee90;
+          border: 1px solid #2d5a2d;
+        }
+        
+        .statusBtn.inactive {
+          background-color: #3a1a1a;
+          color: #ff6b6b;
+          border: 1px solid #5a2d2d;
+        }
+        
+        .actions {
+          display: flex;
+          gap: 8px;
+          justify-content: flex-end;
+        }
+        
+        .viewBtn,
+        .editBtn,
+        .deleteBtn {
+          padding: 6px 14px;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          font-size: 0.85rem;
+          font-weight: 500;
+          transition: transform 0.2s, opacity 0.2s;
+        }
+        
+        .viewBtn:hover,
+        .editBtn:hover,
+        .deleteBtn:hover {
+          transform: translateY(-1px);
+        }
+        
+        .viewBtn {
+          background-color: #2a2a2a;
+          color: #888;
+          text-decoration: none;
+        }
+        
+        .viewBtn:hover {
+          background-color: #333;
+          color: #ccc;
+        }
+        
+        .editBtn {
+          background-color: #2a4a2a;
+          color: #90ee90;
+        }
+        
+        .editBtn:hover {
+          background-color: #3a5a3a;
+        }
+        
+        .deleteBtn {
+          background-color: #4a2a2a;
+          color: #ff6b6b;
+        }
+        
+        .deleteBtn:hover {
+          background-color: #5a3a3a;
         }
       `}</style>
     </div>
