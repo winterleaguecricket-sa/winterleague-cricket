@@ -1,13 +1,28 @@
 {
+  "name": "winter-league-cricket",
+  "version": "1.0.0",
+  "description": "E-commerce platform for Winter League Cricket equipment with admin panel",
   "private": true,
   "scripts": {
-    "dev": "next",
+    "dev": "next dev -p ${PORT:-3001}",
     "build": "next build",
-    "start": "next start"
+    "start": "node server.js",
+    "start:pm2": "pm2 start ecosystem.config.js",
+    "db:init": "./database/init.sh",
+    "db:migrate": "psql $DATABASE_URL -f database/schema.sql",
+    "check": "./check-production-ready.sh"
   },
   "dependencies": {
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.2.3",
+    "formidable": "^3.5.2",
     "next": "^14.2.32",
+    "nodemailer": "^7.0.10",
+    "pg": "^8.16.3",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "three": "^0.182.0"
   }
 }

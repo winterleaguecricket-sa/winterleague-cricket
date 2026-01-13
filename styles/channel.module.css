@@ -1,0 +1,374 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+  color: white;
+  padding: 1.25rem 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.headerContent {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.nav {
+  display: flex;
+  gap: 2.5rem;
+  align-items: center;
+}
+
+.navLink {
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.navLink:after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: white;
+  transition: width 0.3s;
+}
+
+.navLink:hover:after {
+  width: 100%;
+}
+
+.cartButton {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.cartButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: white;
+  transform: translateY(-2px);
+}
+
+.cartBadge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ff3333;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 900;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dropdown {
+  position: relative;
+}
+
+.dropdown:hover .dropdownMenu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  min-width: 200px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dropdownItem {
+  display: block;
+  padding: 0.875rem 1.25rem;
+  color: #1f2937;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dropdownItem:last-child {
+  border-bottom: none;
+}
+
+.dropdownItem:hover {
+  background: #dc0000;
+  color: white;
+}
+
+.main {
+  flex: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem;
+  width: 100%;
+}
+
+.breadcrumb {
+  color: #6b7280;
+  margin-bottom: 2.5rem;
+  font-weight: 600;
+}
+
+.breadcrumb a {
+  color: #dc0000;
+  transition: color 0.3s;
+}
+
+.breadcrumb a:hover {
+  color: #ff3333;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 4rem;
+  padding: 3rem;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.03) 0%, rgba(220, 0, 0, 0.05) 100%);
+  border-radius: 20px;
+  border: 2px solid #f0f0f0;
+}
+
+.heroIcon {
+  font-size: 5rem;
+  margin-bottom: 1.5rem;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.title {
+  font-size: 3rem;
+  color: #000000;
+  margin: 0 0 1rem 0;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+
+.subtitle {
+  font-size: 1.3rem;
+  color: #6b7280;
+  margin: 0;
+  max-width: 700px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+.productsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-bottom: 4rem;
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 1rem;
+  }
+
+  .headerContent {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .logo {
+    font-size: 1.4rem;
+  }
+
+  .nav {
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+  }
+
+  .navLink {
+    font-size: 0.85rem;
+  }
+
+  .main {
+    padding: 1rem;
+  }
+
+  .hero h1 {
+    font-size: 2rem;
+  }
+
+  .hero p {
+    font-size: 1rem;
+  }
+
+  .productsGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.emptyMessage {
+  text-align: center;
+  color: #6b7280;
+  font-size: 1.2rem;
+  margin: 5rem 0;
+  font-weight: 600;
+}
+
+.footer {
+  background: #000000;
+  color: white;
+  text-align: center;
+  padding: 2.5rem;
+  margin-top: 5rem;
+}
+
+.footer p {
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+/* Forms Section */
+.formsSection {
+  margin-top: 5rem;
+  padding-top: 3rem;
+  border-top: 3px solid #f0f0f0;
+}
+
+.sectionTitle {
+  font-size: 2.2rem;
+  color: #000000;
+  font-weight: 900;
+  margin: 0 0 0.75rem 0;
+  text-align: center;
+}
+
+.sectionSubtitle {
+  color: #6b7280;
+  font-size: 1.1rem;
+  text-align: center;
+  margin: 0 0 2.5rem 0;
+  line-height: 1.6;
+}
+
+.formsList {
+  margin-top: 2rem;
+}
+
+.formsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.formCard {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 2rem;
+  transition: all 0.3s;
+}
+
+.formCard:hover {
+  border-color: #dc0000;
+  box-shadow: 0 8px 25px rgba(220, 0, 0, 0.15);
+  transform: translateY(-4px);
+}
+
+.formCard h3 {
+  margin: 0 0 1rem 0;
+  color: #000000;
+  font-weight: 900;
+  font-size: 1.4rem;
+}
+
+.formCard p {
+  margin: 0 0 1.5rem 0;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.formButton {
+  padding: 0.875rem 1.75rem;
+  background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  width: 100%;
+}
+
+.formButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(220, 0, 0, 0.3);
+}
+
+.selectedFormContainer {
+  margin-top: 2rem;
+}
+
+.backButton {
+  padding: 0.75rem 1.5rem;
+  background: #e5e7eb;
+  color: #1f2937;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 1.5rem;
+}
+
+.backButton:hover {
+  background: #d1d5db;
+  transform: translateX(-4px);
+}

@@ -1,11 +1,1171 @@
-.main {
-  padding: 20px 20px 60px;
-  max-width: 680px;
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+  color: white;
+  padding: 1.25rem 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+.headerContent {
+  max-width: 1400px;
   margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logoContainer {
+  display: flex;
+  align-items: center;
+}
+
+.logoImage {
+  max-height: 60px;
+  max-width: 200px;
+  object-fit: contain;
+}
+
+.logo {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: white;
+}
+
+.nav {
+  display: flex;
+  gap: 2.5rem;
+  align-items: center;
+}
+
+.navLink {
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  position: relative;
+  padding: 0.5rem 0;
+}
+
+.navLink:after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: white;
+  transition: width 0.3s ease;
+}
+
+.navLink:hover:after {
+  width: 100%;
+}
+
+.cartButton {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.cartButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: white;
+  transform: translateY(-2px);
+}
+
+.loginButton {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.loginButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: white;
+  transform: translateY(-2px);
+}
+
+.cartBadge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ff3333;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 900;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dropdown {
+  position: relative;
+}
+
+.dropdown:hover .dropdownMenu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  min-width: 200px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dropdownItem {
+  display: block;
+  padding: 0.875rem 1.25rem;
+  color: #1f2937;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dropdownItem:last-child {
+  border-bottom: none;
+}
+
+.dropdownItem:hover {
+  background: #dc0000;
+  color: white;
+}
+
+.banner {
+  background: #dc0000;
+  color: white;
+  text-align: center;
+  padding: 1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.banner p {
+  margin: 0;
+}
+
+/* Hero Media Section */
+.heroMedia {
+  position: relative;
+  width: 100vw;
+  height: 70vh;
+  min-height: 500px;
+  overflow: hidden;
+  background: #000;
+  margin-left: calc(-50vw + 50%);
+  margin-right: calc(-50vw + 50%);
+}
+
+.heroImage,
+.heroVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.heroOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.7) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  text-align: center;
+  padding: 2rem;
+}
+
+.heroOverlayTitle {
+  font-size: 4rem;
+  font-weight: 900;
+  margin: 0 0 1rem 0;
+  letter-spacing: -2px;
+  position: relative;
+}
+
+.buildingBlocks {
+  display: inline-flex;
+  gap: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.block {
+  display: inline-block;
+  font-size: 4rem;
+  font-weight: 900;
+  position: relative;
+  color: #fff;
+  text-shadow: 
+    0 0 10px rgba(255, 100, 0, 0.8),
+    0 0 20px rgba(255, 50, 0, 0.6),
+    0 0 30px rgba(255, 0, 0, 0.4),
+    2px 2px 0 #000,
+    -2px -2px 0 #000,
+    2px -2px 0 #000,
+    -2px 2px 0 #000;
+}
+
+.blockFire,
+.blockSmoke,
+.blockImpact {
+  position: absolute;
+  pointer-events: none;
+}
+
+.blockFire {
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 120%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, 
+    rgba(255, 150, 0, 0.8) 0%, 
+    rgba(255, 50, 0, 0.6) 30%, 
+    rgba(255, 0, 0, 0.3) 60%, 
+    transparent 100%);
+  animation: fireBlast 0.6s ease-out forwards;
+  opacity: 0;
+  animation-delay: calc(var(--char-index) * 0.1s + 0.7s);
+  filter: blur(3px);
+}
+
+.blockSmoke {
+  top: -20px;
+  left: 50%;
+  width: 100px;
+  height: 100px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, 
+    rgba(100, 100, 100, 0.5) 0%, 
+    rgba(60, 60, 60, 0.3) 50%, 
+    transparent 100%);
+  animation: smokeRise 1.5s ease-out forwards;
+  opacity: 0;
+  animation-delay: calc(var(--char-index) * 0.1s + 0.8s);
+  filter: blur(5px);
+}
+
+.blockImpact {
+  bottom: -10px;
+  left: 50%;
+  width: 150%;
+  height: 20px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse, 
+    rgba(255, 200, 0, 0.8) 0%, 
+    rgba(255, 100, 0, 0.4) 50%, 
+    transparent 100%);
+  animation: impactWave 0.5s ease-out forwards;
+  opacity: 0;
+  animation-delay: calc(var(--char-index) * 0.1s + 0.75s);
+}
+
+.fireParticles,
+.smokeParticles {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.fireParticle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle, #ff6600 0%, #ff0000 50%, transparent 100%);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  animation: fireParticleExplosion 1s ease-out forwards;
+  animation-delay: calc(var(--i) * 0.05s + 1s);
+  opacity: 0;
+  filter: blur(1px);
+}
+
+.smokeParticle {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  background: radial-gradient(circle, rgba(80, 80, 80, 0.6) 0%, transparent 70%);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  animation: smokeParticleRise 2s ease-out forwards;
+  animation-delay: calc(var(--i) * 0.1s + 1.2s);
+  opacity: 0;
+  filter: blur(8px);
+}
+
+@keyframes blockDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-500px) rotateX(180deg) rotateZ(45deg) scale(0);
+    filter: blur(10px);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(20px) rotateX(5deg) rotateZ(2deg) scale(1.1);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotateX(0) rotateZ(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes blockBounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-15px) scale(1.05);
+  }
+}
+
+@keyframes blockGlow {
+  0%, 100% {
+    text-shadow: 
+      0 0 10px rgba(255, 100, 0, 0.8),
+      0 0 20px rgba(255, 50, 0, 0.6),
+      0 0 30px rgba(255, 0, 0, 0.4),
+      2px 2px 0 #000,
+      -2px -2px 0 #000,
+      2px -2px 0 #000,
+      -2px 2px 0 #000;
+  }
+  50% {
+    text-shadow: 
+      0 0 20px rgba(255, 150, 0, 1),
+      0 0 40px rgba(255, 100, 0, 0.8),
+      0 0 60px rgba(255, 50, 0, 0.6),
+      2px 2px 0 #000,
+      -2px -2px 0 #000,
+      2px -2px 0 #000,
+      -2px 2px 0 #000;
+  }
+}
+
+@keyframes cameraShake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-5px, 2px) rotate(-0.5deg); }
+  20% { transform: translate(5px, -2px) rotate(0.5deg); }
+  30% { transform: translate(-3px, 4px) rotate(-0.3deg); }
+  40% { transform: translate(3px, -4px) rotate(0.3deg); }
+  50% { transform: translate(-2px, 3px) rotate(-0.2deg); }
+  60% { transform: translate(2px, -3px) rotate(0.2deg); }
+  70% { transform: translate(-1px, 2px) rotate(-0.1deg); }
+  80% { transform: translate(1px, -2px) rotate(0.1deg); }
+  90% { transform: translate(-1px, 1px) rotate(-0.05deg); }
+}
+
+@keyframes fireBlast {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2);
+  }
+}
+
+@keyframes smokeRise {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(0) scale(0.5);
+  }
+  30% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-150px) scale(1.5);
+  }
+}
+
+@keyframes impactWave {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scaleX(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scaleX(2);
+  }
+}
+
+@keyframes fireParticleExplosion {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+      calc(cos(var(--i) * 36deg) * 150px),
+      calc(sin(var(--i) * 36deg) * 150px)
+    ) scale(0);
+  }
+}
+
+@keyframes smokeParticleRise {
+  0% {
+    opacity: 0;
+    transform: translate(
+      calc(cos(var(--i) * 24deg) * 50px),
+      calc(sin(var(--i) * 24deg) * 50px)
+    ) scale(0.3);
+  }
+  30% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+      calc(cos(var(--i) * 24deg) * 100px),
+      calc(sin(var(--i) * 24deg) * 100px - 200px)
+    ) scale(1);
+  }
+}
+
+.heroOverlaySubtitle {
+  font-size: 1.5rem;
+  margin: 0 0 2rem 0;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  animation: fadeInUp 1s ease;
+}
+
+.heroButtons {
+  display: flex;
+  gap: 1.5rem;
+  animation: fadeInUp 1.2s ease;
+}
+
+.heroCta,
+.heroCtaSecondary {
+  padding: 1rem 2.5rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+  border-radius: 50px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+
+.heroCta {
+  background: #dc0000;
+  color: white;
+  border: 2px solid #dc0000;
+}
+
+.heroCta:hover {
+  background: #ff3333;
+  border-color: #ff3333;
+  transform: translateY(-3px);
+  box-shadow: 0 12px 35px rgba(220,0,0,0.4);
+}
+
+.heroCtaSecondary {
+  background: transparent;
+  color: white;
+  border: 2px solid white;
+}
+
+.heroCtaSecondary:hover {
+  background: white;
+  color: #000;
+  transform: translateY(-3px);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.main {
+  flex: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0;
+  width: 100%;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 5rem;
+  padding: 4rem 2rem;
+}
+
+.heroTitle {
+  font-size: 3rem;
+  color: #000000;
+  margin-bottom: 1rem;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+
+.heroSubtitle {
+  font-size: 1.3rem;
+  color: #666;
+  margin-bottom: 3rem;
+  font-weight: 400;
+}
+
+.channelButtons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2.5rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.channelButton {
+  background: white;
+  border: 3px solid #000000;
+  border-radius: 20px;
+  padding: 2.5rem;
+  text-decoration: none;
+  color: #000000;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.channelButton:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(220, 0, 0, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.channelButton:hover:before {
+  left: 100%;
+}
+
+.channelButton:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 60px rgba(220, 0, 0, 0.2);
+  border-color: #dc0000;
+}
+
+.channelIcon {
+  font-size: 3.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.channelButton h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+}
+
+.channelButton p {
+  margin: 0;
+  color: #666;
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.tiktokWidget {
+  margin-top: 4rem;
+  padding: 3rem 2rem;
+  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  border-radius: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.tiktokTitle {
+  color: white;
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 0 0 2rem 0;
+  letter-spacing: -0.5px;
+}
+
+.tiktokEmbed {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 1rem;
+}
+
+.tiktokProfile {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  backdrop-filter: blur(10px);
+}
+
+.tiktokIcon {
+  color: #00f2ea;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: center;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.tiktokUsername {
+  color: white;
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0 0 1.5rem 0;
+}
+
+.tiktokButton {
+  display: inline-block;
+  padding: 1rem 2.5rem;
+  background: linear-gradient(135deg, #00f2ea 0%, #ff0050 100%);
+  color: white;
+  text-decoration: none;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(255, 0, 80, 0.3);
+}
+
+.tiktokButton:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(255, 0, 80, 0.5);
+}
+
+.productsSection {
+  margin-top: 5rem;
+  padding: 0 2rem;
+}
+
+.sectionTitle {
+  font-size: 2.5rem;
+  color: #000000;
+  margin-bottom: 3rem;
+  text-align: center;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2.5rem;
+}
+
+.formsSection {
+  margin-top: 6rem;
+  padding-top: 4rem;
+  border-top: 3px solid #f0f0f0;
+}
+
+.sectionSubtitle {
+  text-align: center;
+  color: #6b7280;
+  font-size: 1.15rem;
+  margin: 0 0 3rem 0;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+.gallerySection {
+  margin-top: 5rem;
+  padding: 0;
+  overflow: hidden;
+}
+
+.galleryContainer {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  padding: 2rem 0;
+  background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.02), transparent);
+}
+
+.galleryTrack {
+  display: flex;
+  gap: 2rem;
+  animation: scroll 40s linear infinite;
+  width: fit-content;
+}
+
+.galleryTrack:hover {
+  animation-play-state: paused;
+}
+
+.galleryItem {
+  position: relative;
+  width: 400px;
+  height: 300px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.galleryItem:hover {
+  transform: translateY(-10px) scale(1.02);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+}
+
+.galleryItem img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.galleryItem:hover img {
+  transform: scale(1.1);
+}
+
+.galleryOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  padding: 2rem 1.5rem 1.5rem;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+
+.galleryItem:hover .galleryOverlay {
+  transform: translateY(0);
+}
+
+.galleryOverlay span {
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(-400px * 8 - 2rem * 8));
+  }
+}
+
+.footer {
+  background: #000000;
+  color: white;
+  padding: 4rem 2rem 2rem;
+  margin-top: 5rem;
+}
+
+.footerContent {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3rem;
+  margin-bottom: 3rem;
+}
+
+.footerSection {
+  display: flex;
+  flex-direction: column;
+}
+
+.footerHeading {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 1.25rem 0;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.footerLinks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.footerLinks li a {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: all 0.3s;
+  display: inline-block;
+}
+
+.footerLinks li a:hover {
+  color: white;
+  transform: translateX(5px);
+}
+
+.footerBottom {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.footerBottom p {
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+}
+
+.footerPayment {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+}
+
+.paymentIcons {
+  color: white;
+  font-weight: 600;
 }
 
 .hr {
   border: none;
   border-bottom: 1px solid #efefef;
   margin: 3em auto;
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 1rem;
+  }
+
+  .headerContent {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .logo {
+    font-size: 1.4rem;
+  }
+
+  .logoImage {
+    max-height: 40px;
+  }
+
+  .nav {
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .navLink {
+    font-size: 0.85rem;
+    padding: 0.4rem 0;
+  }
+
+  .dropdown {
+    position: relative;
+  }
+
+  .dropdownMenu {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: auto;
+    transform: none;
+  }
+
+  .cartButton {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .loginButton {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .heroOverlayTitle {
+    font-size: 2rem;
+    animation: cameraShakeMobile 3s ease-out;
+  }
+
+  .block {
+    font-size: 2rem;
+  }
+
+  .fireParticle,
+  .smokeParticle {
+    display: none;
+  }
+  
+  .heroOverlaySubtitle {
+    font-size: 1rem;
+    padding: 0 1rem;
+  }
+  
+  .heroButtons {
+    flex-direction: column;
+    width: 100%;
+    padding: 0 1rem;
+    gap: 1rem;
+  }
+
+  .heroCta,
+  .heroCtaSecondary {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  .heroTitle {
+    font-size: 2rem;
+  }
+
+  .heroSubtitle {
+    font-size: 1rem;
+  }
+
+  .channelButtons {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .channelCard {
+    padding: 2rem 1.5rem;
+  }
+
+  .productsGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 0 1rem;
+  }
+
+  .main {
+    padding: 1rem;
+  }
+
+  .footerContent {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+  }
+
+  .footerBottom {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .footerPayment {
+    flex-direction: column;
+  }
+
+  .galleryItem {
+    width: 300px;
+    height: 225px;
+  }
+
+  .tiktokWidget {
+    padding: 2rem 1.5rem;
+    margin-top: 3rem;
+  }
+
+  .tiktokTitle {
+    font-size: 1.5rem;
+  }
+
+  .tiktokUsername {
+    font-size: 1.5rem;
+  }
+
+  @keyframes scroll {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(calc(-300px * 8 - 2rem * 8));
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .heroOverlayTitle {
+    font-size: 1.5rem;
+  }
+
+  .block {
+    font-size: 1.5rem;
+  }
+
+  .heroOverlaySubtitle {
+    font-size: 0.9rem;
+  }
+
+  .heroCta,
+  .heroCtaSecondary {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  .channelCard h2 {
+    font-size: 1.5rem;
+  }
+
+  .footerContent {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .galleryItem {
+    width: 250px;
+    height: 200px;
+  }
+
+  .galleryOverlay span {
+    font-size: 1rem;
+  }
+
+  .tiktokWidget {
+    padding: 1.5rem 1rem;
+    margin-top: 2rem;
+  }
+
+  .tiktokTitle {
+    font-size: 1.3rem;
+  }
+
+  .tiktokUsername {
+    font-size: 1.3rem;
+  }
+
+  .tiktokButton {
+    padding: 0.875rem 2rem;
+    font-size: 1rem;
+  }
+
+  @keyframes scroll {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(calc(-250px * 8 - 2rem * 8));
+    }
+  }
+}
+
+@keyframes cameraShakeMobile {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-2px, 1px); }
+  20% { transform: translate(2px, -1px); }
+  30% { transform: translate(-1px, 2px); }
+  40% { transform: translate(1px, -2px); }
+  50% { transform: translate(-1px, 1px); }
+  60% { transform: translate(1px, -1px); }
 }

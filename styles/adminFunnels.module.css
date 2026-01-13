@@ -1,0 +1,477 @@
+.container {
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.header {
+  background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+  color: white;
+  padding: 1.25rem 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.headerContent {
+  max-width: 1600px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.nav {
+  display: flex;
+  gap: 2rem;
+}
+
+.navLink {
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  transition: opacity 0.3s;
+}
+
+.navLink:hover {
+  opacity: 0.8;
+}
+
+.main {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2.5rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.tab {
+  padding: 1rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: #6b7280;
+}
+
+.tab:hover {
+  color: #000000;
+}
+
+.activeTab {
+  color: #dc0000;
+  border-bottom-color: #dc0000;
+}
+
+.funnelsList h2 {
+  margin: 0 0 2rem 0;
+  color: #000000;
+  font-weight: 900;
+  font-size: 2rem;
+}
+
+.funnelsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 2rem;
+}
+
+.funnelCard {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.funnelCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.funnelCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.funnelCardHeader h3 {
+  margin: 0;
+  color: #000000;
+  font-weight: 900;
+  font-size: 1.3rem;
+  flex: 1;
+}
+
+.badgeActive,
+.badgeInactive {
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.badgeActive {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badgeInactive {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.funnelDescription {
+  color: #6b7280;
+  line-height: 1.6;
+  margin: 0 0 1rem 0;
+}
+
+.funnelMeta {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.stepsList {
+  background: #f9fafb;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.stepPreview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  background: white;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.stepNumber {
+  background: #dc0000;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.stepType {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.stepTarget {
+  color: #6b7280;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.funnelActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.editBtn,
+.deleteBtn {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.editBtn {
+  background: #3b82f6;
+  color: white;
+}
+
+.editBtn:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+}
+
+.deleteBtn {
+  background: #ef4444;
+  color: white;
+}
+
+.deleteBtn:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+}
+
+.funnelBuilder,
+.funnelEditor {
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.funnelBuilder h2,
+.funnelEditor h3 {
+  margin: 0 0 2rem 0;
+  color: #000000;
+  font-weight: 900;
+  font-size: 1.8rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.formGroup label {
+  font-weight: 700;
+  color: #1f2937;
+  font-size: 0.95rem;
+}
+
+.input,
+.textarea {
+  padding: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.3s;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: #dc0000;
+  box-shadow: 0 0 0 3px rgba(220, 0, 0, 0.1);
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  accent-color: #dc0000;
+}
+
+.submitBtn,
+.addBtn {
+  padding: 1.25rem 2.5rem;
+  background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.submitBtn:hover,
+.addBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(220, 0, 0, 0.3);
+}
+
+.editorLayout {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 2.5rem;
+}
+
+.editorSidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.addStepSection {
+  background: #f9fafb;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+}
+
+.addStepSection h3 {
+  font-size: 1.2rem;
+  margin: 0 0 1rem 0;
+}
+
+.editorMain h3 {
+  font-size: 1.4rem;
+  margin-bottom: 1.5rem;
+}
+
+.emptyMessage {
+  text-align: center;
+  color: #6b7280;
+  padding: 3rem;
+  font-size: 1.1rem;
+}
+
+.stepsFlow {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.stepCard {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.stepHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.stepHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.stepOrderBadge {
+  background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.moveButtons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.moveBtn {
+  background: #f3f4f6;
+  color: #1f2937;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.moveBtn:hover:not(:disabled) {
+  background: #dc0000;
+  color: white;
+  transform: translateY(-2px);
+}
+
+.moveBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.deleteStepBtn {
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.deleteStepBtn:hover {
+  background: #dc2626;
+  color: white;
+}
+
+.stepContent h4 {
+  margin: 0.5rem 0;
+  color: #000000;
+  font-weight: 800;
+  font-size: 1.2rem;
+}
+
+.stepDescription {
+  color: #6b7280;
+  margin: 0.5rem 0;
+  line-height: 1.5;
+}
+
+.stepTarget {
+  background: #f3f4f6;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #1f2937;
+  margin-top: 0.75rem;
+  font-weight: 600;
+}
+
+.stepArrow {
+  text-align: center;
+  font-size: 2rem;
+  color: #dc0000;
+  margin: 0.5rem 0;
+}

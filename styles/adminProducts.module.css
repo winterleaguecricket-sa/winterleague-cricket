@@ -1,0 +1,729 @@
+.container {
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.header {
+  background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+  color: white;
+  padding: 1.25rem 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.headerContent {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.nav {
+  display: flex;
+  gap: 2rem;
+}
+
+.navLink {
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  transition: opacity 0.3s;
+}
+
+.navLink:hover {
+  opacity: 0.8;
+}
+
+.main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem;
+}
+
+.designGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.designCard {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: all 0.3s;
+}
+
+.designCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.designHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.designHeader h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  color: #111827;
+}
+
+.garmentIcon {
+  font-size: 1.5rem;
+}
+
+.designPreview {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.colorSwatches {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.colorSwatch {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.customImagePreview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.customImage {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #e5e7eb;
+}
+
+.customImageLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #667eea;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.designInfo {
+  margin-bottom: 1rem;
+}
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.infoRow:last-child {
+  border-bottom: none;
+}
+
+.label {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.value {
+  color: #111827;
+  font-size: 0.875rem;
+}
+
+.designActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.actionBtn {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.actionBtn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.deleteBtn {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #fca5a5;
+  background: white;
+  color: #dc2626;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.deleteBtn:hover {
+  background: #fee2e2;
+  border-color: #dc2626;
+}
+
+.toolbarActions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.searchInput {
+  padding: 0.5rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  min-width: 200px;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.filterSelect {
+  padding: 0.5rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: white;
+  cursor: pointer;
+}
+
+.statsBar {
+  display: flex;
+  gap: 2rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.stat {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.statLabel {
+  font-weight: 600;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.statValue {
+  font-weight: 700;
+  color: #111827;
+  font-size: 1.125rem;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 12px;
+  margin-top: 2rem;
+}
+
+.emptyState p {
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+  font-size: 1.125rem;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2.5rem;
+}
+
+.toolbar h2 {
+  margin: 0;
+  color: #000000;
+  font-weight: 900;
+  font-size: 2rem;
+}
+
+.addButton {
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 1rem;
+}
+
+.addButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(220, 0, 0, 0.3);
+}
+
+.form {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  margin-bottom: 3rem;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 999;
+  backdrop-filter: blur(5px);
+  animation: fadeIn 0.3s ease;
+}
+
+.modalContainer {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+  z-index: 1000;
+  animation: slideUp 0.3s ease;
+}
+
+.modalForm {
+  background: white;
+  padding: 0;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.75rem;
+  border-bottom: 2px solid #e5e7eb;
+  background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+  color: white;
+  border-radius: 20px 20px 0 0;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: white;
+}
+
+.closeButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  line-height: 1;
+}
+
+.closeButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+.modalForm .formRow,
+.modalForm .formGroup,
+.modalForm .checkboxGroup,
+.modalForm .formActions {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.modalForm .formRow:first-of-type,
+.modalForm .formGroup:first-of-type {
+  padding-top: 1rem;
+}
+
+.modalForm .formActions {
+  padding-top: 1rem;
+  padding-bottom: 1.25rem;
+  border-top: 2px solid #e5e7eb;
+  margin-top: 0.75rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, -40%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%);
+    opacity: 1;
+  }
+}
+
+.form h3 {
+  margin: 0 0 2rem 0;
+  color: #000000;
+  font-weight: 900;
+  font-size: 1.6rem;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.formGroup label {
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  font-size: 0.85rem;
+}
+
+.input,
+.textarea {
+  padding: 0.65rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: all 0.3s;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: #dc0000;
+  box-shadow: 0 0 0 3px rgba(220, 0, 0, 0.1);
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.fileInput {
+  width: 100%;
+  padding: 0.65rem;
+  border: 2px dashed #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #f9fafb;
+  transition: all 0.3s;
+  font-size: 0.85rem;
+}
+
+.fileInput:hover {
+  border-color: #dc0000;
+  background: #fff5f5;
+}
+
+.imagePreview {
+  margin-top: 0.75rem;
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 0.75rem;
+}
+
+.imagePreview img {
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+  display: block;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+}
+
+.removeImageButton {
+  background: #fee;
+  color: #dc0000;
+  border: 2px solid #dc0000;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.8rem;
+  transition: all 0.3s;
+}
+
+.removeImageButton:hover {
+  background: #dc0000;
+  color: white;
+}
+
+.checkboxGroup {
+  margin: 1rem 0;
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 2px solid #e5e7eb;
+  min-height: 60px;
+}
+
+.checkboxGroup label {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1rem;
+  width: 100%;
+  color: #000;
+}
+
+.checkboxGroup input[type="checkbox"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  border: 3px solid #dc0000;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: inline-block;
+  margin: 0;
+  background: white;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.checkboxGroup input[type="checkbox"]:checked {
+  background: #dc0000;
+}
+
+.checkboxGroup input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.checkboxGroup input[type="checkbox"]:hover {
+  border-color: #000;
+  box-shadow: 0 0 5px rgba(220, 0, 0, 0.3);
+}
+
+.formActions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0;
+}
+
+.submitButton,
+.saveButton {
+  padding: 0.75rem 2rem;
+  background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 1rem;
+}
+
+.submitButton:hover,
+.saveButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(220, 0, 0, 0.3);
+}
+
+.cancelButton {
+  padding: 0.75rem 2rem;
+  background: #e5e7eb;
+  color: #1f2937;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 1rem;
+}
+
+.cancelButton:hover {
+  background: #d1d5db;
+  transform: translateY(-2px);
+}
+
+.productsTable {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.categorySection {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.categoryTitle {
+  margin: 0;
+  padding: 1.5rem 1.75rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #f3f4f6 100%);
+  color: #000000;
+  font-weight: 900;
+  font-size: 1.4rem;
+  border-bottom: 3px solid #dc0000;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.productCount {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #6b7280;
+  margin-left: 0.5rem;
+}
+
+.categorySection table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.categorySection th {
+  background: #fafafa;
+  padding: 1.25rem;
+  text-align: left;
+  font-weight: 800;
+  color: #000000;
+  border-bottom: 2px solid #e5e7eb;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+}
+
+.categorySection td {
+  padding: 1.25rem;
+  border-bottom: 1px solid #f0f0f0;
+  color: #1f2937;
+}
+
+.categorySection tr:hover {
+  background: #f9fafb;
+}
+
+.categorySection tr:last-child td {
+  border-bottom: none;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  background: #fef2f2;
+  color: #dc0000;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: 1px solid #fee2e2;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.editButton,
+.deleteButton {
+  padding: 0.6rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 0.9rem;
+}
+
+.editButton {
+  background: #3b82f6;
+  color: white;
+}
+
+.editButton:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.deleteButton {
+  background: #ef4444;
+  color: white;
+}
+
+.deleteButton:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}

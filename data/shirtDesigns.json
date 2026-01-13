@@ -1,0 +1,45 @@
+{
+  "designs": [
+    {
+      "id": 1,
+      "name": "Classic Red Stripe",
+      "imageUrl": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300&h=300&fit=crop",
+      "active": true,
+      "createdAt": "2025-11-01T10:00:00.000Z",
+      "images": [
+        "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300&h=300&fit=crop"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Blue Lightning",
+      "imageUrl": "https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=300&h=300&fit=crop",
+      "active": true,
+      "createdAt": "2025-11-01T10:05:00.000Z",
+      "images": [
+        "https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=300&h=300&fit=crop"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Green Thunder",
+      "imageUrl": "https://images.unsplash.com/photo-1598032895397-d4e733ad8b33?w=300&h=300&fit=crop",
+      "active": true,
+      "createdAt": "2025-11-01T10:10:00.000Z",
+      "images": [
+        "https://images.unsplash.com/photo-1598032895397-d4e733ad8b33?w=300&h=300&fit=crop"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Yellow Storm",
+      "imageUrl": "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=300&h=300&fit=crop",
+      "active": true,
+      "createdAt": "2025-11-01T10:15:00.000Z",
+      "images": [
+        "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=300&h=300&fit=crop"
+      ]
+    }
+  ],
+  "idCounter": 6
+}

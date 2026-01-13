@@ -1,0 +1,400 @@
+.container {
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.header {
+  background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+  color: white;
+  padding: 1.25rem 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.headerContent {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.nav {
+  display: flex;
+  gap: 2rem;
+}
+
+.navLink {
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  transition: opacity 0.3s;
+}
+
+.navLink:hover {
+  opacity: 0.8;
+}
+
+.main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid #222;
+}
+
+.tab {
+  padding: 1rem 2rem;
+  background: transparent;
+  border: none;
+  color: #999;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+
+.tab:hover {
+  color: #fff;
+  background: rgba(220, 0, 0, 0.1);
+}
+
+.activeTab {
+  color: #dc0000 !important;
+  border-bottom-color: #dc0000 !important;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2.5rem;
+}
+
+.toolbar h2 {
+  margin: 0;
+  color: #000000;
+  font-weight: 900;
+  font-size: 2rem;
+}
+
+.addButton {
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.addButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(220, 0, 0, 0.3);
+}
+
+.form {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 2.5rem;
+}
+
+.form h3 {
+  margin: 0 0 2rem 0;
+  color: #000000;
+  font-weight: 900;
+  font-size: 1.6rem;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.formGroup label {
+  margin-bottom: 0.75rem;
+  font-weight: 700;
+  color: #1f2937;
+  font-size: 0.95rem;
+}
+
+.helpText {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.input,
+.textarea {
+  padding: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.3s;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: #dc0000;
+  box-shadow: 0 0 0 3px rgba(220, 0, 0, 0.1);
+}
+
+.textarea {
+  resize: vertical;
+  font-family: 'Courier New', monospace;
+  line-height: 1.6;
+}
+
+.formActions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.saveButton {
+  padding: 1rem 2.5rem;
+  background: linear-gradient(135deg, #000000 0%, #dc0000 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.saveButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(220, 0, 0, 0.3);
+}
+
+.cancelButton {
+  padding: 1rem 2.5rem;
+  background: #e5e7eb;
+  color: #1f2937;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.cancelButton:hover {
+  background: #d1d5db;
+  transform: translateY(-2px);
+}
+
+.tableContainer {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  background: #f8f9fa;
+  padding: 1.25rem;
+  text-align: left;
+  font-weight: 800;
+  color: #000000;
+  border-bottom: 2px solid #e5e7eb;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+}
+
+.table td {
+  padding: 1.25rem;
+  border-bottom: 1px solid #f0f0f0;
+  color: #1f2937;
+}
+
+.table tr:hover {
+  background: #f9fafb;
+}
+
+.iconCell {
+  font-size: 2rem;
+  width: 60px;
+  text-align: center;
+}
+
+.nameCell {
+  font-weight: 700;
+  color: #000000;
+}
+
+.code {
+  background: #f3f4f6;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: #dc0000;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.viewButton,
+.editButton,
+.deleteButton {
+  padding: 0.6rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 0.9rem;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.viewButton {
+  background: #10b981;
+  color: white;
+}
+
+.viewButton:hover {
+  background: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.editButton {
+  background: #3b82f6;
+  color: white;
+}
+
+.editButton:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.deleteButton {
+  background: #ef4444;
+  color: white;
+}
+
+.deleteButton:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.categoryBadge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: linear-gradient(135deg, #dc0000 0%, #ff3333 100%);
+  color: white;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.menuTree {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.menuItemGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.menuCard {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 2px solid #e5e7eb;
+  transition: all 0.3s;
+}
+
+.menuCard:hover {
+  border-color: #dc0000;
+  box-shadow: 0 6px 25px rgba(220, 0, 0, 0.15);
+}
+
+.submenuContainer {
+  margin-left: 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.submenuCard {
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  transition: all 0.3s;
+}
+
+.submenuCard:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15);
+}
+
+.submenuIcon {
+  color: #6b7280;
+  font-family: monospace;
+  font-weight: 700;
+  margin-right: 0.5rem;
+}
+
+.menuLabel {
+  font-weight: 700;
+  color: #000000;
+  font-size: 1.1rem;
+}
+
+.menuOrder {
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 600;
+  margin-left: 1rem;
+}
+
+.menuDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
