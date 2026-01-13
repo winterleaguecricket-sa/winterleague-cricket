@@ -146,139 +146,206 @@ export default function CustomerProfile() {
 
         <main className={styles.main}>
           <div style={{ 
-            maxWidth: '500px', 
+            maxWidth: '900px', 
             margin: '4rem auto', 
-            padding: '2rem',
-            background: 'white',
-            borderRadius: '16px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
+            padding: '0 1rem'
           }}>
-            <h2 style={{ 
-              marginTop: 0, 
-              color: '#000', 
-              fontWeight: 900,
-              fontSize: '2rem',
-              marginBottom: '1rem'
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: '2rem',
+              alignItems: 'start'
             }}>
-              Customer Login
-            </h2>
-            <p style={{ color: '#6b7280', marginBottom: '2rem' }}>
-              Enter your email and password to view your orders and tracking information.
-            </p>
-            
-            <form onSubmit={handleLogin}>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ 
-                  display: 'block', 
-                  marginBottom: '0.5rem',
-                  fontWeight: 700,
-                  color: '#1f2937'
+              {/* Customer Login */}
+              <div style={{ 
+                padding: '2rem',
+                background: 'white',
+                borderRadius: '16px',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
+              }}>
+                <h2 style={{ 
+                  marginTop: 0, 
+                  color: '#000', 
+                  fontWeight: 900,
+                  fontSize: '1.75rem',
+                  marginBottom: '0.5rem'
                 }}>
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="your.email@example.com"
+                  Customer Login
+                </h2>
+                <p style={{ color: '#6b7280', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                  View your orders and tracking information.
+                </p>
+                
+                <form onSubmit={handleLogin}>
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ 
+                      display: 'block', 
+                      marginBottom: '0.5rem',
+                      fontWeight: 700,
+                      color: '#1f2937',
+                      fontSize: '0.9rem'
+                    }}>
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      placeholder="your.email@example.com"
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '1rem',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ 
+                      display: 'block', 
+                      marginBottom: '0.5rem',
+                      fontWeight: 700,
+                      color: '#1f2937',
+                      fontSize: '0.9rem'
+                    }}>
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      placeholder="Enter your password"
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '1rem',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </div>
+
+                  {error && (
+                    <div style={{
+                      padding: '1rem',
+                      background: '#fee',
+                      color: '#dc0000',
+                      borderRadius: '8px',
+                      marginBottom: '1rem',
+                      border: '2px solid #dc0000',
+                      fontWeight: 600
+                    }}>
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    style={{
+                      width: '100%',
+                      padding: '1rem',
+                      background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    Login
+                  </button>
+                </form>
+
+                <button
+                  onClick={() => setShowForgotPassword(true)}
                   style={{
                     width: '100%',
+                    marginTop: '1rem',
                     padding: '0.75rem',
-                    border: '2px solid #e5e7eb',
+                    background: 'transparent',
+                    color: '#dc0000',
+                    border: '2px solid #dc0000',
                     borderRadius: '8px',
-                    fontSize: '1rem',
-                    fontFamily: 'inherit'
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
                   }}
-                />
+                >
+                  Forgot Password?
+                </button>
+
+                <p style={{ 
+                  marginTop: '1.5rem', 
+                  textAlign: 'center',
+                  color: '#6b7280',
+                  fontSize: '0.8rem'
+                }}>
+                  Your account is created automatically when you place your first order.
+                </p>
               </div>
 
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ 
-                  display: 'block', 
-                  marginBottom: '0.5rem',
-                  fontWeight: 700,
-                  color: '#1f2937'
+              {/* Team Portal */}
+              <div style={{ 
+                padding: '2rem',
+                background: 'white',
+                borderRadius: '16px',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+                borderTop: '4px solid #059669'
+              }}>
+                <h2 style={{ 
+                  marginTop: 0, 
+                  color: '#000', 
+                  fontWeight: 900,
+                  fontSize: '1.75rem',
+                  marginBottom: '0.5rem'
                 }}>
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  placeholder="Enter your password"
+                  Team Portal
+                </h2>
+                <p style={{ color: '#6b7280', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                  For registered teams only. Access your dashboard, fixtures, and squad management.
+                </p>
+
+                <Link 
+                  href="/team-portal"
                   style={{
+                    display: 'block',
                     width: '100%',
-                    padding: '0.75rem',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '8px',
+                    padding: '1rem',
+                    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
                     fontSize: '1rem',
-                    fontFamily: 'inherit'
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    textAlign: 'center',
+                    textDecoration: 'none'
                   }}
-                />
-              </div>
+                >
+                  Go to Team Portal
+                </Link>
 
-              {error && (
-                <div style={{
-                  padding: '1rem',
-                  background: '#fee',
-                  color: '#dc0000',
-                  borderRadius: '8px',
-                  marginBottom: '1rem',
-                  border: '2px solid #dc0000',
-                  fontWeight: 600
+                <p style={{ 
+                  marginTop: '1.5rem', 
+                  textAlign: 'center',
+                  color: '#6b7280',
+                  fontSize: '0.8rem'
                 }}>
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                style={{
-                  width: '100%',
-                  padding: '1rem',
-                  background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '1rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}
-              >
-                Login to My Account
-              </button>
-            </form>
-
-            <button
-              onClick={() => setShowForgotPassword(true)}
-              style={{
-                width: '100%',
-                marginTop: '1rem',
-                padding: '0.75rem',
-                background: 'transparent',
-                color: '#dc0000',
-                border: '2px solid #dc0000',
-                borderRadius: '8px',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              Forgot Password?
-            </button>
-
-            <p style={{ 
-              marginTop: '2rem', 
-              textAlign: 'center',
-              color: '#6b7280',
-              fontSize: '0.9rem'
-            }}>
-              Don't have an account? Your account will be created automatically when you place your first order.
-            </p>
+                  Login with your team name or email and password provided during registration.
+                </p>
+              </div>
+            </div>
           </div>
         </main>
       </div>

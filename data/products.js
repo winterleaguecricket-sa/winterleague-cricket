@@ -214,7 +214,7 @@ export let siteConfig = {
       label: "Admin",
       href: "/admin",
       order: 5,
-      visible: true,
+      visible: false,
       parentId: null
     }
   ],
