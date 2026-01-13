@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import styles from '../../styles/adminSettings.module.css';
-import { getHomepageConfig, updateHomepageConfig, addGalleryImage, updateGalleryImage, deleteGalleryImage } from '../../data/homepage';
 
 export default function HomepageEditor() {
   const [config, setConfig] = useState(null);
@@ -9,26 +8,41 @@ export default function HomepageEditor() {
   const [message, setMessage] = useState('');
   const [editingImage, setEditingImage] = useState(null);
   const [newImage, setNewImage] = useState({ url: '', alt: '' });
+  const [loading, setLoading] = useState(true);
+
+  // Fetch config from API
+  const fetchConfig = async () => {
+    try {
+      const response = await fetch('/api/homepage');
+      const data = await response.json();
+      if (data.success) {
+        // Ensure all TikTok properties exist
+        if (!data.config.channels.hasOwnProperty('showTikTok')) {
+          data.config.channels.showTikTok = false;
+        }
+        if (!data.config.channels.hasOwnProperty('tiktokUsername')) {
+          data.config.channels.tiktokUsername = '';
+        }
+        if (!data.config.channels.hasOwnProperty('tiktokEmbedCode')) {
+          data.config.channels.tiktokEmbedCode = '';
+        }
+        if (!data.config.channels.hasOwnProperty('tiktokAutoLatest')) {
+          data.config.channels.tiktokAutoLatest = false;
+        }
+        if (!data.config.channels.hasOwnProperty('tiktokVideoUrl')) {
+          data.config.channels.tiktokVideoUrl = '';
+        }
+        setConfig(data.config);
+      }
+    } catch (error) {
+      console.error('Error fetching config:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadedConfig = getHomepageConfig();
-    // Ensure all TikTok properties exist
-    if (!loadedConfig.channels.hasOwnProperty('showTikTok')) {
-      loadedConfig.channels.showTikTok = false;
-    }
-    if (!loadedConfig.channels.hasOwnProperty('tiktokUsername')) {
-      loadedConfig.channels.tiktokUsername = '';
-    }
-    if (!loadedConfig.channels.hasOwnProperty('tiktokEmbedCode')) {
-      loadedConfig.channels.tiktokEmbedCode = '';
-    }
-    if (!loadedConfig.channels.hasOwnProperty('tiktokAutoLatest')) {
-      loadedConfig.channels.tiktokAutoLatest = false;
-    }
-    if (!loadedConfig.channels.hasOwnProperty('tiktokVideoUrl')) {
-      loadedConfig.channels.tiktokVideoUrl = '';
-    }
-    setConfig(loadedConfig);
+    fetchConfig();
   }, []);
 
   const showMessage = (msg) => {
@@ -36,77 +50,176 @@ export default function HomepageEditor() {
     setTimeout(() => setMessage(''), 3000);
   };
 
-  const handleHeroUpdate = (e) => {
+  const handleHeroUpdate = async (e) => {
     e.preventDefault();
-    updateHomepageConfig({ hero: config.hero });
-    showMessage('Hero section updated successfully!');
-  };
-
-  const handleBannerUpdate = (e) => {
-    e.preventDefault();
-    updateHomepageConfig({ banner: config.banner });
-    showMessage('Banner updated successfully!');
-  };
-
-  const handleGalleryUpdate = (e) => {
-    e.preventDefault();
-    updateHomepageConfig({ 
-      gallery: {
-        enabled: config.gallery.enabled,
-        title: config.gallery.title,
-        subtitle: config.gallery.subtitle,
+    try {
+      const response = await fetch('/api/homepage', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section: 'hero', updates: config.hero })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showMessage('Hero section updated successfully!');
+      } else {
+        showMessage('Failed to update hero section');
       }
-    });
-    showMessage('Gallery settings updated successfully!');
+    } catch (error) {
+      console.error('Error updating hero:', error);
+      showMessage('Failed to update hero section');
+    }
   };
 
-  const handleAddImage = (e) => {
+  const handleBannerUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/homepage', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section: 'banner', updates: config.banner })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showMessage('Banner updated successfully!');
+      } else {
+        showMessage('Failed to update banner');
+      }
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      showMessage('Failed to update banner');
+    }
+  };
+
+  const handleGalleryUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/homepage', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          section: 'gallery', 
+          updates: {
+            enabled: config.gallery.enabled,
+            title: config.gallery.title,
+            subtitle: config.gallery.subtitle,
+          }
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showMessage('Gallery settings updated successfully!');
+      } else {
+        showMessage('Failed to update gallery settings');
+      }
+    } catch (error) {
+      console.error('Error updating gallery:', error);
+      showMessage('Failed to update gallery settings');
+    }
+  };
+
+  const handleAddImage = async (e) => {
     e.preventDefault();
     if (newImage.url && newImage.alt) {
-      addGalleryImage(newImage);
-      setConfig(getHomepageConfig());
-      setNewImage({ url: '', alt: '' });
-      showMessage('Image added successfully!');
+      try {
+        const response = await fetch('/api/homepage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newImage)
+        });
+        const data = await response.json();
+        if (data.success) {
+          setConfig(data.config);
+          setNewImage({ url: '', alt: '' });
+          showMessage('Image added successfully!');
+        } else {
+          showMessage('Failed to add image');
+        }
+      } catch (error) {
+        console.error('Error adding image:', error);
+        showMessage('Failed to add image');
+      }
     }
   };
 
-  const handleUpdateImage = (e) => {
+  const handleUpdateImage = async (e) => {
     e.preventDefault();
     if (editingImage) {
-      updateGalleryImage(editingImage.id, { url: editingImage.url, alt: editingImage.alt });
-      setConfig(getHomepageConfig());
-      setEditingImage(null);
-      showMessage('Image updated successfully!');
-    }
-  };
-
-  const handleDeleteImage = (id) => {
-    if (confirm('Are you sure you want to delete this image?')) {
-      deleteGalleryImage(id);
-      setConfig(getHomepageConfig());
-      showMessage('Image deleted successfully!');
-    }
-  };
-
-  const handleChannelsUpdate = (e) => {
-    e.preventDefault();
-    const updatedConfig = updateHomepageConfig({ 
-      channels: {
-        enabled: config.channels.enabled,
-        title: config.channels.title,
-        subtitle: config.channels.subtitle,
-        showTikTok: config.channels.showTikTok,
-        tiktokUsername: config.channels.tiktokUsername,
-        tiktokVideoUrl: config.channels.tiktokVideoUrl,
-        tiktokEmbedCode: config.channels.tiktokEmbedCode,
-        tiktokAutoLatest: config.channels.tiktokAutoLatest,
+      try {
+        const response = await fetch('/api/homepage', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingImage.id, url: editingImage.url, alt: editingImage.alt })
+        });
+        const data = await response.json();
+        if (data.success) {
+          setConfig(data.config);
+          setEditingImage(null);
+          showMessage('Image updated successfully!');
+        } else {
+          showMessage('Failed to update image');
+        }
+      } catch (error) {
+        console.error('Error updating image:', error);
+        showMessage('Failed to update image');
       }
-    });
-    setConfig(updatedConfig);
-    showMessage('Channels section updated successfully!');
+    }
   };
 
-  if (!config) return <div>Loading...</div>;
+  const handleDeleteImage = async (id) => {
+    if (confirm('Are you sure you want to delete this image?')) {
+      try {
+        const response = await fetch(`/api/homepage?id=${id}`, {
+          method: 'DELETE'
+        });
+        const data = await response.json();
+        if (data.success) {
+          setConfig(data.config);
+          showMessage('Image deleted successfully!');
+        } else {
+          showMessage('Failed to delete image');
+        }
+      } catch (error) {
+        console.error('Error deleting image:', error);
+        showMessage('Failed to delete image');
+      }
+    }
+  };
+
+  const handleChannelsUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/homepage', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          section: 'channels', 
+          updates: {
+            enabled: config.channels.enabled,
+            title: config.channels.title,
+            subtitle: config.channels.subtitle,
+            showTikTok: config.channels.showTikTok,
+            tiktokUsername: config.channels.tiktokUsername,
+            tiktokVideoUrl: config.channels.tiktokVideoUrl,
+            tiktokEmbedCode: config.channels.tiktokEmbedCode,
+            tiktokAutoLatest: config.channels.tiktokAutoLatest,
+          }
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setConfig(data.config);
+        showMessage('Channels section updated successfully!');
+      } else {
+        showMessage('Failed to update channels section');
+      }
+    } catch (error) {
+      console.error('Error updating channels:', error);
+      showMessage('Failed to update channels section');
+    }
+  };
+
+  if (loading) return <div>Loading...</div>;
+  if (!config) return <div>Failed to load configuration</div>;
 
   return (
     <div className={styles.container}>

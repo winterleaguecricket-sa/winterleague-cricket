@@ -1,0 +1,70 @@
+{
+  "hero": {
+    "title": "WINTER LEAGUE CRICKET",
+    "subtitle": "Explore our premium cricket equipment collections",
+    "showAnimation": true,
+    "backgroundImage": ""
+  },
+  "gallery": {
+    "enabled": true,
+    "title": "Our World",
+    "subtitle": "Experience the passion, power, and precision of cricket",
+    "images": [
+      {
+        "id": 1,
+        "url": "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=800&q=80",
+        "alt": "Cricket Stadium"
+      },
+      {
+        "id": 2,
+        "url": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800&q=80",
+        "alt": "Cricket Match"
+      },
+      {
+        "id": 3,
+        "url": "https://images.unsplash.com/photo-1624526267942-ab0ff8a3e972?w=800&q=80",
+        "alt": "Cricket Equipment"
+      },
+      {
+        "id": 4,
+        "url": "https://images.unsplash.com/photo-1593766787879-e8c78e09cec5?w=800&q=80",
+        "alt": "Cricket Bat"
+      },
+      {
+        "id": 5,
+        "url": "https://images.unsplash.com/photo-1545428207-928a50ca1c3b?w=800&q=80",
+        "alt": "Cricket Action"
+      },
+      {
+        "id": 6,
+        "url": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&q=80",
+        "alt": "Sports Arena"
+      },
+      {
+        "id": 7,
+        "url": "https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?w=800&q=80",
+        "alt": "Cricket Field"
+      },
+      {
+        "id": 8,
+        "url": "https://images.unsplash.com/photo-1611329532992-0b7d23da2e1a?w=800&q=80",
+        "alt": "Cricket Gear"
+      }
+    ],
+    "imageIdCounter": 10
+  },
+  "channels": {
+    "enabled": true,
+    "title": "PREMIUM CRICKET SUPPLIES",
+    "subtitle": "Explore our premium cricket equipment collections",
+    "showTikTok": false,
+    "tiktokUsername": "",
+    "tiktokVideoUrl": "",
+    "tiktokEmbedCode": "",
+    "tiktokAutoLatest": false
+  },
+  "banner": {
+    "enabled": true,
+    "text": "🎉 FREE SHIPPING on orders over R500! 🎉"
+  }
+}
