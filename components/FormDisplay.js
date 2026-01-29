@@ -1,17 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
+import Wheel from '@uiw/react-color-wheel';
+import { hsvaToHex, hexToHsva } from '@uiw/color-convert';
 import styles from './FormDisplay.module.css';
-import { submitForm, getFormSubmissionsByFormId, getFormTemplateById, getFormWithProducts, setTeamKitPricing, getTeamKitPricing } from '../data/forms';
+import { getFormTemplateById, getFormWithProducts } from '../data/forms';
 import { getShirtDesigns, availableColors, getMainImage } from '../data/shirtDesigns';
 import { useCart } from '../context/CartContext';
 import { getLandingPageByFormId } from '../data/landingPages';
 import FormLandingPage from './FormLandingPage';
 import ImageGalleryModal from './ImageGalleryModal';
 
+const Flatpickr = dynamic(() => import('react-flatpickr'), { ssr: false });
+
 export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
   const [form, setForm] = useState(initialForm);
   const [formData, setFormData] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [teamCredentials, setTeamCredentials] = useState(null); // Store team login credentials
   const [submissionDropdownData, setSubmissionDropdownData] = useState({});
   const [prefilledData, setPrefilledData] = useState({});
   const [shirtDesigns, setShirtDesigns] = useState([]);
@@ -19,60 +25,431 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
   const [showLandingPage, setShowLandingPage] = useState(true);
   const [landingPage, setLandingPage] = useState(null);
   const [modalDesign, setModalDesign] = useState(null);
+  const [activeKitPreview, setActiveKitPreview] = useState({});
+  const kitColorsRef = useRef({});
+  const lastScrolledKitRef = useRef(null);
+  const [activeColorPicker, setActiveColorPicker] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
+  const fieldRefs = useRef({});
+  const [teamColorCombos, setTeamColorCombos] = useState([]);
+  const [formBackground, setFormBackground] = useState(null);
+  const [submittedFormData, setSubmittedFormData] = useState(null);
+  const [backgroundTransparency, setBackgroundTransparency] = useState(false);
+  const formTopRef = useRef(null);
+  const [teamNameSet, setTeamNameSet] = useState(new Set());
+  const [kitDesignCounts, setKitDesignCounts] = useState({});
+  const [teamEmailSet, setTeamEmailSet] = useState(new Set());
+  const [formAlert, setFormAlert] = useState({ open: false, message: '' });
+  const [visiblePasswords, setVisiblePasswords] = useState({});
+  const [dropdownOpen, setDropdownOpen] = useState({});
+  const [dropdownSearch, setDropdownSearch] = useState({});
+  const datePickerRefs = useRef({});
+  const [fieldMessages, setFieldMessages] = useState({});
+  const [playerRegistrationSubmissions, setPlayerRegistrationSubmissions] = useState([]);
+  const [kitSizeCharts, setKitSizeCharts] = useState({ shirtChartUrl: '', pantsChartUrl: '' });
+  const [additionalApparelProducts, setAdditionalApparelProducts] = useState([]);
+  const [additionalApparelLoading, setAdditionalApparelLoading] = useState(false);
+  const [additionalApparelDetails, setAdditionalApparelDetails] = useState({});
+  const [activeApparelModal, setActiveApparelModal] = useState(null);
 
-  const { cart, addToCart, openCart, getCartTotal, getCartCount } = useCart();
+  const getDraftKey = (formId) => `formDraft_${formId}`;
+
+  const slugify = (value) => (
+    (value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !form?.id) return;
+    const draftKey = getDraftKey(form.id);
+    const saved = window.localStorage.getItem(draftKey);
+    if (!saved) return;
+
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed?.formData) {
+        setFormData(parsed.formData);
+      }
+      if (parsed?.prefilledData) {
+        setPrefilledData(parsed.prefilledData);
+      }
+      if (parsed?.currentPage) {
+        setCurrentPage(parsed.currentPage);
+      }
+    } catch (error) {
+      console.warn('Failed to restore saved form draft:', error);
+    }
+  }, [form?.id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !form?.id) return;
+    const draftKey = getDraftKey(form.id);
+
+    const safeFormData = {};
+    Object.entries(formData || {}).forEach(([key, value]) => {
+      if (typeof value === 'string' && value.startsWith('data:') && value.length > 50000) {
+        return;
+      }
+      safeFormData[key] = value;
+    });
+
+    const payload = {
+      formData: safeFormData,
+      prefilledData,
+      currentPage
+    };
+
+    try {
+      window.localStorage.setItem(draftKey, JSON.stringify(payload));
+    } catch (error) {
+      console.warn('Failed to save form draft:', error);
+    }
+  }, [formData, prefilledData, currentPage, form?.id]);
+
+  const formatSubmissionValue = (value) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') {
+      if (value.trim().startsWith('{') && value.includes('teamName')) {
+        try {
+          const parsed = JSON.parse(value);
+          if (parsed && parsed.teamName) {
+            const parts = [parsed.teamName, parsed.gender, parsed.ageGroup].filter(Boolean);
+            return parts.join(' · ');
+          }
+        } catch (error) {
+          // fall through
+        }
+      }
+      if (value.startsWith('data:')) return 'Uploaded file';
+      if (value.length > 160) return `${value.slice(0, 160)}…`;
+      return value;
+    }
+    if (Array.isArray(value)) {
+      if (value.length && typeof value[0] === 'object' && value[0]?.teamName) {
+        return value
+          .map((item) => {
+            const parts = [
+              item.teamName,
+              item.gender,
+              item.ageGroup,
+              item.coachName,
+              item.coachContact
+            ].filter(Boolean);
+            return parts.join(' · ');
+          })
+          .join(' | ');
+      }
+      const text = value.join(', ');
+      return text.length > 160 ? `${text.slice(0, 160)}…` : text;
+    }
+    if (typeof value === 'object') {
+      const text = JSON.stringify(value);
+      return text.length > 160 ? `${text.slice(0, 160)}…` : text;
+    }
+    return String(value);
+  };
+
+  const { cart, addToCart, removeFromCart, openCart, getCartCount } = useCart();
   const [entryFeeIncludedItems, setEntryFeeIncludedItems] = useState([]);
 
   // Determine if form is multi-page
   const isMultiPage = form.multiPage && form.pages && form.pages.length > 0;
   const totalPages = isMultiPage ? form.pages.length : 1;
   const currentFields = isMultiPage ? form.pages.find(p => p.pageId === currentPage)?.fields || [] : form.fields;
+  const orderedFields = (() => {
+    if (form.id === 1 && currentPage === 2) {
+      const teamLogo = currentFields.find((f) => f.id === 22);
+      const sponsorLogo = currentFields.find((f) => f.id === 30);
+      const rest = currentFields
+        .filter((f) => f.id !== 22 && f.id !== 30)
+        .sort((a, b) => a.order - b.order);
+      return [teamLogo, sponsorLogo, ...rest].filter(Boolean);
+    }
+    return [...currentFields].sort((a, b) => a.order - b.order);
+  })();
 
   // Load landing page
   useEffect(() => {
-    const page = getLandingPageByFormId(form.id);
-    if (page && page.enabled) {
-      setLandingPage(page);
-      setShowLandingPage(true);
-    } else {
-      setLandingPage(null);
-      setShowLandingPage(false);
-    }
+    let isMounted = true;
+
+    const loadLandingPage = async () => {
+      try {
+        const res = await fetch(`/api/landing-pages?formId=${form.id}&_=${Date.now()}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
+        if (res.ok) {
+          const page = await res.json();
+          if (!isMounted) return;
+          if (page && page.enabled) {
+            setLandingPage(page);
+            setShowLandingPage(true);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error loading landing page:', error);
+      }
+
+      // Fallback to local defaults if API fails
+      const fallback = getLandingPageByFormId(form.id);
+      if (!isMounted) return;
+      if (fallback && fallback.enabled) {
+        setLandingPage(fallback);
+        setShowLandingPage(true);
+      } else {
+        setLandingPage(null);
+        setShowLandingPage(false);
+      }
+    };
+
+    loadLandingPage();
+    return () => {
+      isMounted = false;
+    };
   }, [form.id]);
 
-  // Load base kit price and entry fee from localStorage for team registration
+  useEffect(() => {
+    if (!form || form.id !== 2) return;
+    let isMounted = true;
+
+    const loadAdditionalApparel = async () => {
+      setAdditionalApparelLoading(true);
+      try {
+        const response = await fetch('/api/products?category=additional-apparel&lite=true&noImages=true', {
+          cache: 'no-store'
+        });
+        const data = await response.json();
+        if (!isMounted) return;
+        if (response.ok && data?.success && Array.isArray(data.products)) {
+          const filtered = data.products.filter(
+            (product) => slugify(product.category) === 'additional-apparel'
+          );
+          setAdditionalApparelProducts(filtered);
+          return;
+        }
+        console.error('Error loading additional apparel products:', data?.error || 'Unknown error');
+      } catch (error) {
+        console.error('Error loading additional apparel products:', error);
+      } finally {
+        if (isMounted) setAdditionalApparelLoading(false);
+      }
+    };
+
+    loadAdditionalApparel();
+    return () => {
+      isMounted = false;
+    };
+  }, [form?.id]);
+
+  // Load form background image from DB
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadFormBackground = async () => {
+      try {
+        const res = await fetch(`/api/form-background?formId=${form.id}`);
+        const data = await res.json();
+        if (!isMounted) return;
+        if (data.success && data.background) {
+          const imageUrl = typeof data.background === 'string'
+            ? data.background
+            : data.background.imageUrl;
+          const transparencyEnabled = typeof data.background === 'object'
+            ? !!data.background.transparencyEnabled
+            : false;
+          if (imageUrl) {
+            setFormBackground(imageUrl);
+          }
+          setBackgroundTransparency(transparencyEnabled);
+        }
+      } catch (error) {
+        console.error('Error loading form background:', error);
+      }
+    };
+
+    loadFormBackground();
+    return () => {
+      isMounted = false;
+    };
+  }, [form.id]);
+
+  // Apply form background to full page
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    if (formBackground) {
+      document.body.style.backgroundImage = `url(${formBackground})`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundRepeat = 'no-repeat';
+      document.body.style.backgroundAttachment = 'fixed';
+      document.body.style.backgroundColor = '#0b0f16';
+    } else {
+      document.body.style.backgroundImage = '';
+      document.body.style.backgroundSize = '';
+      document.body.style.backgroundPosition = '';
+      document.body.style.backgroundRepeat = '';
+      document.body.style.backgroundAttachment = '';
+    }
+
+    return () => {
+      document.body.style.backgroundImage = '';
+      document.body.style.backgroundSize = '';
+      document.body.style.backgroundPosition = '';
+      document.body.style.backgroundRepeat = '';
+      document.body.style.backgroundAttachment = '';
+      document.body.style.backgroundColor = '';
+    };
+  }, [formBackground]);
+
+  // Load team registration banner from DB
+  useEffect(() => {
+    if (form.id !== 1) return;
+    let isMounted = true;
+
+    const loadBanner = async () => {
+      try {
+        const res = await fetch('/api/team-registration-banner');
+        const data = await res.json();
+        if (!isMounted) return;
+        if (data.success && data.banner) {
+          setForm(prev => ({
+            ...prev,
+            welcomeBanner: data.banner
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading team banner:', error);
+      }
+    };
+
+    loadBanner();
+    return () => {
+      isMounted = false;
+    };
+  }, [form.id]);
+
+  // Load supporter products from DB
+  useEffect(() => {
+    if (form.id !== 2) return;
+    let isMounted = true;
+
+    const loadSupporterProducts = async () => {
+      try {
+        const res = await fetch('/api/supporter-products');
+        const data = await res.json();
+        if (!isMounted) return;
+        if (data.success && Array.isArray(data.products)) {
+          setForm(prev => {
+            if (!prev?.pages) return prev;
+            const updatedPages = prev.pages.map(page => {
+              if (page.pageId !== 3) return page;
+              return {
+                ...page,
+                fields: page.fields.map(field => {
+                  if (field.type === 'supporter-apparel') {
+                    return { ...field, products: data.products };
+                  }
+                  return field;
+                })
+              };
+            });
+            return { ...prev, pages: updatedPages };
+          });
+        }
+      } catch (error) {
+        console.error('Error loading supporter products:', error);
+      }
+    };
+
+    loadSupporterProducts();
+    return () => {
+      isMounted = false;
+    };
+  }, [form.id]);
+
+  // Load kit size charts for player registration
+  useEffect(() => {
+    if (form.id !== 2) return;
+    let isMounted = true;
+
+    const loadSizeCharts = async () => {
+      try {
+        const res = await fetch('/api/kit-size-charts');
+        const data = await res.json();
+        if (!isMounted) return;
+        if (data?.success) {
+          setKitSizeCharts({
+            shirtChartUrl: data.shirtChartUrl || '',
+            pantsChartUrl: data.pantsChartUrl || ''
+          });
+        }
+      } catch (error) {
+        console.error('Error loading kit size charts:', error);
+      }
+    };
+
+    loadSizeCharts();
+    return () => {
+      isMounted = false;
+    };
+  }, [form.id]);
+
+  // Load base kit price and entry fee for team registration
   useEffect(() => {
     if (form.id === 1 && typeof window !== 'undefined') {
-      const savedBasePrice = localStorage.getItem('kitBasePrice');
-      if (savedBasePrice && !formData['29_basePrice']) {
-        handleInputChange('29_basePrice', parseFloat(savedBasePrice));
-        // Initialize markup to 0 if not set
-        if (formData['29_markup'] === undefined) {
-          handleInputChange('29_markup', 0);
+      const loadKitBasePrice = async () => {
+        try {
+          const res = await fetch('/api/kit-pricing');
+          const data = await res.json();
+          if (data?.success && data.basePrice !== undefined && !formData['29_basePrice']) {
+            const parsed = parseFloat(data.basePrice);
+            if (!Number.isNaN(parsed)) {
+              handleInputChange('29_basePrice', parsed);
+              if (formData['29_markup'] === undefined) {
+                handleInputChange('29_markup', 0);
+              }
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Error loading kit base price:', error);
         }
-      }
-      const savedEntryFee = localStorage.getItem('leagueEntryBaseFee');
-      if (savedEntryFee && !formData['31_baseFee']) {
-        handleInputChange('31_baseFee', parseFloat(savedEntryFee));
-        // Initialize adjustment to 0 if not set
-        if (formData['31_adjustment'] === undefined) {
-          handleInputChange('31_adjustment', 0);
+      };
+
+      loadKitBasePrice();
+
+      const loadEntryFeeSettings = async () => {
+        try {
+          const res = await fetch('/api/entry-fee-settings');
+          const data = await res.json();
+          if (data?.success) {
+            if (data.baseFee !== undefined && !formData['31_baseFee']) {
+              const parsedFee = parseFloat(data.baseFee);
+              if (!Number.isNaN(parsedFee)) {
+                handleInputChange('31_baseFee', parsedFee);
+                if (formData['31_adjustment'] === undefined) {
+                  handleInputChange('31_adjustment', 0);
+                }
+              }
+            }
+            if (Array.isArray(data.includedItems)) {
+              setEntryFeeIncludedItems(data.includedItems);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading entry fee settings:', error);
         }
-      }
-      const savedIncludedItems = localStorage.getItem('leagueEntryIncludedItems');
-      if (savedIncludedItems) {
-        setEntryFeeIncludedItems(JSON.parse(savedIncludedItems));
-      } else {
-        // Set default items if none saved
-        setEntryFeeIncludedItems([
-          'Full season league participation',
-          'Official league jersey',
-          'League insurance coverage',
-          'Access to league facilities'
-        ]);
-      }
+      };
+
+      loadEntryFeeSettings();
     }
-  }, [form.id, currentPage]);
+  }, [form.id, currentPage, formData]);
 
   // Initialize default values for fields
   useEffect(() => {
@@ -104,61 +481,865 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
     
     const submissionFields = allFields.filter(f => f.type === 'submission-dropdown');
     if (submissionFields.length > 0) {
-      const dropdownData = {};
-      submissionFields.forEach(field => {
-        if (field.sourceFormId) {
-          const sourceForm = getFormTemplateById(field.sourceFormId);
-          const submissions = getFormSubmissionsByFormId(field.sourceFormId);
-          dropdownData[field.id] = {
-            sourceForm,
-            submissions,
-            displayFieldId: field.displayFieldId,
-            prefillFields: field.prefillFields || []
-          };
+      // Load submission dropdown data via API
+      const loadSubmissionDropdowns = async () => {
+        const dropdownData = {};
+        for (const field of submissionFields) {
+          if (field.sourceFormId) {
+            const sourceForm = getFormTemplateById(field.sourceFormId);
+            try {
+              const response = await fetch(`/api/submissions?formId=${field.sourceFormId}`);
+              if (response.ok) {
+                const data = await response.json();
+                dropdownData[field.id] = {
+                  sourceForm,
+                  submissions: data.submissions || [],
+                  displayFieldId: field.displayFieldId,
+                  prefillFields: field.prefillFields || []
+                };
+              } else {
+                dropdownData[field.id] = {
+                  sourceForm,
+                  submissions: [],
+                  displayFieldId: field.displayFieldId,
+                  prefillFields: field.prefillFields || []
+                };
+              }
+            } catch (error) {
+              console.error('Error loading submissions for dropdown:', error);
+              dropdownData[field.id] = {
+                sourceForm,
+                submissions: [],
+                displayFieldId: field.displayFieldId,
+                prefillFields: field.prefillFields || []
+              };
+            }
+          }
         }
-      });
-      setSubmissionDropdownData(dropdownData);
+        setSubmissionDropdownData(dropdownData);
+      };
+      loadSubmissionDropdowns();
     }
 
-    // Load shirt designs for any image-select-library fields
+    // Load shirt designs for any image-select-library fields via API
     const hasShirtLibraryField = allFields.some(f => f.type === 'image-select-library');
     if (hasShirtLibraryField) {
-      setShirtDesigns(getShirtDesigns(true)); // Only active designs
+      const loadShirtDesigns = async () => {
+        try {
+          const response = await fetch('/api/shirt-designs');
+          if (response.ok) {
+            const data = await response.json();
+            // Filter to only active designs
+            const activeDesigns = (data.designs || []).filter(d => d.active);
+            setShirtDesigns(activeDesigns);
+          } else {
+            // Fallback to local data if API fails
+            setShirtDesigns(getShirtDesigns(true));
+          }
+        } catch (error) {
+          console.error('Error loading shirt designs:', error);
+          setShirtDesigns(getShirtDesigns(true));
+        }
+      };
+      loadShirtDesigns();
     }
   }, [initialForm, isMultiPage]);
 
-  // Auto-add basic kit to cart when reaching page 2
+  // Load team color combos for duplicate checking
   useEffect(() => {
-    if (currentPage === 2 && form.id === 2) { // Only for Player Registration
+    const loadTeamColorCombos = async () => {
+      try {
+        if (!form || form.id !== 1) return;
+        
+        const allFields = isMultiPage 
+          ? form.pages.flatMap(p => p.fields)
+          : form.fields;
+        const colorField = allFields.find(
+          (field) => field.type === 'image-select-library' && field.includeColorPickers
+        );
+        if (!colorField) return;
+
+        const response = await fetch('/api/submissions?formId=1');
+        const data = await response.json();
+        if (!data?.submissions) return;
+
+        const submissions = data.submissions || [];
+        const combos = submissions
+          .map((submission) => {
+            const d = submission.data || {};
+            return {
+              primary: d[`${colorField.id}_primaryColor`] || '',
+              secondary: d[`${colorField.id}_secondaryColor`] || '',
+              trim: d[`${colorField.id}_trimColor`] || ''
+            };
+          })
+          .filter((combo) => combo.primary && combo.secondary && combo.trim)
+          .map((combo) => ({
+            primary: combo.primary.toUpperCase(),
+            secondary: combo.secondary.toUpperCase(),
+            trim: combo.trim.toUpperCase()
+          }));
+
+        setTeamColorCombos(combos);
+
+        const names = new Set(
+          submissions
+            .map((submission) => (submission.data || {})[1])
+            .filter(Boolean)
+            .map((name) => String(name).trim().toLowerCase())
+        );
+        setTeamNameSet(names);
+
+        const emails = new Set(
+          submissions
+            .map((submission) => (submission.data || {})[3])
+            .filter(Boolean)
+            .map((email) => String(email).trim().toLowerCase())
+        );
+        setTeamEmailSet(emails);
+
+        const designField = allFields.find(
+          (field) => field.type === 'image-select-library'
+        );
+        if (designField) {
+          const counts = submissions.reduce((acc, submission) => {
+            const design = (submission.data || {})[designField.id];
+            if (design) {
+              acc[design] = (acc[design] || 0) + 1;
+            }
+            return acc;
+          }, {});
+          setKitDesignCounts(counts);
+        }
+      } catch (error) {
+        console.error('Error loading team color combos:', error);
+      }
+    };
+
+    loadTeamColorCombos();
+  }, [form, isMultiPage]);
+
+  useEffect(() => {
+    if (!form || form.id !== 2) return;
+    let isMounted = true;
+
+    const loadPlayerRegistrations = async () => {
+      try {
+        const response = await fetch('/api/submissions?formId=2');
+        if (!response.ok) return;
+        const data = await response.json();
+        if (isMounted) {
+          setPlayerRegistrationSubmissions(data.submissions || []);
+        }
+      } catch (error) {
+        console.error('Error loading player registrations:', error);
+      }
+    };
+
+    loadPlayerRegistrations();
+    return () => {
+      isMounted = false;
+    };
+  }, [form]);
+
+  // Set default color values for image-select-library fields with color pickers
+  useEffect(() => {
+    const allFields = isMultiPage 
+      ? form.pages.flatMap(p => p.fields)
+      : form.fields;
+    
+    const colorDefaults = {};
+    allFields.forEach(field => {
+      if (field.type === 'image-select-library' && field.includeColorPickers && !field.autofillFromSubmission) {
+        // Set defaults if not already set
+        if (formData[field.id] && !formData[`${field.id}_primaryColor`]) {
+          colorDefaults[`${field.id}_primaryColor`] = '#DC2626';
+        }
+        if (formData[field.id] && !formData[`${field.id}_secondaryColor`]) {
+          colorDefaults[`${field.id}_secondaryColor`] = '#2563EB';
+        }
+        if (formData[field.id] && !formData[`${field.id}_trimColor`]) {
+          colorDefaults[`${field.id}_trimColor`] = '#2563EB';
+        }
+      }
+    });
+    
+    if (Object.keys(colorDefaults).length > 0) {
+      setFormData(prev => ({ ...prev, ...colorDefaults }));
+    }
+  }, [form, isMultiPage, formData]);
+
+  // Auto-add basic kit to cart when reaching page 3
+  useEffect(() => {
+    if (currentPage === 3 && form.id === 2) {
       const allFields = isMultiPage 
         ? form.pages.flatMap(p => p.fields)
         : form.fields;
       
       const basicKitField = allFields.find(f => f.type === 'product-bundle');
-      if (basicKitField && !cart.some(item => item.id === 'basic-kit')) {
-        // Get selected team submission ID to fetch custom pricing
-        const teamDropdownField = allFields.find(f => f.type === 'submission-dropdown' && f.sourceFormId === 1);
-        const selectedTeamId = teamDropdownField ? formData[teamDropdownField.id] : null;
-        
-        // Get team pricing or use default
-        const teamPricing = selectedTeamId ? getTeamKitPricing(parseInt(selectedTeamId)) : { finalPrice: basicKitField.basePrice };
-        
+      if (!basicKitField) return;
+
+      const selectedSizeLabel = getBasicKitSizeLabel(basicKitField);
+      const existingKitItems = cart.filter(item => item.id === 'basic-kit');
+
+      if (!selectedSizeLabel) {
+        existingKitItems.forEach(item => removeFromCart(item.id, item.selectedSize));
+        return;
+      }
+
+      const teamPricing = getSelectedTeamKitPricing(basicKitField);
+      const existingMatch = existingKitItems.find(item => item.selectedSize === selectedSizeLabel);
+      const priceChanged = existingMatch && Number(existingMatch.price) !== Number(teamPricing.finalPrice);
+
+      if (!existingMatch || priceChanged) {
+        existingKitItems.forEach(item => removeFromCart(item.id, item.selectedSize));
         addToCart({
           id: 'basic-kit',
           name: basicKitField.label,
           price: teamPricing.finalPrice,
           description: basicKitField.description
-        }, null);
+        }, selectedSizeLabel);
       }
     }
-  }, [currentPage, form, isMultiPage, cart, addToCart, formData]);
+  }, [currentPage, form, isMultiPage, cart, addToCart, removeFromCart, formData, submissionDropdownData]);
 
   const handleInputChange = (fieldId, value) => {
+    if (validationErrors[fieldId]) {
+      setValidationErrors(prev => {
+        const next = { ...prev };
+        delete next[fieldId];
+        return next;
+      });
+    }
     setFormData(prev => ({
       ...prev,
       [fieldId]: value
     }));
   };
+
+  const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+  const formatUploadSize = (bytes) => `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+
+  const handleImageFileUpload = (file, fieldId, label = 'Image') => {
+    if (!file) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setFormAlert({
+        open: true,
+        message: `${label} is too large. Max size is ${formatUploadSize(MAX_UPLOAD_BYTES)}.`
+      });
+      setValidationErrors(prev => ({ ...prev, [fieldId]: true }));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      handleInputChange(fieldId, reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const isWhiteColor = (value) => {
+    if (!value) return false;
+    const normalized = value.toUpperCase();
+    return normalized === '#FFFFFF' || normalized === '#FFF';
+  };
+
+  const isDuplicateTeamColors = (candidate) => {
+    if (!candidate.primary || !candidate.secondary || !candidate.trim) return false;
+    return teamColorCombos.some((combo) =>
+      combo.primary === candidate.primary &&
+      combo.secondary === candidate.secondary &&
+      combo.trim === candidate.trim
+    );
+  };
+
+  const normalizeSubTeamValue = (value) => {
+    if (!value) return '';
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return `${parsed.teamName || ''}|${parsed.gender || ''}|${parsed.ageGroup || ''}`;
+      } catch (error) {
+        return value;
+      }
+    }
+    if (typeof value === 'object') {
+      return `${value.teamName || ''}|${value.gender || ''}|${value.ageGroup || ''}`;
+    }
+    return String(value);
+  };
+
+  const getSelectedTeamKitPricing = (basicKitField) => {
+    const fallbackBase = basicKitField?.basePrice ?? 150;
+    const allFields = isMultiPage ? form.pages.flatMap(p => p.fields) : form.fields;
+    const teamDropdownField = allFields.find(f => f.type === 'submission-dropdown' && f.sourceFormId === 1);
+    if (!teamDropdownField) {
+      return { basePrice: fallbackBase, markup: 0, finalPrice: fallbackBase };
+    }
+    const selectedTeamId = formData[teamDropdownField.id];
+    const submissions = submissionDropdownData[teamDropdownField.id]?.submissions || [];
+    const selectedSubmission = submissions.find(sub => String(sub.id) === String(selectedTeamId));
+    const baseRaw = selectedSubmission?.data?.['29_basePrice'];
+    const markupRaw = selectedSubmission?.data?.['29_markup'];
+    const basePrice = Number.isFinite(parseFloat(baseRaw)) ? parseFloat(baseRaw) : fallbackBase;
+    const markup = Number.isFinite(parseFloat(markupRaw)) ? parseFloat(markupRaw) : 0;
+    return {
+      basePrice,
+      markup,
+      finalPrice: basePrice + markup
+    };
+  };
+
+  const getBasicKitSizeLabel = (basicKitField) => {
+    if (!basicKitField) return null;
+    const shirt = formData[`${basicKitField.id}_shirtSize`];
+    const pants = formData[`${basicKitField.id}_pantsSize`];
+    if (!shirt || !pants) return null;
+    return `Shirt: ${shirt} / Pants: ${pants}`;
+  };
+
+  const getSelectedKitDesign = () => {
+    if (!form || form.id !== 2) return null;
+    const rawValue = formData[24] || '';
+    const allFields = isMultiPage ? form.pages.flatMap(p => p.fields) : form.fields;
+    const teamDropdownField = allFields.find(f => f.type === 'submission-dropdown' && f.sourceFormId === 1);
+    const selectedTeamId = teamDropdownField ? formData[teamDropdownField.id] : null;
+    const submissions = teamDropdownField ? (submissionDropdownData[teamDropdownField.id]?.submissions || []) : [];
+    const selectedSubmission = selectedTeamId
+      ? submissions.find(sub => String(sub.id) === String(selectedTeamId))
+      : null;
+    const submissionData = selectedSubmission?.data || {};
+    const submissionKitValue =
+      submissionData['select team kit design-design'] ??
+      submissionData['select team kit design'] ??
+      submissionData['team kit design'] ??
+      submissionData[23] ??
+      submissionData['23'] ??
+      '';
+    const resolvedValue = rawValue || submissionKitValue || '';
+    if (!resolvedValue) return null;
+    const numericValue = Number(resolvedValue);
+    const byId = Number.isFinite(numericValue) && numericValue > 0
+      ? shirtDesigns.find(d => Number(d.id) === numericValue)
+      : null;
+    const byName = shirtDesigns.find(d => d.name === resolvedValue);
+    const design = byId || byName || null;
+    return {
+      name: design?.name || resolvedValue,
+      id: design?.id
+    };
+  };
+
+  const isShirtNumberField = (field) => (
+    form?.id === 2
+    && currentPage === 3
+    && field?.id === 36
+  );
+
+  const isKitPreviewField = (field) => (
+    form?.id === 2
+    && currentPage === 3
+    && field?.type === 'image-select-library'
+    && field?.id === 24
+  );
+
+  const renderAdditionalApparelSection = () => {
+    const selectedDesign = getSelectedKitDesign();
+    const matchedProducts = additionalApparelProducts.filter(product => matchesKitDesign(product, selectedDesign));
+
+    return (
+      <div style={{ marginTop: '1.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div>
+            <h4 style={{ margin: 0, fontSize: '1.2rem' }}>Additional Apparel</h4>
+            <p style={{ margin: '0.35rem 0 0', fontSize: '0.9rem', color: '#6b7280' }}>
+              Optional add-ons linked to your team kit design.
+            </p>
+          </div>
+          {getCartCount() > 0 && (
+            <button
+              type="button"
+              onClick={openCart}
+              style={{
+                padding: '0.6rem 1.2rem',
+                background: '#dc0000',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              🛒 View Cart ({getCartCount()})
+            </button>
+          )}
+        </div>
+
+        {!selectedDesign && (
+          <div style={{
+            padding: '1rem',
+            background: '#f8fafc',
+            borderRadius: '10px',
+            border: '1px dashed #cbd5f5',
+            color: '#64748b'
+          }}>
+            Select your team to view additional apparel options.
+          </div>
+        )}
+
+        {selectedDesign && additionalApparelLoading && (
+          <div style={{ color: '#6b7280' }}>Loading additional apparel...</div>
+        )}
+
+        {selectedDesign && !additionalApparelLoading && matchedProducts.length === 0 && (
+          <div style={{
+            padding: '1rem',
+            background: '#f8fafc',
+            borderRadius: '10px',
+            border: '1px dashed #cbd5f5',
+            color: '#64748b'
+          }}>
+            No additional apparel is available for this kit design yet.
+          </div>
+        )}
+
+        {selectedDesign && matchedProducts.length > 0 && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: '1rem'
+          }}>
+            {matchedProducts.map(product => {
+              const sizes = Array.isArray(product.sizes) ? product.sizes : [];
+              const selectedSize = formData[`addon_${product.id}_size`] || '';
+              const inCart = cart.some(item => item.id === product.id && item.selectedSize === (sizes.length ? selectedSize : null));
+              const detailRecord = additionalApparelDetails[product.id];
+              const imageUrl = (detailRecord?.images && detailRecord.images.length > 0)
+                ? detailRecord.images[0]
+                : (product.images && product.images.length > 0 ? product.images[0] : (product.image || '/images/placeholder.svg'));
+
+              return (
+                <div
+                  key={product.id}
+                  style={{
+                    background: 'linear-gradient(135deg, #0f172a 0%, #111827 100%)',
+                    border: inCart ? '2px solid #dc0000' : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    boxShadow: inCart ? '0 12px 28px rgba(220, 0, 0, 0.25)' : '0 10px 26px rgba(15, 23, 42, 0.6)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease, border 0.2s ease'
+                  }}
+                  onClick={async () => {
+                    try {
+                      if (!additionalApparelDetails[product.id]) {
+                        const response = await fetch(`/api/products?id=${product.id}`);
+                        const data = await response.json();
+                        if (response.ok && data?.success && data.product) {
+                          setAdditionalApparelDetails(prev => ({
+                            ...prev,
+                            [product.id]: data.product
+                          }));
+                          setActiveApparelModal(data.product);
+                          return;
+                        }
+                      }
+                      setActiveApparelModal(additionalApparelDetails[product.id] || product);
+                    } catch (error) {
+                      console.error('Error loading product details:', error);
+                      setActiveApparelModal(additionalApparelDetails[product.id] || product);
+                    }
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = inCart
+                      ? '0 18px 32px rgba(220, 0, 0, 0.35)'
+                      : '0 18px 34px rgba(220, 0, 0, 0.25)';
+                    e.currentTarget.style.border = '1px solid rgba(220, 38, 38, 0.65)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = inCart
+                      ? '0 12px 28px rgba(220, 0, 0, 0.25)'
+                      : '0 10px 26px rgba(15, 23, 42, 0.6)';
+                    e.currentTarget.style.border = inCart ? '2px solid #dc0000' : '1px solid rgba(255, 255, 255, 0.08)';
+                  }}
+                >
+                  <div style={{
+                    width: '100%',
+                    height: '200px',
+                    background: '#0b1220',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+                  }}>
+                    <img
+                      src={imageUrl}
+                      alt={product.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </div>
+                  <div style={{ padding: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                    <div>
+                      <h5 style={{ margin: 0, fontSize: '1rem', color: '#f8fafc', fontWeight: '700' }}>{product.name}</h5>
+                      <div style={{ marginTop: '0.35rem', fontSize: '0.75rem', color: '#9ca3af', fontWeight: '600' }}>
+                        Tap to view details
+                      </div>
+                    </div>
+                    <div style={{ fontWeight: '800', fontSize: '1.1rem', color: '#f8fafc' }}>
+                      R{Number(product.price || 0).toFixed(2)}
+                    </div>
+
+                    {sizes.length > 0 && (
+                      <select
+                        value={selectedSize}
+                        onChange={(e) => handleInputChange(`addon_${product.id}_size`, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem 0.6rem',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          background: '#0f172a',
+                          color: '#f8fafc',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        <option value="">Select size</option>
+                        {sizes.map(size => (
+                          <option key={size} value={size}>{size}</option>
+                        ))}
+                      </select>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (sizes.length > 0 && !selectedSize) {
+                          setFormAlert({ open: true, message: 'Please select a size first.' });
+                          return;
+                        }
+
+                        if (inCart) {
+                          removeFromCart(product.id, sizes.length ? selectedSize : null);
+                          return;
+                        }
+
+                        addToCart({
+                          id: product.id,
+                          name: product.name,
+                          price: Number(product.price || 0),
+                          description: product.description,
+                          image: imageUrl,
+                          category: product.category
+                        }, sizes.length ? selectedSize : null);
+                      }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      style={{
+                        padding: '0.6rem 0.9rem',
+                        borderRadius: '8px',
+                        border: 'none',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        background: inCart ? '#1f2937' : '#dc0000',
+                        color: 'white',
+                        boxShadow: inCart ? 'none' : '0 8px 18px rgba(220, 0, 0, 0.35)'
+                      }}
+                    >
+                      {inCart ? 'Remove from Cart' : 'Add to Cart'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {activeApparelModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.65)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 50,
+              padding: '1.5rem'
+            }}
+            onClick={() => setActiveApparelModal(null)}
+          >
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #0f172a 0%, #111827 100%)',
+                borderRadius: '18px',
+                width: '100%',
+                maxWidth: '720px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 24px 60px rgba(0,0,0,0.55)',
+                overflow: 'hidden'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '1.2rem' }}>{activeApparelModal.name}</h3>
+                  <p style={{ margin: '0.25rem 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>
+                    R{Number(activeApparelModal.price || 0).toFixed(2)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveApparelModal(null)}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    color: '#f8fafc',
+                    borderRadius: '8px',
+                    padding: '0.35rem 0.65rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.75rem', padding: '0 1.25rem 1.25rem' }}>
+                {(activeApparelModal.images && activeApparelModal.images.length > 0
+                  ? activeApparelModal.images.slice(0, 2)
+                  : [activeApparelModal.image || '/images/placeholder.svg']
+                ).map((img, idx) => (
+                  <div key={`${activeApparelModal.id}-${idx}`} style={{
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: '#0b1220'
+                  }}>
+                    <img src={img} alt={`${activeApparelModal.name} ${idx + 1}`} style={{ width: '100%', height: '240px', objectFit: 'cover' }} />
+                  </div>
+                ))}
+              </div>
+              {activeApparelModal.description && (
+                <div style={{ padding: '0 1.25rem 1.25rem', color: '#cbd5f5', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                  {activeApparelModal.description}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const matchesKitDesign = (product, design) => {
+    if (!design) return false;
+    const productDesignId = product.designId ?? product.kitDesignId ?? product.designID;
+    if (productDesignId && design.id) {
+      return String(productDesignId) === String(design.id);
+    }
+    if (product.designName && design.name) {
+      return String(product.designName) === String(design.name);
+    }
+    if (design.name) {
+      const kitMatch = String(design.name).match(/kit\s*(\d+)/i);
+      if (kitMatch) {
+        const kitNumber = kitMatch[1];
+        const productName = String(product.name || '');
+        if (productName.toLowerCase().includes(`kit ${kitNumber}`.toLowerCase())) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    if (!form || form.id !== 2) return;
+
+    const jerseyValue = formData[36];
+    const jerseyString = jerseyValue === undefined || jerseyValue === null ? '' : String(jerseyValue).trim();
+    const teamSelection = formData[8];
+    const subTeamSelection = formData[34];
+
+    if (!jerseyString) {
+      setFieldMessages(prev => {
+        const next = { ...prev };
+        delete next[36];
+        return next;
+      });
+      setValidationErrors(prev => {
+        const next = { ...prev };
+        delete next[36];
+        return next;
+      });
+      return;
+    }
+
+    if (!/^\d{1,2}$/.test(jerseyString)) {
+      setFieldMessages(prev => ({
+        ...prev,
+        [36]: 'Only a 1–2 digit shirt number can be used.'
+      }));
+      setValidationErrors(prev => ({ ...prev, [36]: true }));
+      return;
+    }
+
+    const targetSubTeamKey = normalizeSubTeamValue(subTeamSelection);
+    if (teamSelection && targetSubTeamKey) {
+      const duplicate = playerRegistrationSubmissions.some((submission) => {
+        const data = submission.data || {};
+        const submissionTeam = data[8] ?? data['8'];
+        const submissionSubTeam = data[34] ?? data['34'];
+        const submissionJersey = data[36] ?? data['36'];
+        if (String(submissionTeam) !== String(teamSelection)) return false;
+        const submissionSubTeamKey = normalizeSubTeamValue(submissionSubTeam);
+        if (submissionSubTeamKey !== targetSubTeamKey) return false;
+        return String(submissionJersey) === jerseyString;
+      });
+
+      if (duplicate) {
+        setFieldMessages(prev => ({
+          ...prev,
+          [36]: 'This shirt number is already taken for the selected age group team. Please choose another.'
+        }));
+        setValidationErrors(prev => ({ ...prev, [36]: true }));
+        return;
+      }
+    }
+
+    setFieldMessages(prev => {
+      const next = { ...prev };
+      delete next[36];
+      return next;
+    });
+    setValidationErrors(prev => {
+      const next = { ...prev };
+      delete next[36];
+      return next;
+    });
+  }, [form, formData[36], formData[8], formData[34], playerRegistrationSubmissions]);
+
+  const compressImageDataUrl = (dataUrl, options = {}) => {
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+      return Promise.resolve(dataUrl);
+    }
+
+    const { maxWidth = 1600, maxHeight = 1600, quality = 0.7 } = options;
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        const scale = Math.min(1, maxWidth / width, maxHeight / height);
+        const targetWidth = Math.max(1, Math.round(width * scale));
+        const targetHeight = Math.max(1, Math.round(height * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+        const compressed = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressed.length < dataUrl.length ? compressed : dataUrl);
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  };
+
+  const handleColorChange = (fieldId, colorKey, value) => {
+    if (value && value.startsWith('#') && value.length >= 4 && isWhiteColor(value)) {
+      setFormAlert({ open: true, message: 'White is not allowed as a color option.' });
+      return;
+    }
+
+    const candidate = {
+      primary: (colorKey === 'primary' ? value : formData[`${fieldId}_primaryColor`]) || '',
+      secondary: (colorKey === 'secondary' ? value : formData[`${fieldId}_secondaryColor`]) || '',
+      trim: (colorKey === 'trim' ? value : formData[`${fieldId}_trimColor`]) || ''
+    };
+
+    const normalizedCandidate = {
+      primary: candidate.primary.toUpperCase(),
+      secondary: candidate.secondary.toUpperCase(),
+      trim: candidate.trim.toUpperCase()
+    };
+
+    if (form?.id === 1 && isDuplicateTeamColors(normalizedCandidate)) {
+      setFormAlert({ open: true, message: 'This color combination is already in use. Please choose a unique set of team colors.' });
+      return;
+    }
+
+    handleInputChange(`${fieldId}_${colorKey}Color`, value);
+  };
+
+  const getColorPickerFields = () => {
+    if (!form) return [];
+    const allFields = isMultiPage
+      ? form.pages.flatMap(p => p.fields)
+      : form.fields;
+    return allFields.filter(
+      (field) => field.type === 'image-select-library' && field.includeColorPickers && !field.autofillFromSubmission
+    );
+  };
+
+  const markMissingFields = (missingFields) => {
+    const nextErrors = {};
+    missingFields.forEach(field => {
+      nextErrors[field.id] = true;
+    });
+    setValidationErrors(nextErrors);
+  };
+
+  const focusMissingField = (field) => {
+    const scrollToField = () => {
+      const node = fieldRefs.current[field.id];
+      if (node) {
+        node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+
+    if (isMultiPage) {
+      const targetPage = form.pages.find(page => page.fields.some(f => f.id === field.id));
+      if (targetPage && targetPage.pageId !== currentPage) {
+        setCurrentPage(targetPage.pageId);
+        setTimeout(scrollToField, 200);
+        return;
+      }
+    }
+
+    scrollToField();
+  };
+
+  const scrollToKitColors = (fieldId) => {
+    const node = kitColorsRef.current[fieldId];
+    if (node) {
+      const offset = 140;
+      requestAnimationFrame(() => {
+        const y = node.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (formData[23] && lastScrolledKitRef.current !== formData[23]) {
+      lastScrolledKitRef.current = formData[23];
+      scrollToKitColors(23);
+    }
+  }, [formData[23]]);
 
   const handleSubmissionDropdownChange = (fieldId, submissionId) => {
     // Update the dropdown value
@@ -167,7 +1348,9 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
     // Get the selected submission data and prefill fields
     const dropdownInfo = submissionDropdownData[fieldId];
     if (dropdownInfo && submissionId) {
-      const selectedSubmission = dropdownInfo.submissions.find(s => s.id === parseInt(submissionId));
+      const selectedSubmission = dropdownInfo.submissions.find(
+        s => String(s.id) === String(submissionId)
+      );
       if (selectedSubmission) {
         const newPrefilledData = { ...prefilledData };
         const newFormData = { ...formData, [fieldId]: submissionId };
@@ -180,7 +1363,10 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
         });
 
         // Handle autofillFromSubmission (new method - individual fields linked to dropdown)
-        form.fields.forEach(field => {
+        const allFields = isMultiPage
+          ? form.pages.flatMap(page => page.fields || [])
+          : form.fields;
+        allFields.forEach(field => {
           if (field.autofillFromSubmission && field.autofillLinkedDropdownFieldId === fieldId && field.autofillSourceFieldId) {
             const value = selectedSubmission.data[field.autofillSourceFieldId];
             newFormData[field.id] = value;
@@ -216,7 +1402,10 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
       }
 
       // Clear autofilled fields
-      form.fields.forEach(field => {
+      const allFields = isMultiPage
+        ? form.pages.flatMap(page => page.fields || [])
+        : form.fields;
+      allFields.forEach(field => {
         if (field.autofillFromSubmission && field.autofillLinkedDropdownFieldId === fieldId) {
           newFormData[field.id] = '';
         }
@@ -248,6 +1437,9 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
       .filter(field => {
         // Product bundle only needs size selection
         if (field.type === 'product-bundle') {
+          if (form.id === 2) {
+            return !formData[`${field.id}_shirtSize`] || !formData[`${field.id}_pantsSize`];
+          }
           return !formData[`${field.id}_size`];
         }
         
@@ -257,14 +1449,33 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
           return requiredCheckoutFields.some(fieldName => !formData[fieldName]);
         }
         
-        // Kit pricing requires base price and markup
+        // Kit pricing - only requires base price if field is required (markup is optional)
         if (field.type === 'kit-pricing') {
-          return !formData[`${field.id}_basePrice`];
+          // Base price is auto-loaded from the database, so it's always present
+          return false; // Never mark as missing - the base price is set by admin
         }
         
-        // Entry fee pricing requires base fee (adjustment is optional)
+        // Entry fee pricing - no validation needed (fixed fee, no user input)
         if (field.type === 'entry-fee-pricing') {
-          return !formData[`${field.id}_baseFee`];
+          return false; // Never mark as missing - it's a display-only field
+        }
+        
+        // Dynamic team entries validation
+        if (field.type === 'dynamic-team-entries') {
+          const numberOfTeams = parseInt(formData[field.dependsOn] || 0);
+          const teamEntries = formData[field.id] || [];
+          
+          if (numberOfTeams === 0) return true; // Must have at least 1 team
+          if (teamEntries.length === 0) return true;
+          
+          // Check all teams have required fields
+          for (let i = 0; i < numberOfTeams; i++) {
+            const entry = teamEntries[i];
+            if (!entry || !entry.teamName || !entry.gender || !entry.ageGroup || !entry.coachName || !entry.coachContact) {
+              return true;
+            }
+          }
+          return false;
         }
         
         // Check main field value for other types
@@ -283,8 +1494,58 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
       });
     
     if (missingFields.length > 0) {
-      alert('Please fill in all required fields on this page');
+      markMissingFields(missingFields);
+      focusMissingField(missingFields[0]);
       return;
+    }
+
+    if (form.id === 1 && currentPage === 1) {
+      const teamName = String(formData[1] || '').trim();
+      if (teamName && teamNameSet.has(teamName.toLowerCase())) {
+        setFormAlert({ open: true, message: 'This team name is already registered. Please choose a unique team name.' });
+        const teamField = currentFields.find((field) => field.id === 1);
+        if (teamField) {
+          focusMissingField(teamField);
+        }
+        return;
+      }
+
+      const teamEmail = String(formData[3] || '').trim();
+      if (teamEmail && teamEmailSet.has(teamEmail.toLowerCase())) {
+        setFormAlert({ open: true, message: 'This email is already registered. Please use a different team email.' });
+        const emailField = currentFields.find((field) => field.id === 3);
+        if (emailField) {
+          focusMissingField(emailField);
+        }
+        return;
+      }
+    }
+
+    const colorFields = getColorPickerFields();
+    for (const field of colorFields) {
+      if (!formData[field.id]) continue;
+
+      const primary = formData[`${field.id}_primaryColor`] || '';
+      const secondary = formData[`${field.id}_secondaryColor`] || '';
+      const trim = formData[`${field.id}_trimColor`] || '';
+
+      if (isWhiteColor(primary) || isWhiteColor(secondary) || isWhiteColor(trim)) {
+        setFormAlert({ open: true, message: 'White is not allowed as a color option.' });
+        focusMissingField(field);
+        return;
+      }
+
+      const candidate = {
+        primary: primary.toUpperCase(),
+        secondary: secondary.toUpperCase(),
+        trim: trim.toUpperCase()
+      };
+
+      if (form.id === 1 && isDuplicateTeamColors(candidate)) {
+        setFormAlert({ open: true, message: 'This color combination is already in use. Please choose a unique set of team colors.' });
+        focusMissingField(field);
+        return;
+      }
     }
 
     setCurrentPage(prev => Math.min(prev + 1, totalPages));
@@ -296,9 +1557,73 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
     setCurrentPage(prev => Math.max(prev - 1, 1));
   };
 
+  useEffect(() => {
+    if (!formTopRef.current) return;
+    requestAnimationFrame(() => {
+      formTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (!submitted) return;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }, [submitted]);
+
+  const handleStepClick = (pageId) => {
+    if (typeof window === 'undefined') return;
+    if (window.innerWidth > 768) return;
+    if (!isMultiPage) return;
+
+    const scrollToFirstField = () => {
+      const targetPage = form.pages?.find(page => page.pageId === pageId);
+      const sortedFields = targetPage?.fields
+        ? [...targetPage.fields].sort((a, b) => a.order - b.order)
+        : [];
+      const firstField = sortedFields[0];
+      const targetNode = firstField ? fieldRefs.current[firstField.id] : formTopRef.current;
+
+      if (targetNode) {
+        const offset = 120;
+        const y = targetNode.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+    };
+
+    setCurrentPage(pageId);
+    setTimeout(scrollToFirstField, 200);
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handlePopState = () => {
+      if (!showLandingPage && currentPage === 1 && landingPage?.enabled) {
+        setShowLandingPage(true);
+        window.history.pushState({ view: 'landing' }, '', window.location.href);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [showLandingPage, currentPage, landingPage]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+
+    if (fieldMessages[36]) {
+      setSubmitting(false);
+      const allFields = isMultiPage
+        ? form.pages.flatMap(p => p.fields)
+        : form.fields;
+      const jerseyField = allFields.find((field) => field.id === 36);
+      if (jerseyField) {
+        focusMissingField(jerseyField);
+      }
+      return;
+    }
 
     // Validate all required fields across all pages
     const allFields = isMultiPage 
@@ -310,7 +1635,15 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
       .filter(field => {
         // Product bundle only needs size selection
         if (field.type === 'product-bundle') {
+          if (form.id === 2) {
+            return !formData[`${field.id}_shirtSize`] || !formData[`${field.id}_pantsSize`];
+          }
           return !formData[`${field.id}_size`];
+        }
+        
+        // Kit pricing and entry fee pricing - skip validation (these are display/config fields)
+        if (field.type === 'kit-pricing' || field.type === 'entry-fee-pricing') {
+          return false; // Never mark as missing
         }
         
         // Checkout form requires all checkout fields
@@ -352,31 +1685,145 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
       });
 
     if (missingFields.length > 0) {
-      alert('Please fill in all required fields (including colors if applicable)');
+      markMissingFields(missingFields);
+      focusMissingField(missingFields[0]);
       setSubmitting(false);
       return;
     }
 
-    // Combine form data with prefilled data for submission
-    const combinedData = { ...formData, ...prefilledData };
-
-    // Submit the form
-    const submission = submitForm(form.id, combinedData);
-    
-    // If this is a Team Registration form (id: 1), save the kit pricing
-    if (form.id === 1 && submission) {
-      const basePrice = formData['29_basePrice'] || 150;
-      const markup = formData['29_markup'] || 0;
-      setTeamKitPricing(submission.id, basePrice, markup);
-    }
-    
-    setTimeout(() => {
-      setSubmitting(false);
-      setSubmitted(true);
-      if (onSubmitSuccess) {
-        onSubmitSuccess(submission);
+    if (form.id === 1) {
+      const teamName = String(formData[1] || '').trim();
+      if (teamName && teamNameSet.has(teamName.toLowerCase())) {
+        setFormAlert({ open: true, message: 'This team name is already registered. Please choose a unique team name.' });
+        const teamField = allFields.find((field) => field.id === 1);
+        if (teamField) {
+          focusMissingField(teamField);
+        }
+        setSubmitting(false);
+        return;
       }
-    }, 500);
+
+      const teamEmail = String(formData[3] || '').trim();
+      if (teamEmail && teamEmailSet.has(teamEmail.toLowerCase())) {
+        setFormAlert({ open: true, message: 'This email is already registered. Please use a different team email.' });
+        const emailField = allFields.find((field) => field.id === 3);
+        if (emailField) {
+          focusMissingField(emailField);
+        }
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    const colorFields = getColorPickerFields();
+    for (const field of colorFields) {
+      if (!formData[field.id]) continue;
+
+      const primary = formData[`${field.id}_primaryColor`] || '';
+      const secondary = formData[`${field.id}_secondaryColor`] || '';
+      const trim = formData[`${field.id}_trimColor`] || '';
+
+      if (isWhiteColor(primary) || isWhiteColor(secondary) || isWhiteColor(trim)) {
+        setFormAlert({ open: true, message: 'White is not allowed as a color option.' });
+        focusMissingField(field);
+        setSubmitting(false);
+        return;
+      }
+
+      const candidate = {
+        primary: primary.toUpperCase(),
+        secondary: secondary.toUpperCase(),
+        trim: trim.toUpperCase()
+      };
+
+      if (form.id === 1 && isDuplicateTeamColors(candidate)) {
+        setFormAlert({ open: true, message: 'This color combination is already in use. Please choose a unique set of team colors.' });
+        focusMissingField(field);
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    // Combine form data with prefilled data for submission
+    let combinedData = { ...formData, ...prefilledData };
+
+    try {
+      // Compress birth certificate image before submission (if present)
+      const birthCertField = allFields.find((field) => field.id === 43);
+      if (birthCertField && combinedData[43]) {
+        combinedData[43] = await compressImageDataUrl(combinedData[43], {
+          maxWidth: 1600,
+          maxHeight: 1600,
+          quality: 0.7
+        });
+      }
+
+      // Submit the form via API
+      const response = await fetch('/api/form-submissions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          formId: form.id,
+          data: combinedData
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to submit form');
+      }
+
+      // If this is a Team Registration form (id: 1), store team credentials to show to user
+      if (form.id === 1 && result.submission && result.teamProfile) {
+        setTeamCredentials({
+          teamName: result.teamProfile.teamName,
+          email: result.teamProfile.email,
+          password: result.teamProfile.password
+        });
+      }
+
+      // Store the submitted data with field labels for the success page
+      const submittedFieldsList = isMultiPage 
+        ? form.pages.flatMap(p => p.fields)
+        : form.fields;
+      
+      const submittedData = {};
+      submittedFieldsList.forEach(field => {
+        const value = combinedData[field.id];
+        if (value !== undefined && value !== null && value !== '') {
+          // Skip complex fields that aren't suitable for display
+          if (!['kit-pricing', 'entry-fee-pricing', 'product-bundle', 'supporter-apparel', 'registration-products'].includes(field.type)) {
+            submittedData[field.label || `Field ${field.id}`] = value;
+          }
+        }
+        // Handle color fields
+        if (field.type === 'kit-color-picker') {
+          const primary = combinedData[`${field.id}_primaryColor`];
+          const secondary = combinedData[`${field.id}_secondaryColor`];
+          const trim = combinedData[`${field.id}_trimColor`];
+          if (primary) submittedData['Primary Color'] = primary;
+          if (secondary) submittedData['Secondary Color'] = secondary;
+          if (trim) submittedData['Trim Color'] = trim;
+        }
+      });
+      setSubmittedFormData(submittedData);
+
+      setSubmitting(false);
+      if (typeof window !== 'undefined' && form?.id) {
+        window.localStorage.removeItem(getDraftKey(form.id));
+      }
+      setSubmitted(true);
+      if (onSubmitSuccess && form.id !== 1) {
+        onSubmitSuccess(result.submission);
+      }
+    } catch (error) {
+      console.error('Form submission error:', error);
+      setSubmitting(false);
+      setFormAlert({ open: true, message: 'There was an error submitting the form. Please try again.' });
+    }
   };
 
   if (submitted) {
@@ -385,15 +1832,42 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
         <div className={styles.successIcon}>✓</div>
         <h3>Thank you for your submission!</h3>
         <p>We've received your information and will get back to you soon.</p>
+        
+        {/* Display submitted information summary */}
+        {submittedFormData && Object.keys(submittedFormData).length > 0 && (
+          <div className={styles.successSummary}>
+            <h4 className={styles.successSummaryTitle}>
+              📋 Submission Summary
+            </h4>
+            <div className={styles.successSummaryGrid}>
+              {Object.entries(submittedFormData).map(([label, value], index) => (
+                <div key={index} className={styles.successSummaryItem}>
+                  <span className={styles.successSummaryLabel}>{label}</span>
+                  <span className={styles.successSummaryValue}>
+                    {formatSubmissionValue(value)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         <button 
           onClick={() => {
           setSubmitted(false);
           setFormData({});
           setPrefilledData({});
+          setTeamCredentials(null);
+          setSubmittedFormData(null);
+          setCurrentPage(1);
+          setShowLandingPage(true);
+          setTimeout(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }, 50);
         }}
         className={styles.resetButton}
         >
-          Submit Another Response
+          OK
         </button>
       </div>
     );
@@ -404,76 +1878,92 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
     return (
       <FormLandingPage 
         landingPage={landingPage} 
-        onStart={() => setShowLandingPage(false)} 
+        onStart={() => {
+          if (typeof window !== 'undefined') {
+            window.history.pushState({ view: 'form' }, '', window.location.href);
+          }
+          setShowLandingPage(false);
+          setTimeout(() => {
+            formTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 50);
+        }} 
       />
     );
   }
 
   return (
-    <div className={styles.formContainer}>
-      <div className={styles.formHeader}>
-        <h3>{form.name}</h3>
-        <p>{form.description}</p>
-        {isMultiPage && (
-          <div style={{ 
-            marginTop: '2rem', 
-            display: 'flex', 
-            gap: '0.75rem', 
-            alignItems: 'center',
-            background: 'rgba(255, 255, 255, 0.15)',
-            backdropFilter: 'blur(10px)',
-            padding: '1.5rem',
-            borderRadius: '16px',
-            border: '1px solid rgba(255, 255, 255, 0.2)'
-          }}>
+    <div 
+      className={styles.formBackgroundWrapper}
+      style={{ minHeight: '100vh' }}
+    >
+      {formAlert.open && (
+        <div className={styles.formAlertOverlay} onClick={() => setFormAlert({ open: false, message: '' })}>
+          <div className={styles.formAlertModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.formAlertTitle}>Please check your details</div>
+            <div className={styles.formAlertMessage}>{formAlert.message}</div>
+            <button
+              type="button"
+              className={styles.formAlertButton}
+              onClick={() => setFormAlert({ open: false, message: '' })}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+      {formBackground && <div className={styles.formBackgroundEffect} />}
+      <div className={styles.formBackgroundContent}>
+        <div
+          ref={formTopRef}
+          className={`${styles.formContainer} ${backgroundTransparency ? styles.formContainerTransparent : ''}`}
+        >
+        <div className={styles.formHeader}>
+          <h3>{form.name}</h3>
+          <p>{form.description}</p>
+          {isMultiPage && (
+          <div className={styles.stepsContainer}>
             {form.pages.map((page, idx) => (
-              <div key={page.pageId} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: idx < form.pages.length - 1 ? 1 : 'auto' }}>
-                <div style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '12px',
-                  background: currentPage === page.pageId 
-                    ? 'white' 
-                    : currentPage > page.pageId 
-                      ? 'rgba(34, 197, 94, 0.9)' 
-                      : 'rgba(255, 255, 255, 0.2)',
-                  color: currentPage === page.pageId ? '#dc0000' : 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: '800',
-                  fontSize: '1.1rem',
-                  boxShadow: currentPage === page.pageId ? '0 4px 12px rgba(255,255,255,0.3)' : 'none',
-                  border: currentPage === page.pageId ? '2px solid rgba(255,255,255,0.5)' : 'none',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                }}>
+              <div
+                key={page.pageId}
+                className={styles.stepItem}
+                onClick={() => handleStepClick(page.pageId)}
+              >
+                <div
+                  className={styles.stepBadge}
+                  style={{
+                    background: currentPage === page.pageId
+                      ? 'white'
+                      : currentPage > page.pageId
+                        ? 'rgba(34, 197, 94, 0.9)'
+                        : 'rgba(255, 255, 255, 0.2)',
+                    color: currentPage === page.pageId ? '#111827' : 'white',
+                    boxShadow: currentPage === page.pageId ? '0 4px 12px rgba(255,255,255,0.3)' : 'none',
+                    border: currentPage === page.pageId ? '2px solid rgba(255,255,255,0.5)' : 'none'
+                  }}
+                >
                   {currentPage > page.pageId ? '✓' : page.pageId}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ 
-                    fontSize: '0.95rem', 
-                    fontWeight: currentPage === page.pageId ? '700' : '500',
-                    color: currentPage === page.pageId ? 'white' : 'rgba(255, 255, 255, 0.8)',
-                    marginBottom: '0.25rem'
-                  }}>
+                <div className={styles.stepText}>
+                  <div
+                    className={styles.stepTitle}
+                    style={{
+                      fontWeight: currentPage === page.pageId ? '700' : '500',
+                      color: currentPage === page.pageId ? 'white' : 'rgba(255, 255, 255, 0.8)'
+                    }}
+                  >
                     {page.pageTitle}
                   </div>
-                  <div style={{
-                    fontSize: '0.75rem',
-                    color: 'rgba(255, 255, 255, 0.6)',
-                    fontWeight: '500'
-                  }}>
+                  <div className={styles.stepMeta}>
                     Step {page.pageId} of {totalPages}
                   </div>
                 </div>
                 {idx < form.pages.length - 1 && (
-                  <div style={{ 
-                    flex: 1,
-                    height: '3px', 
-                    background: currentPage > page.pageId ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)', 
-                    borderRadius: '2px',
-                    transition: 'all 0.3s'
-                  }} />
+                  <div
+                    className={styles.stepBar}
+                    style={{
+                      background: currentPage > page.pageId ? 'rgba(34, 197, 94, 0.5)' : 'rgba(255, 255, 255, 0.2)'
+                    }}
+                  />
                 )}
               </div>
             ))}
@@ -483,76 +1973,47 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
 
       {/* Welcome Banner */}
       {form.welcomeBanner && currentPage === form.welcomeBanner.showOnPage && (
-        <div style={{
-          width: '100%',
-          height: '400px',
-          borderRadius: '20px',
-          overflow: 'hidden',
-          position: 'relative',
-          marginBottom: '2rem',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
-        }}>
-          <div style={{
-            width: '100%',
-            height: '100%',
-            background: form.welcomeBanner.imageUrl 
-              ? `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.5)), url(${form.welcomeBanner.imageUrl})`
-              : 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '3rem',
-            textAlign: 'center'
-          }}>
-            <h2 style={{
-              fontSize: '3rem',
-              fontWeight: '900',
-              color: 'white',
-              margin: '0 0 1rem 0',
-              textShadow: '0 4px 12px rgba(0,0,0,0.3)',
-              letterSpacing: '-1px'
-            }}>
-              {form.welcomeBanner.title}
-            </h2>
-            <p style={{
-              fontSize: '1.25rem',
-              color: 'rgba(255,255,255,0.95)',
-              margin: 0,
-              maxWidth: '600px',
-              textShadow: '0 2px 8px rgba(0,0,0,0.3)',
-              fontWeight: '500'
-            }}>
-              {form.welcomeBanner.subtitle}
-            </p>
+        <div className={styles.welcomeBanner}>
+          {form.welcomeBanner.imageUrl ? (
+            <img
+              src={form.welcomeBanner.imageUrl}
+              alt={form.welcomeBanner.title || 'Welcome banner'}
+              className={styles.welcomeBannerImage}
+            />
+          ) : (
+            <div className={styles.welcomeBannerFallback} />
+          )}
+          <div className={styles.welcomeBannerOverlay}>
+            <h2 className={styles.welcomeBannerTitle}>{form.welcomeBanner.title}</h2>
+            <p className={styles.welcomeBannerSubtitle}>{form.welcomeBanner.subtitle}</p>
           </div>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className={styles.form}>
+      <form
+        onSubmit={handleSubmit}
+        className={`${styles.form} ${form?.id === 2 ? styles.formCompact : ''}`}
+        noValidate
+      >
         {/* Compact grid layout for Team Registration Page 1 */}
         {form.id === 1 && currentPage === 1 ? (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '1.25rem',
-            marginBottom: '1rem'
-          }}>
+          <div className={styles.teamGrid}>
             {currentFields
               .sort((a, b) => a.order - b.order)
               .map(field => (
                 <div 
                   key={field.id} 
-                  style={{
-                    gridColumn: field.id === 22 || field.id === 5 ? 'span 2' : 'span 1'
+                  ref={(node) => {
+                    if (node) {
+                      fieldRefs.current[field.id] = node;
+                    }
                   }}
+                  className={`${field.id === 22 || field.id === 5 ? styles.teamGridWide : styles.teamGridItem} ${validationErrors[field.id] ? styles.fieldError : ''}`}
                 >
                   <label style={{
                     display: 'block',
                     fontWeight: '600',
-                    color: '#111827',
+                    color: '#e5e7eb',
                     fontSize: '0.95rem',
                     marginBottom: '0.5rem',
                     letterSpacing: '-0.2px'
@@ -560,6 +2021,9 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                     {field.label}
                     {field.required && <span style={{ color: '#dc0000', marginLeft: '0.25rem' }}>*</span>}
                   </label>
+                  {validationErrors[field.id] && (
+                    <div className={styles.fieldErrorText}>*Please fill in the required information.</div>
+                  )}
                   
                   {field.id === 22 ? (
                     // Team Logo Upload Field
@@ -578,21 +2042,22 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                           style={{
                             flex: 1,
                             padding: '0.75rem 0.95rem',
-                            border: '2px solid #e5e7eb',
+                            border: '2px solid rgba(148, 163, 184, 0.2)',
                             borderRadius: '10px',
                             fontSize: '0.95rem',
                             fontFamily: 'inherit',
                             transition: 'all 0.3s',
-                            background: '#fafafa'
+                            background: 'rgba(15, 23, 42, 0.9)',
+                            color: '#f8fafc'
                           }}
                           onFocus={(e) => {
                             e.target.style.borderColor = '#dc0000';
-                            e.target.style.background = 'white';
+                            e.target.style.background = 'rgba(17, 24, 39, 0.95)';
                             e.target.style.boxShadow = '0 0 0 3px rgba(220, 0, 0, 0.1)';
                           }}
                           onBlur={(e) => {
-                            e.target.style.borderColor = '#e5e7eb';
-                            e.target.style.background = '#fafafa';
+                            e.target.style.borderColor = 'rgba(148, 163, 184, 0.2)';
+                            e.target.style.background = 'rgba(15, 23, 42, 0.9)';
                             e.target.style.boxShadow = 'none';
                           }}
                         />
@@ -625,13 +2090,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                             accept="image/*"
                             onChange={(e) => {
                               const file = e.target.files[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  handleInputChange(field.id, reader.result);
-                                };
-                                reader.readAsDataURL(file);
-                              }
+                              handleImageFileUpload(file, field.id, 'Team logo');
                             }}
                             style={{ display: 'none' }}
                           />
@@ -856,6 +2315,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                           {field.helpText}
                         </div>
                       )}
+                      {isShirtNumberField(field) && renderAdditionalApparelSection()}
                     </>
                   )}
                   
@@ -1227,10 +2687,24 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
           </div>
         ) : (
           // Regular layout for all other forms/pages
-          currentFields
-            .sort((a, b) => a.order - b.order)
-            .map(field => (
-              <div key={field.id} className={styles.fieldGroup}>
+          orderedFields
+            .map(field => {
+              if (form.id === 2 && field.type === 'product-bundle') {
+                return null;
+              }
+              if (form.id === 2 && field.type === 'upsell-products') {
+                return null;
+              }
+              return (
+                <div key={field.id}>
+                  <div
+                    ref={(node) => {
+                      if (node) {
+                        fieldRefs.current[field.id] = node;
+                      }
+                    }}
+                    className={`${styles.fieldGroup} ${validationErrors[field.id] ? styles.fieldError : ''}`}
+                  >
                 <label className={styles.label}>
                   {field.label}
                   {field.required && <span className={styles.required}>*</span>}
@@ -1240,155 +2714,66 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                     </span>
                   )}
                 </label>
+                {validationErrors[field.id] && (
+                  <div className={styles.fieldErrorText}>*Please fill in the required information.</div>
+                )}
+                {fieldMessages[field.id] && (
+                  <div className={styles.fieldErrorText}>{fieldMessages[field.id]}</div>
+                )}
+                {field.type === 'image-select-library' && field.id === 23 && (
+                  <p className={styles.kitSelectionHint}>
+                    Tap a kit to view its full gallery, then select it. Team colors are chosen after you pick a design.
+                  </p>
+                )}
 
               {field.type === 'text' && (
                 <>
                   {field.id === 30 ? (
-                    // Sponsor Logo Upload Field
-                    <div>
-                      <div style={{
-                        display: 'flex',
-                        gap: '0.75rem',
-                        alignItems: 'flex-start'
-                      }}>
+                    <div className={styles.uploadField}>
+                      <label
+                        className={styles.dropzone}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const file = e.dataTransfer.files?.[0];
+                          handleImageFileUpload(file, field.id, 'Sponsor logo');
+                        }}
+                      >
                         <input
-                          type="text"
-                          placeholder={field.placeholder}
-                          value={formData[field.id] || ''}
-                          onChange={(e) => handleInputChange(field.id, e.target.value)}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            handleImageFileUpload(file, field.id, 'Sponsor logo');
+                          }}
                           required={field.required}
-                          className={styles.input}
+                          className={styles.uploadInput}
                         />
-                        <label style={{
-                          padding: '1.15rem 1.5rem',
-                          background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
-                          color: 'white',
-                          borderRadius: '12px',
-                          fontSize: '1rem',
-                          fontWeight: '700',
-                          cursor: 'pointer',
-                          transition: 'all 0.3s',
-                          whiteSpace: 'nowrap',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.target.style.transform = 'translateY(-2px)';
-                          e.target.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-                        }}
-                        >
-                          📁 Upload
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  handleInputChange(field.id, reader.result);
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                            style={{ display: 'none' }}
-                          />
-                        </label>
-                      </div>
-                      {field.helpText && (
-                        <div style={{
-                          marginTop: '0.75rem',
-                          padding: '1rem',
-                          background: '#eff6ff',
-                          border: '2px solid #bfdbfe',
-                          borderRadius: '10px',
-                          display: 'flex',
-                          gap: '0.75rem',
-                          alignItems: 'flex-start'
-                        }}>
-                          <span style={{ fontSize: '1.25rem' }}>ℹ️</span>
-                          <p style={{ 
-                            margin: 0, 
-                            fontSize: '0.9rem', 
-                            color: '#1e40af',
-                            lineHeight: '1.5',
-                            fontWeight: '500'
-                          }}>
-                            {field.helpText}
-                          </p>
-                        </div>
-                      )}
-                      {formData[field.id] && (
-                        <div style={{
-                          marginTop: '1rem',
-                          padding: '1rem',
-                          background: '#f0fdf4',
-                          border: '2px solid #86efac',
-                          borderRadius: '12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '1rem'
-                        }}>
-                          <img 
-                            src={formData[field.id]} 
-                            alt="Sponsor logo preview" 
-                            style={{
-                              width: '80px',
-                              height: '80px',
-                              objectFit: 'contain',
-                              borderRadius: '8px',
-                              background: 'white',
-                              padding: '8px',
-                              border: '2px solid #d1fae5'
-                            }}
-                          />
-                          <div style={{ flex: 1 }}>
-                            <p style={{ 
-                              margin: 0, 
-                              fontSize: '0.95rem', 
-                              color: '#166534',
-                              fontWeight: '700'
-                            }}>
-                              ✓ Sponsor logo uploaded
-                            </p>
-                            <p style={{ 
-                              margin: '0.25rem 0 0 0', 
-                              fontSize: '0.8rem', 
-                              color: '#16a34a'
-                            }}>
-                              Logo will appear on sleeve and/or pant leg
-                            </p>
-                          </div>
+                        <div className={styles.dropzoneIcon}>⤴</div>
+                        <div className={styles.dropzoneText}>Drag & drop Sponsor Logo here</div>
+                        <div className={styles.dropzoneHint}>or click to browse</div>
+                      </label>
+
+                      <div className={styles.uploadRow}>
+                        {formData[field.id] && (
                           <button
                             type="button"
+                            className={styles.uploadRemove}
                             onClick={() => handleInputChange(field.id, '')}
-                            style={{
-                              padding: '0.75rem 1rem',
-                              background: '#fee2e2',
-                              color: '#991b1b',
-                              border: 'none',
-                              borderRadius: '8px',
-                              fontSize: '0.85rem',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.target.style.background = '#fecaca';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.target.style.background = '#fee2e2';
-                            }}
                           >
                             Remove
                           </button>
+                        )}
+                      </div>
+
+                      {formData[field.id] && (
+                        <div className={styles.uploadPreview}>
+                          <img src={formData[field.id]} alt="Sponsor logo preview" />
+                          <span>Uploaded successfully</span>
                         </div>
+                      )}
+                      {field.helpText && (
+                        <p className={styles.uploadHelp}>{field.helpText}</p>
                       )}
                     </div>
                   ) : (
@@ -1401,7 +2786,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                       readOnly={field.autofillFromSubmission && formData[field.id]}
                       className={styles.input}
                       style={field.autofillFromSubmission && formData[field.id] ? { 
-                        background: '#e0f2fe', 
+                        background: '#0b1220', 
                         cursor: 'not-allowed',
                         border: '2px solid #0ea5e9'
                       } : {}}
@@ -1428,14 +2813,43 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
               )}
 
               {field.type === 'password' && (
-                <input
-                  type="password"
-                  placeholder={field.placeholder}
-                  value={formData[field.id] || ''}
-                  onChange={(e) => handleInputChange(field.id, e.target.value)}
-                  required={field.required}
-                  className={styles.input}
-                />
+                <div className={styles.passwordField}>
+                  <input
+                    type={visiblePasswords[field.id] ? 'text' : 'password'}
+                    placeholder={field.placeholder}
+                    value={formData[field.id] || ''}
+                    onChange={(e) => handleInputChange(field.id, e.target.value)}
+                    required={field.required}
+                    className={styles.input}
+                  />
+                  <button
+                    type="button"
+                    className={styles.passwordToggle}
+                    onClick={() =>
+                      setVisiblePasswords((prev) => ({
+                        ...prev,
+                        [field.id]: !prev[field.id]
+                      }))
+                    }
+                    aria-label={visiblePasswords[field.id] ? 'Hide password' : 'Show password'}
+                  >
+                    {visiblePasswords[field.id] ? (
+                      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                        <path
+                          d="M3.53 2.47a.75.75 0 0 0-1.06 1.06l2.04 2.04C2.6 6.9 1.35 8.53.75 10.5a.75.75 0 0 0 0 .45C2.15 15.76 6.6 19 12 19c1.83 0 3.57-.37 5.15-1.04l2.32 2.32a.75.75 0 1 0 1.06-1.06L3.53 2.47Zm8.47 4.28a4.5 4.5 0 0 1 4.25 6.05l-1.12-1.12a3 3 0 0 0-3.13-3.13L11 6.75c.32-.06.66-.1 1-.1Zm-6.1-.02 1.26 1.26A4.5 4.5 0 0 0 11.02 13l-1.18-1.18a3 3 0 0 1-2.12-2.12L5.9 6.73Zm6.1 10.77c-4.53 0-8.2-2.73-9.6-6 0-.01 0-.02.01-.03.5-1.54 1.47-2.9 2.76-3.94l1.67 1.67a4.5 4.5 0 0 0 6.12 6.12l2.12 2.12c-1.18.46-2.44.71-3.08.71Zm6.62-2.06-1.08-1.08c.88-.84 1.6-1.86 2.07-3.01a.75.75 0 0 0 0-.56C18.2 8.24 15.52 6.3 12.3 5.86l-1.1-1.1c.26-.02.52-.03.8-.03 4.53 0 8.2 2.73 9.6 6-.43 1.04-1.06 2-1.88 2.91Z"
+                          fill="currentColor"
+                        />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                        <path
+                          d="M12 5c5.4 0 9.85 3.24 11.25 8.05.04.15.04.3 0 .45C21.85 18.76 17.4 22 12 22S2.15 18.76.75 13.5a.75.75 0 0 1 0-.45C2.15 8.24 6.6 5 12 5Zm0 2c-4.45 0-8.1 2.5-9.43 6 1.33 3.5 4.98 6 9.43 6s8.1-2.5 9.43-6c-1.33-3.5-4.98-6-9.43-6Zm0 2.25A3.75 3.75 0 1 1 8.25 13 3.75 3.75 0 0 1 12 9.25Zm0 1.5A2.25 2.25 0 1 0 14.25 13 2.25 2.25 0 0 0 12 10.75Z"
+                          fill="currentColor"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               )}
 
               {field.type === 'tel' && (
@@ -1783,58 +3197,116 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
               })()}
 
               {field.type === 'date' && (
-                <input
-                  type="date"
-                  value={formData[field.id] || ''}
-                  onChange={(e) => handleInputChange(field.id, e.target.value)}
-                  required={field.required}
-                  readOnly={field.autofillFromSubmission && formData[field.id]}
-                  className={styles.input}
-                  style={field.autofillFromSubmission && formData[field.id] ? { 
-                    background: '#e0f2fe', 
-                    cursor: 'not-allowed',
-                    border: '2px solid #0ea5e9'
-                  } : {}}
-                />
+                <div className={styles.datePickerWrapper}>
+                  <Flatpickr
+                    ref={(fp) => {
+                      if (fp) {
+                        datePickerRefs.current[field.id] = fp;
+                      }
+                    }}
+                    value={formData[field.id] || ''}
+                    options={{
+                      dateFormat: 'Y-m-d',
+                      altInput: true,
+                      altFormat: 'Y/m/d',
+                      allowInput: true,
+                      disableMobile: false,
+                      monthSelectorType: 'dropdown',
+                      maxDate: 'today',
+                      minDate: '1950-01-01',
+                      onOpen: (_, __, instance) => {
+                        if (!instance.selectedDates.length) {
+                          instance.changeYear(2000, false);
+                          instance.changeMonth(0, false);
+                          instance.redraw();
+                        }
+                      }
+                    }}
+                    onChange={(_, dateStr) => handleInputChange(field.id, dateStr)}
+                    placeholder={field.placeholder || 'Select date'}
+                    disabled={field.autofillFromSubmission && formData[field.id]}
+                    className={styles.input}
+                  />
+                  <span className={styles.datePickerIcon} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18">
+                      <path
+                        d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h1.5A2.5 2.5 0 0 1 22 6.5v12A2.5 2.5 0 0 1 19.5 21h-15A2.5 2.5 0 0 1 2 18.5v-12A2.5 2.5 0 0 1 4.5 4H6V3a1 1 0 0 1 1-1Zm12 8H5v8.5a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5V10ZM5 8h14V6.5a.5.5 0 0 0-.5-.5h-2.5v1a1 1 0 1 1-2 0V6H8v1a1 1 0 1 1-2 0V6H5.5a.5.5 0 0 0-.5.5V8Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </span>
+                  {formData[field.id] && (
+                    <button
+                      type="button"
+                      className={styles.dateClearButton}
+                      onClick={() => {
+                        const instance = datePickerRefs.current[field.id]?.flatpickr;
+                        if (instance) {
+                          instance.clear();
+                          instance.setDate(null, true);
+                          instance.changeYear(2000, false);
+                          instance.changeMonth(0, false);
+                          instance.redraw();
+                        }
+                        handleInputChange(field.id, '');
+                      }}
+                      aria-label="Clear date"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               )}
 
               {field.type === 'file' && (
-                <div>
-                  <input
-                    type="file"
-                    accept={field.accept || 'image/*'}
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          handleInputChange(field.id, reader.result);
-                        };
-                        reader.readAsDataURL(file);
-                      }
+                field.dependsOn && !formData[field.dependsOn] ? null :
+                <div className={styles.uploadField}>
+                  <label
+                    className={styles.dropzone}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const file = e.dataTransfer.files?.[0];
+                      handleImageFileUpload(file, field.id, field.label || 'File');
                     }}
-                    required={field.required}
-                    className={styles.input}
-                    style={{ padding: '0.5rem' }}
-                  />
+                  >
+                    <input
+                      type="file"
+                      accept={field.accept || 'image/*'}
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        handleImageFileUpload(file, field.id, field.label || 'File');
+                      }}
+                      required={field.required}
+                      className={styles.uploadInput}
+                    />
+                    <div className={styles.dropzoneIcon}>⤴</div>
+                    <div className={styles.dropzoneText}>
+                      Drag & drop {field.label} here
+                    </div>
+                    <div className={styles.dropzoneHint}>or click to browse</div>
+                  </label>
+
+                  <div className={styles.uploadRow}>
+                    {formData[field.id] && (
+                      <button
+                        type="button"
+                        className={styles.uploadRemove}
+                        onClick={() => handleInputChange(field.id, '')}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
                   {formData[field.id] && (
-                    <div style={{ marginTop: '0.75rem' }}>
-                      <img 
-                        src={formData[field.id]} 
-                        alt="Preview" 
-                        style={{ 
-                          maxWidth: '200px', 
-                          maxHeight: '200px', 
-                          borderRadius: '8px',
-                          border: '2px solid #e5e7eb'
-                        }} 
-                      />
+                    <div className={styles.uploadPreview}>
+                      <img src={formData[field.id]} alt={`${field.label} preview`} />
+                      <span>Uploaded successfully</span>
                     </div>
                   )}
                   {field.helpText && (
-                    <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                      {field.helpText}
-                    </div>
+                    <p className={styles.uploadHelp}>{field.helpText}</p>
                   )}
                 </div>
               )}
@@ -2057,122 +3529,261 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                 <div>
                   {/* Only show if team is selected (for autofill fields) or always show (for non-autofill) */}
                   {(!field.autofillFromSubmission || (field.autofillLinkedDropdownFieldId && formData[field.autofillLinkedDropdownFieldId])) ? (
-                    <>
-                      {field.autofillFromSubmission && formData[field.id] ? (
-                        /* Show team shirt preview when auto-filled */
-                        <div style={{
-                          background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                          border: '3px solid #22c55e',
-                          borderRadius: '16px',
-                          padding: '2rem',
-                          marginBottom: '1.5rem'
-                        }}>
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '1.5rem',
-                            marginBottom: '1rem'
-                          }}>
-                            <div style={{
-                              background: '#22c55e',
-                              color: 'white',
-                              padding: '0.5rem 1rem',
-                              borderRadius: '8px',
-                              fontWeight: '700',
-                              fontSize: '0.85rem',
-                              letterSpacing: '0.5px'
-                            }}>
-                              ✓ TEAM KIT LOADED
+                    field.autofillFromSubmission ? (
+                      formData[field.id] ? (() => {
+                        const selectedDesign = shirtDesigns.find(d => d.name === formData[field.id]);
+                        const allFields = isMultiPage
+                          ? form.pages.flatMap(page => page.fields || [])
+                          : form.fields;
+                        const basicKitField = allFields.find(f => f.type === 'product-bundle');
+                        const teamPricing = basicKitField ? getSelectedTeamKitPricing(basicKitField) : null;
+                        const shirtSize = basicKitField ? (formData[`${basicKitField.id}_shirtSize`] || '') : '';
+                        const pantsSize = basicKitField ? (formData[`${basicKitField.id}_pantsSize`] || '') : '';
+                        if (!selectedDesign) {
+                          return (
+                            <div className={styles.kitAutofillNotice}>
+                              This kit design was selected by your team.
                             </div>
-                          </div>
-                          
-                          <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-                            <div>
-                              {shirtDesigns.find(d => d.name === formData[field.id]) && (
-                                <img 
-                                  src={getMainImage(shirtDesigns.find(d => d.name === formData[field.id]))}
-                                  alt={formData[field.id]}
-                                  style={{ 
-                                    width: '200px', 
-                                    height: '200px', 
-                                    objectFit: 'contain', 
-                                    borderRadius: '12px',
-                                    border: '3px solid white',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                    background: '#f9fafb'
+                          );
+                        }
+                        const previewImages = (selectedDesign.images && selectedDesign.images.length > 0
+                          ? selectedDesign.images
+                          : [getMainImage(selectedDesign)]
+                        ).slice(0, 2);
+
+                        return (
+                          <div className={styles.kitPreviewPanelInline}>
+                            <div className={styles.kitPreviewHeader}>
+                              <div>
+                                <h4 className={styles.kitPreviewTitle}>{selectedDesign.name}</h4>
+                                <p className={styles.kitPreviewSubtitle}>Preview of the basic kit your team selected.</p>
+                              </div>
+                              <div className={styles.kitPreviewMeta}>
+                                <span className={styles.kitPreviewMetaLabel}>Gallery</span>
+                                <span className={styles.kitPreviewMetaCount}>{previewImages.length} images</span>
+                              </div>
+                            </div>
+                            <div className={styles.kitPreviewGrid}>
+                              {previewImages.map((img, index) => (
+                                <button
+                                  type="button"
+                                  key={`${selectedDesign.id}-${index}`}
+                                  className={styles.kitPreviewThumb}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setModalDesign(selectedDesign);
                                   }}
-                                />
-                              )}
+                                >
+                                  <img src={img} alt={`${selectedDesign.name} preview ${index + 1}`} />
+                                </button>
+                              ))}
                             </div>
-                            
-                            <div style={{ flex: 1 }}>
-                              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.3rem', fontWeight: '800', color: '#166534' }}>
-                                {formData[field.id]}
-                              </h4>
-                              <p style={{ margin: '0 0 1rem 0', fontSize: '0.95rem', color: '#15803d' }}>
-                                Your team's official kit design
-                              </p>
-                              
-                              {formData[`${field.id}_primaryColor`] && formData[`${field.id}_secondaryColor`] && (
-                                <div>
-                                  <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: '600', color: '#166534' }}>
-                                    Team Colors:
-                                  </p>
-                                  <div style={{ display: 'flex', gap: '1rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                      <div style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        background: formData[`${field.id}_primaryColor`].startsWith('#') 
-                                          ? formData[`${field.id}_primaryColor`]
-                                          : availableColors.find(c => c.name === formData[`${field.id}_primaryColor`])?.hex,
-                                        borderRadius: '6px',
-                                        border: '2px solid white',
-                                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
-                                      }} />
-                                      <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#166534' }}>
-                                        {formData[`${field.id}_primaryColor`]}
-                                      </span>
+
+                            {form.id === 2 && basicKitField && (
+                              <div className={styles.kitSizingCard}>
+                                <div className={styles.kitSizingHeader}>
+                                  <div>
+                                    <h4 className={styles.kitSizingTitle}>{basicKitField.label}</h4>
+                                    <p className={styles.kitSizingSubtitle}>{basicKitField.description}</p>
+                                  </div>
+                                  {teamPricing && (
+                                    <div className={styles.kitSizingPrice}>
+                                      <span>R{teamPricing.finalPrice.toFixed(2)}</span>
+                                      <small>Base + team markup</small>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                      <div style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        background: formData[`${field.id}_secondaryColor`].startsWith('#')
-                                          ? formData[`${field.id}_secondaryColor`]
-                                          : availableColors.find(c => c.name === formData[`${field.id}_secondaryColor`])?.hex,
-                                        borderRadius: '6px',
-                                        border: '2px solid white',
-                                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
-                                      }} />
-                                      <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#166534' }}>
-                                        {formData[`${field.id}_secondaryColor`]}
-                                      </span>
+                                  )}
+                                </div>
+
+                                  <div className={styles.kitSizingGrid}>
+                                  <div>
+                                    <label className={styles.kitSizingLabel}>Shirt Size *</label>
+                                    <div
+                                      className={styles.selectGlowWrap}
+                                      tabIndex={0}
+                                      onBlur={(e) => {
+                                        if (!e.currentTarget.contains(e.relatedTarget)) {
+                                          setDropdownOpen((prev) => ({ ...prev, [`${basicKitField.id}_shirtSize`]: false }));
+                                        }
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        className={styles.dropdownButton}
+                                        onClick={() =>
+                                          setDropdownOpen((prev) => ({
+                                            ...prev,
+                                            [`${basicKitField.id}_shirtSize`]: !prev[`${basicKitField.id}_shirtSize`]
+                                          }))
+                                        }
+                                      >
+                                        <span className={styles.dropdownButtonText}>
+                                          {shirtSize || 'Select shirt size'}
+                                        </span>
+                                        <span className={styles.dropdownChevron} aria-hidden="true">▾</span>
+                                      </button>
+                                      {dropdownOpen[`${basicKitField.id}_shirtSize`] && (
+                                        <div className={styles.dropdownPanel}>
+                                          <div className={`${styles.dropdownList} ${(basicKitField.shirtSizeOptions || basicKitField.sizeOptions || []).length > 4 ? styles.dropdownListScroll : ''}`}>
+                                            {(basicKitField.shirtSizeOptions || basicKitField.sizeOptions || []).map((size) => {
+                                              const isSelected = size === shirtSize;
+                                              return (
+                                                <button
+                                                  type="button"
+                                                  key={`shirt-${size}`}
+                                                  className={`${styles.dropdownItem} ${isSelected ? styles.dropdownItemActive : ''}`}
+                                                  onClick={() => {
+                                                    handleInputChange(`${basicKitField.id}_shirtSize`, size);
+                                                    setDropdownOpen((prev) => ({ ...prev, [`${basicKitField.id}_shirtSize`]: false }));
+                                                  }}
+                                                >
+                                                  {size}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
+                                    {shirtSize && (
+                                      <div className={styles.kitSizeChart}>
+                                        {kitSizeCharts.shirtChartUrl ? (
+                                          <img src={kitSizeCharts.shirtChartUrl} alt="Shirt size chart" />
+                                        ) : (
+                                          <div className={styles.kitSizeChartPlaceholder}>Shirt size chart not available yet.</div>
+                                        )}
+                                        <div style={{ marginTop: '0.65rem', fontSize: '0.8rem', color: '#cbd5f5', lineHeight: 1.5 }}>
+                                          Please ensure you select the correct size (measure the player and use this sizing chart to get the right size). Winter League Cricket will not be held responsible for selecting the incorrect size.
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div>
+                                    <label className={styles.kitSizingLabel}>Pants Size *</label>
+                                    <div
+                                      className={styles.selectGlowWrap}
+                                      tabIndex={0}
+                                      onBlur={(e) => {
+                                        if (!e.currentTarget.contains(e.relatedTarget)) {
+                                          setDropdownOpen((prev) => ({ ...prev, [`${basicKitField.id}_pantsSize`]: false }));
+                                        }
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        className={styles.dropdownButton}
+                                        onClick={() =>
+                                          setDropdownOpen((prev) => ({
+                                            ...prev,
+                                            [`${basicKitField.id}_pantsSize`]: !prev[`${basicKitField.id}_pantsSize`]
+                                          }))
+                                        }
+                                      >
+                                        <span className={styles.dropdownButtonText}>
+                                          {pantsSize || 'Select pants size'}
+                                        </span>
+                                        <span className={styles.dropdownChevron} aria-hidden="true">▾</span>
+                                      </button>
+                                      {dropdownOpen[`${basicKitField.id}_pantsSize`] && (
+                                        <div className={styles.dropdownPanel}>
+                                          <div className={`${styles.dropdownList} ${(basicKitField.pantsSizeOptions || basicKitField.sizeOptions || []).length > 4 ? styles.dropdownListScroll : ''}`}>
+                                            {(basicKitField.pantsSizeOptions || basicKitField.sizeOptions || []).map((size) => {
+                                              const isSelected = size === pantsSize;
+                                              return (
+                                                <button
+                                                  type="button"
+                                                  key={`pants-${size}`}
+                                                  className={`${styles.dropdownItem} ${isSelected ? styles.dropdownItemActive : ''}`}
+                                                  onClick={() => {
+                                                    handleInputChange(`${basicKitField.id}_pantsSize`, size);
+                                                    setDropdownOpen((prev) => ({ ...prev, [`${basicKitField.id}_pantsSize`]: false }));
+                                                  }}
+                                                >
+                                                  {size}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                    {pantsSize && (
+                                      <div className={styles.kitSizeChart}>
+                                        {kitSizeCharts.pantsChartUrl ? (
+                                          <img src={kitSizeCharts.pantsChartUrl} alt="Pants size chart" />
+                                        ) : (
+                                          <div className={styles.kitSizeChartPlaceholder}>Pants size chart not available yet.</div>
+                                        )}
+                                        <div style={{ marginTop: '0.65rem', fontSize: '0.8rem', color: '#cbd5f5', lineHeight: 1.5 }}>
+                                          Please ensure you select the correct size (measure the player and use this sizing chart to get the right size). Winter League Cricket will not be held responsible for selecting the incorrect size.
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
+                        );
+                      })() : (
+                        <div className={styles.kitAutofillNotice}>
+                          Select your team to view the basic kit preview.
                         </div>
-                      ) : (
-                        /* Show shirt selection grid for non-autofill or when not yet filled */
-                        <>
-                          <div style={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', 
+                      )
+                    ) : (
+                      /* Show shirt selection grid for non-autofill */
+                      <>
+                        {formData[field.id] && !field.autofillFromSubmission && (
+                          <button
+                            type="button"
+                            className={styles.kitChangeButton}
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                [field.id]: '',
+                                [`${field.id}_primaryColor`]: '',
+                                [`${field.id}_secondaryColor`]: '',
+                                [`${field.id}_trimColor`]: ''
+                              }));
+                              setActiveKitPreview(prev => ({
+                                ...prev,
+                                [field.id]: null
+                              }));
+                            }}
+                          >
+                            Change kit selection
+                          </button>
+                        )}
+
+                    {isKitPreviewField(field) && renderAdditionalApparelSection()}
+                        <div
+                          className={styles.kitGrid}
+                          style={{
+                            display: 'grid',
                             gap: '1rem',
                             marginBottom: '1rem'
-                          }}>
-                            {shirtDesigns.map((design) => {
-                              const isSelected = formData[field.id] === design.name;
-                              const isDisabled = field.autofillFromSubmission && formData[field.id];
-                              const mainImage = getMainImage(design);
-                              const hasMultipleImages = design.images && design.images.length > 1;
-                              
-                              return (
+                          }}
+                        >
+                          {(formData[field.id]
+                            ? shirtDesigns.filter(d => d.name === formData[field.id])
+                            : shirtDesigns
+                          ).map((design) => {
+                            const isSelected = formData[field.id] === design.name;
+                            const isDisabled = field.autofillFromSubmission && formData[field.id];
+                            const isActive = activeKitPreview[field.id] === design.id;
+                            const mainImage = getMainImage(design);
+                            const hasMultipleImages = design.images && design.images.length > 1;
+                            const previewImages = design.images && design.images.length > 0
+                              ? design.images
+                              : [getMainImage(design)];
+                            
+                            return (
+                              <div
+                                key={design.id}
+                                className={`${styles.kitCardWrapper} ${isActive ? styles.kitCardWrapperActive : ''}`}
+                              >
                                 <div 
-                                  key={design.id}
+                                  className={`${styles.kitCard} ${isSelected ? styles.kitCardSelected : ''} ${isActive ? styles.kitCardActive : ''}`}
                                   style={{ 
                                     border: isSelected ? '3px solid #22c55e' : '2px solid #e5e7eb',
                                     borderRadius: '8px', 
@@ -2182,6 +3793,19 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                                     background: isDisabled ? '#e0f2fe' : (isSelected ? '#f0fdf4' : 'white'),
                                     opacity: isDisabled ? 0.7 : 1,
                                     position: 'relative'
+                                  }}
+                                  onClick={() => {
+                                    if (isDisabled) return;
+                                    const currentSelection = formData[field.id];
+                                    const currentCount = kitDesignCounts[design.name] || 0;
+                                    if (currentSelection !== design.name && currentCount >= 5) {
+                                      setFormAlert({ open: true, message: 'This kit design has reached the maximum of 5 teams. Please choose another design.' });
+                                      return;
+                                    }
+                                    setActiveKitPreview(prev => ({
+                                      ...prev,
+                                      [field.id]: prev[field.id] === design.id ? null : design.id
+                                    }));
                                   }}
                                 >
                                   {isSelected && (
@@ -2205,24 +3829,12 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                                     </div>
                                   )}
                                   {hasMultipleImages && (
-                                    <div style={{
-                                      position: 'absolute',
-                                      top: '0.5rem',
-                                      left: '0.5rem',
-                                      background: 'rgba(0, 0, 0, 0.8)',
-                                      color: 'white',
-                                      borderRadius: '6px',
-                                      padding: '0.25rem 0.5rem',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 'bold',
-                                      zIndex: 2
-                                    }}>
-                                      📷 {design.images.length}
+                                    <div className={styles.kitImageCountBadge}>
+                                      <span className={styles.kitImageCountLabel}>IMAGES</span>
+                                      <span className={styles.kitImageCountValue}>{design.images.length}</span>
                                     </div>
                                   )}
-                                  <div
-                                    onClick={() => !isDisabled && handleInputChange(field.id, design.name)}
-                                  >
+                                  <div>
                                     <img 
                                       src={mainImage} 
                                       alt={design.name}
@@ -2248,35 +3860,104 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                                   }}>
                                     {design.name}
                                   </p>
-                                  {hasMultipleImages && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setModalDesign(design);
-                                      }}
-                                      style={{
-                                        width: '100%',
-                                        padding: '0.5rem',
-                                        background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '6px',
-                                        fontSize: '0.75rem',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s'
-                                      }}
-                                    >
-                                      View All Images
-                                    </button>
-                                  )}
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </>
-                      )}
-                    </>
+
+                                {isActive && (
+                                  <div className={styles.kitPreviewPanelInline}>
+                                    <div className={styles.kitPreviewHeader}>
+                                      <div>
+                                        <h4 className={styles.kitPreviewTitle}>{design.name}</h4>
+                                        <p className={styles.kitPreviewSubtitle}>Preview all kit images, then confirm your selection.</p>
+                                      </div>
+                                      <div className={styles.kitPreviewMeta}>
+                                        <span className={styles.kitPreviewMetaLabel}>Gallery</span>
+                                        <span className={styles.kitPreviewMetaCount}>{previewImages.length} images</span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className={styles.kitSelectButton}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const currentSelection = formData[field.id];
+                                          const currentCount = kitDesignCounts[design.name] || 0;
+                                          if (currentSelection !== design.name && currentCount >= 5) {
+                                            setFormAlert({ open: true, message: 'This kit design has reached the maximum of 5 teams. Please choose another design.' });
+                                            return;
+                                          }
+                                          if (field.includeColorPickers && !field.autofillFromSubmission) {
+                                            setFormData(prev => ({
+                                              ...prev,
+                                              [field.id]: design.name,
+                                              [`${field.id}_primaryColor`]: prev[`${field.id}_primaryColor`] || '#DC2626',
+                                              [`${field.id}_secondaryColor`]: prev[`${field.id}_secondaryColor`] || '#2563EB',
+                                              [`${field.id}_trimColor`]: prev[`${field.id}_trimColor`] || '#2563EB'
+                                            }));
+                                          } else {
+                                            handleInputChange(field.id, design.name);
+                                          }
+                                        }}
+                                      >
+                                        Select This Kit
+                                      </button>
+                                    </div>
+                                    <div className={styles.kitPreviewGrid}>
+                                      {previewImages.map((img, index) => (
+                                        <button
+                                          type="button"
+                                          key={`${design.id}-${index}`}
+                                          className={styles.kitPreviewThumb}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setModalDesign(design);
+                                          }}
+                                        >
+                                          <img src={img} alt={`${design.name} preview ${index + 1}`} />
+                                        </button>
+                                      ))}
+                                    </div>
+                                    <div className={styles.kitPreviewActions}>
+                                      <button
+                                        type="button"
+                                        className={styles.kitCancelButton}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setFormData(prev => ({
+                                            ...prev,
+                                            [field.id]: '',
+                                            [`${field.id}_primaryColor`]: '',
+                                            [`${field.id}_secondaryColor`]: '',
+                                            [`${field.id}_trimColor`]: ''
+                                          }));
+                                          setActiveKitPreview(prev => ({
+                                            ...prev,
+                                            [field.id]: null
+                                          }));
+                                        }}
+                                      >
+                                        Cancel selection
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={styles.kitCloseButton}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveKitPreview(prev => ({
+                                            ...prev,
+                                            [field.id]: null
+                                          }));
+                                        }}
+                                      >
+                                        Close
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )
                   ) : (
                     /* Show message when team not selected yet */
                     <div style={{
@@ -2294,679 +3975,360 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                   )}
 
                   {field.includeColorPickers && formData[field.id] && !field.autofillFromSubmission && (
-                    <div style={{ 
-                      marginTop: '2rem',
-                      padding: '2rem',
+                    <div
+                      ref={(node) => {
+                        if (node) {
+                          kitColorsRef.current[field.id] = node;
+                        }
+                      }}
+                      style={{ 
+                      marginTop: '1.5rem',
+                      padding: '1.5rem',
                       background: 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)',
                       border: '2px solid #e5e7eb',
-                      borderRadius: '16px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                      borderRadius: '12px'
                     }}>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.75rem',
-                        marginBottom: '1.5rem'
-                      }}>
-                        <div style={{
-                          width: '40px',
-                          height: '40px',
-                          background: 'linear-gradient(135deg, #dc0000 0%, #000000 100%)',
-                          borderRadius: '10px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1.5rem'
-                        }}>
-                          🎨
-                        </div>
-                        <div>
-                          <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '700', color: '#111827' }}>
-                            Customize Your Team Colors
-                          </h4>
-                          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#6b7280' }}>
-                            Choose from primary colors or enter custom hex codes
-                          </p>
-                        </div>
+                      <div className={styles.kitColorsHeader}>
+                        <span className={styles.kitColorsIcon} />
+                        <h4 className={styles.kitColorsTitle}>Team Colors</h4>
                       </div>
+                      <p style={{ 
+                        margin: '0 0 1rem 0', 
+                        fontSize: '0.85rem', 
+                        color: '#6b7280',
+                        lineHeight: '1.4'
+                      }}>
+                        Click on each color circle to open a color picker. Drag the selector to choose your desired color, 
+                        or type a hex code (e.g. #FF0000) directly in the text box below each picker.
+                      </p>
                       
-                      <div style={{ marginBottom: '2rem' }}>
-                        <label style={{ display: 'block', marginBottom: '1rem', fontWeight: '700', color: '#111827', fontSize: '1rem' }}>
-                          Primary Color *
-                        </label>
-                        <div style={{ 
-                          display: 'grid', 
-                          gridTemplateColumns: 'repeat(4, 1fr)', 
-                          gap: '1rem',
-                          marginBottom: '1rem'
-                        }}>
-                          {availableColors.map(color => {
-                            const isSelected = formData[`${field.id}_primaryColor`] === color.name;
-                            return (
-                              <div
-                                key={color.name}
-                                onClick={() => handleInputChange(`${field.id}_primaryColor`, color.name)}
-                                style={{
-                                  border: isSelected ? '3px solid #dc0000' : '2px solid #e5e7eb',
-                                  borderRadius: '12px',
-                                  padding: '1rem',
-                                  cursor: 'pointer',
-                                  background: 'white',
-                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                  textAlign: 'center',
-                                  position: 'relative',
-                                  transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-                                  boxShadow: isSelected ? '0 8px 16px rgba(220, 0, 0, 0.2)' : '0 2px 4px rgba(0,0,0,0.05)'
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (!isSelected) {
-                                    e.currentTarget.style.transform = 'translateY(-4px)';
-                                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)';
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  if (!isSelected) {
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
-                                  }
-                                }}
-                              >
-                                {isSelected && (
-                                  <div style={{
-                                    position: 'absolute',
-                                    top: '0.5rem',
-                                    right: '0.5rem',
-                                    background: '#22c55e',
-                                    color: 'white',
-                                    borderRadius: '50%',
-                                    width: '24px',
-                                    height: '24px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '0.8rem',
-                                    fontWeight: 'bold',
-                                    boxShadow: '0 2px 8px rgba(34, 197, 94, 0.4)'
-                                  }}>
-                                    ✓
-                                  </div>
-                                )}
-                                <div
-                                  style={{
-                                    width: '100%',
-                                    height: '70px',
-                                    background: color.hex,
-                                    borderRadius: '8px',
-                                    marginBottom: '0.75rem',
-                                    border: color.name === 'White' ? '2px solid #e5e7eb' : 'none',
-                                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
-                                  }}
-                                />
-                                <p style={{ 
-                                  margin: '0 0 0.25rem 0', 
-                                  fontSize: '0.9rem', 
-                                  fontWeight: '700',
-                                  color: isSelected ? '#dc0000' : '#111827'
-                                }}>
-                                  {color.name}
-                                </p>
-                                <p style={{
-                                  margin: 0,
-                                  fontSize: '0.75rem',
-                                  fontFamily: 'monospace',
-                                  color: '#6b7280',
-                                  fontWeight: '600'
-                                }}>
-                                  {color.hex}
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div style={{ 
-                          background: 'white',
-                          padding: '1.25rem',
-                          borderRadius: '10px',
-                          border: '2px dashed #d1d5db'
-                        }}>
-                          <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.9rem', fontWeight: '600', color: '#374151' }}>
-                            💡 Or enter a custom hex code:
+                      {/* Compact 3-column color picker layout */}
+                      <div className={styles.kitColorGrid}>
+                        {/* Primary Color */}
+                        <div className={styles.kitColorCard}>
+                          <label className={styles.kitColorLabel}>
+                            Primary *
                           </label>
-                          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                          <div className={styles.kitColorControl}>
+                            <div className={styles.kitColorWheel}>
+                              <button
+                                type="button"
+                                className={styles.kitColorTrigger}
+                                style={{ background: formData[`${field.id}_primaryColor`] || '#DC2626' }}
+                                onClick={() => {
+                                  const key = `${field.id}_primaryColor`;
+                                  setActiveColorPicker(prev => (prev === key ? null : key));
+                                }}
+                              />
+                              {activeColorPicker === `${field.id}_primaryColor` && (
+                                <div
+                                  className={styles.kitColorPopover}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onTouchStart={(e) => e.stopPropagation()}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Wheel
+                                    color={hexToHsva(formData[`${field.id}_primaryColor`] || '#DC2626')}
+                                    onChange={(color) => handleColorChange(field.id, 'primary', hsvaToHex(color.hsva))}
+                                  />
+                                  <button
+                                    type="button"
+                                    className={styles.kitColorDone}
+                                    onClick={() => setActiveColorPicker(null)}
+                                  >
+                                    Done
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                             <input
                               type="text"
                               placeholder="#DC2626"
-                              value={formData[`${field.id}_primaryColor`] && formData[`${field.id}_primaryColor`].startsWith('#') ? formData[`${field.id}_primaryColor`] : ''}
-                              onChange={(e) => {
+                              value={formData[`${field.id}_primaryColor`] || ''}
+                                  onChange={(e) => {
                                 const value = e.target.value.toUpperCase();
-                                if (value === '' || value.startsWith('#')) {
-                                  handleInputChange(`${field.id}_primaryColor`, value);
+                                if (value === '' || /^#[0-9A-F]{0,6}$/i.test(value)) {
+                                      handleColorChange(field.id, 'primary', value);
                                 }
                               }}
-                              style={{
-                                flex: 1,
-                                padding: '0.75rem 1rem',
-                                border: '2px solid #e5e7eb',
-                                borderRadius: '8px',
-                                fontSize: '1rem',
-                                fontFamily: 'monospace',
-                                fontWeight: '600',
-                                transition: 'all 0.3s'
-                              }}
-                              onFocus={(e) => {
-                                e.target.style.borderColor = '#dc0000';
-                                e.target.style.boxShadow = '0 0 0 3px rgba(220, 0, 0, 0.1)';
-                              }}
-                              onBlur={(e) => {
-                                e.target.style.borderColor = '#e5e7eb';
-                                e.target.style.boxShadow = 'none';
-                              }}
+                              className={styles.kitColorInput}
                             />
-                            {formData[`${field.id}_primaryColor`] && formData[`${field.id}_primaryColor`].startsWith('#') && formData[`${field.id}_primaryColor`].match(/^#[0-9A-F]{6}$/i) && (
-                              <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                padding: '0.5rem 1rem',
-                                background: '#f9fafb',
-                                borderRadius: '8px',
-                                border: '2px solid #e5e7eb'
-                              }}>
-                                <div style={{
-                                  width: '50px',
-                                  height: '50px',
-                                  background: formData[`${field.id}_primaryColor`],
-                                  border: '2px solid #d1d5db',
-                                  borderRadius: '8px',
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                                }} />
-                                <div>
-                                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#6b7280', fontWeight: '600' }}>Preview</p>
-                                  <p style={{ margin: 0, fontSize: '0.8rem', fontFamily: 'monospace', color: '#111827', fontWeight: '700' }}>
-                                    {formData[`${field.id}_primaryColor`]}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
                           </div>
                         </div>
-                      </div>
 
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '1rem', fontWeight: '700', color: '#111827', fontSize: '1rem' }}>
-                          Secondary Color *
-                        </label>
-                        <div style={{ 
-                          display: 'grid', 
-                          gridTemplateColumns: 'repeat(4, 1fr)', 
-                          gap: '1rem',
-                          marginBottom: '1rem'
-                        }}>
-                          {availableColors.map(color => {
-                            const isSelected = formData[`${field.id}_secondaryColor`] === color.name;
-                            return (
-                              <div
-                                key={color.name}
-                                onClick={() => handleInputChange(`${field.id}_secondaryColor`, color.name)}
-                                style={{
-                                  border: isSelected ? '3px solid #dc0000' : '2px solid #e5e7eb',
-                                  borderRadius: '12px',
-                                  padding: '1rem',
-                                  cursor: 'pointer',
-                                  background: 'white',
-                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                  textAlign: 'center',
-                                  position: 'relative',
-                                  transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-                                  boxShadow: isSelected ? '0 8px 16px rgba(220, 0, 0, 0.2)' : '0 2px 4px rgba(0,0,0,0.05)'
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (!isSelected) {
-                                    e.currentTarget.style.transform = 'translateY(-4px)';
-                                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)';
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  if (!isSelected) {
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
-                                  }
-                                }}
-                              >
-                                {isSelected && (
-                                  <div style={{
-                                    position: 'absolute',
-                                    top: '0.5rem',
-                                    right: '0.5rem',
-                                    background: '#22c55e',
-                                    color: 'white',
-                                    borderRadius: '50%',
-                                    width: '24px',
-                                    height: '24px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '0.8rem',
-                                    fontWeight: 'bold',
-                                    boxShadow: '0 2px 8px rgba(34, 197, 94, 0.4)'
-                                  }}>
-                                    ✓
-                                  </div>
-                                )}
-                                <div
-                                  style={{
-                                    width: '100%',
-                                    height: '70px',
-                                    background: color.hex,
-                                    borderRadius: '8px',
-                                    marginBottom: '0.75rem',
-                                    border: color.name === 'White' ? '2px solid #e5e7eb' : 'none',
-                                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
-                                  }}
-                                />
-                                <p style={{ 
-                                  margin: '0 0 0.25rem 0', 
-                                  fontSize: '0.9rem', 
-                                  fontWeight: '700',
-                                  color: isSelected ? '#dc0000' : '#111827'
-                                }}>
-                                  {color.name}
-                                </p>
-                                <p style={{
-                                  margin: 0,
-                                  fontSize: '0.75rem',
-                                  fontFamily: 'monospace',
-                                  color: '#6b7280',
-                                  fontWeight: '600'
-                                }}>
-                                  {color.hex}
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div style={{ 
-                          background: 'white',
-                          padding: '1.25rem',
-                          borderRadius: '10px',
-                          border: '2px dashed #d1d5db'
-                        }}>
-                          <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '0.9rem', fontWeight: '600', color: '#374151' }}>
-                            💡 Or enter a custom hex code:
+                        {/* Secondary Color */}
+                        <div className={styles.kitColorCard}>
+                          <label className={styles.kitColorLabel}>
+                            Secondary *
                           </label>
-                          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                          <div className={styles.kitColorControl}>
+                            <div className={styles.kitColorWheel}>
+                              <button
+                                type="button"
+                                className={styles.kitColorTrigger}
+                                style={{ background: formData[`${field.id}_secondaryColor`] || '#2563EB' }}
+                                onClick={() => {
+                                  const key = `${field.id}_secondaryColor`;
+                                  setActiveColorPicker(prev => (prev === key ? null : key));
+                                }}
+                              />
+                              {activeColorPicker === `${field.id}_secondaryColor` && (
+                                <div
+                                  className={styles.kitColorPopover}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onTouchStart={(e) => e.stopPropagation()}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Wheel
+                                    color={hexToHsva(formData[`${field.id}_secondaryColor`] || '#2563EB')}
+                                    onChange={(color) => handleColorChange(field.id, 'secondary', hsvaToHex(color.hsva))}
+                                  />
+                                  <button
+                                    type="button"
+                                    className={styles.kitColorDone}
+                                    onClick={() => setActiveColorPicker(null)}
+                                  >
+                                    Done
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                             <input
                               type="text"
                               placeholder="#2563EB"
-                              value={formData[`${field.id}_secondaryColor`] && formData[`${field.id}_secondaryColor`].startsWith('#') ? formData[`${field.id}_secondaryColor`] : ''}
-                              onChange={(e) => {
+                              value={formData[`${field.id}_secondaryColor`] || ''}
+                                  onChange={(e) => {
                                 const value = e.target.value.toUpperCase();
-                                if (value === '' || value.startsWith('#')) {
-                                  handleInputChange(`${field.id}_secondaryColor`, value);
+                                if (value === '' || /^#[0-9A-F]{0,6}$/i.test(value)) {
+                                      handleColorChange(field.id, 'secondary', value);
                                 }
                               }}
-                              style={{
-                                flex: 1,
-                                padding: '0.75rem 1rem',
-                                border: '2px solid #e5e7eb',
-                                borderRadius: '8px',
-                                fontSize: '1rem',
-                                fontFamily: 'monospace',
-                                fontWeight: '600',
-                                transition: 'all 0.3s'
-                              }}
-                              onFocus={(e) => {
-                                e.target.style.borderColor = '#dc0000';
-                                e.target.style.boxShadow = '0 0 0 3px rgba(220, 0, 0, 0.1)';
-                              }}
-                              onBlur={(e) => {
-                                e.target.style.borderColor = '#e5e7eb';
-                                e.target.style.boxShadow = 'none';
-                              }}
+                              className={styles.kitColorInput}
                             />
-                            {formData[`${field.id}_secondaryColor`] && formData[`${field.id}_secondaryColor`].startsWith('#') && formData[`${field.id}_secondaryColor`].match(/^#[0-9A-F]{6}$/i) && (
-                              <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                padding: '0.5rem 1rem',
-                                background: '#f9fafb',
-                                borderRadius: '8px',
-                                border: '2px solid #e5e7eb'
-                              }}>
-                                <div style={{
-                                  width: '50px',
-                                  height: '50px',
-                                  background: formData[`${field.id}_secondaryColor`],
-                                  border: '2px solid #d1d5db',
-                                  borderRadius: '8px',
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                                }} />
-                                <div>
-                                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#6b7280', fontWeight: '600' }}>Preview</p>
-                                  <p style={{ margin: 0, fontSize: '0.8rem', fontFamily: 'monospace', color: '#111827', fontWeight: '700' }}>
-                                    {formData[`${field.id}_secondaryColor`]}
-                                  </p>
+                          </div>
+                        </div>
+
+                        {/* Trim Color */}
+                        <div className={styles.kitColorCard}>
+                          <label className={styles.kitColorLabel}>
+                            Trim
+                          </label>
+                          <div className={styles.kitColorControl}>
+                            <div className={styles.kitColorWheel}>
+                              <button
+                                type="button"
+                                className={styles.kitColorTrigger}
+                                style={{ background: formData[`${field.id}_trimColor`] || '#DC2626' }}
+                                onClick={() => {
+                                  const key = `${field.id}_trimColor`;
+                                  setActiveColorPicker(prev => (prev === key ? null : key));
+                                }}
+                              />
+                              {activeColorPicker === `${field.id}_trimColor` && (
+                                <div
+                                  className={styles.kitColorPopover}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onTouchStart={(e) => e.stopPropagation()}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Wheel
+                                    color={hexToHsva(formData[`${field.id}_trimColor`] || '#DC2626')}
+                                    onChange={(color) => handleColorChange(field.id, 'trim', hsvaToHex(color.hsva))}
+                                  />
+                                  <button
+                                    type="button"
+                                    className={styles.kitColorDone}
+                                    onClick={() => setActiveColorPicker(null)}
+                                  >
+                                    Done
+                                  </button>
                                 </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="#DC2626"
+                              value={formData[`${field.id}_trimColor`] || ''}
+                                  onChange={(e) => {
+                                const value = e.target.value.toUpperCase();
+                                if (value === '' || /^#[0-9A-F]{0,6}$/i.test(value)) {
+                                      handleColorChange(field.id, 'trim', value);
+                                }
+                              }}
+                              className={styles.kitColorInput}
+                            />
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
 
-                  {/* Live Kit Preview */}
-                  {formData[field.id] && formData[`${field.id}_primaryColor`] && formData[`${field.id}_secondaryColor`] && (
-                    <div style={{
-                      marginTop: '2rem',
-                      padding: '2rem',
-                      background: 'linear-gradient(135deg, #000000 0%, #1f1f1f 100%)',
-                      borderRadius: '16px',
-                      border: '3px solid #dc0000',
-                      boxShadow: '0 8px 32px rgba(220, 0, 0, 0.3)'
-                    }}>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.75rem',
-                        marginBottom: '1.5rem'
-                      }}>
+                      {/* Color Preview Strip */}
+                      {(formData[`${field.id}_primaryColor`] || formData[`${field.id}_secondaryColor`]) && (
                         <div style={{
-                          width: '40px',
+                          marginTop: '1rem',
                           height: '40px',
-                          background: 'linear-gradient(135deg, #dc0000 0%, #ff0000 100%)',
-                          borderRadius: '10px',
+                          borderRadius: '8px',
+                          overflow: 'hidden',
                           display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1.5rem'
+                          border: '2px solid #e5e7eb'
                         }}>
-                          👕
-                        </div>
-                        <div>
-                          <h4 style={{ margin: 0, fontSize: '1.3rem', fontWeight: '800', color: 'white' }}>
-                            Live Kit Preview
-                          </h4>
-                          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)' }}>
-                            See your customized team kit in action
-                          </p>
-                        </div>
-                      </div>
-
-                      <div style={{
-                        background: 'white',
-                        borderRadius: '12px',
-                        padding: '2rem',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '1.5rem'
-                      }}>
-                        {/* Kit Image with Color Filter */}
-                        <div style={{ position: 'relative', width: '300px', height: '300px' }}>
-                          {/* Base image in grayscale */}
-                          <img
-                            src={getMainImage(shirtDesigns.find(d => d.name === formData[field.id]))}
-                            alt="Selected kit"
-                            style={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover',
-                              borderRadius: '12px',
-                              filter: 'grayscale(100%) contrast(1.1) brightness(1.1)'
-                            }}
-                          />
-                          {/* Color overlay - primary color */}
-                          <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            borderRadius: '12px',
-                            background: `linear-gradient(135deg, ${
-                              availableColors.find(c => c.name === formData[`${field.id}_primaryColor`])?.hex || formData[`${field.id}_primaryColor`]
-                            } 0%, ${
-                              availableColors.find(c => c.name === formData[`${field.id}_secondaryColor`])?.hex || formData[`${field.id}_secondaryColor`]
-                            } 100%)`,
-                            mixBlendMode: 'color',
-                            opacity: 1
+                          <div style={{ 
+                            flex: 1, 
+                            background: formData[`${field.id}_primaryColor`] || '#DC2626'
                           }} />
-                          {/* Multiply layer for depth */}
-                          <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            borderRadius: '12px',
-                            background: `linear-gradient(135deg, ${
-                              availableColors.find(c => c.name === formData[`${field.id}_primaryColor`])?.hex || formData[`${field.id}_primaryColor`]
-                            } 0%, ${
-                              availableColors.find(c => c.name === formData[`${field.id}_secondaryColor`])?.hex || formData[`${field.id}_secondaryColor`]
-                            } 100%)`,
-                            mixBlendMode: 'multiply',
-                            opacity: 0.4
+                          <div style={{ 
+                            flex: 1, 
+                            background: formData[`${field.id}_secondaryColor`] || '#2563EB'
                           }} />
-                        </div>
-
-                        {/* Color Details */}
-                        <div style={{
-                          width: '100%',
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr',
-                          gap: '1rem'
-                        }}>
-                          <div style={{
-                            padding: '1rem',
-                            background: '#f9fafb',
-                            borderRadius: '10px',
-                            border: '2px solid #e5e7eb'
-                          }}>
-                            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              Primary Color
-                            </p>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              <div style={{
-                                width: '50px',
-                                height: '50px',
-                                background: availableColors.find(c => c.name === formData[`${field.id}_primaryColor`])?.hex || formData[`${field.id}_primaryColor`],
-                                borderRadius: '8px',
-                                border: '2px solid #d1d5db',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                              }} />
-                              <div>
-                                <p style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: '#111827' }}>
-                                  {formData[`${field.id}_primaryColor`].startsWith('#') ? 'Custom' : formData[`${field.id}_primaryColor`]}
-                                </p>
-                                <p style={{ margin: 0, fontSize: '0.85rem', fontFamily: 'monospace', color: '#6b7280', fontWeight: '600' }}>
-                                  {availableColors.find(c => c.name === formData[`${field.id}_primaryColor`])?.hex || formData[`${field.id}_primaryColor`]}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div style={{
-                            padding: '1rem',
-                            background: '#f9fafb',
-                            borderRadius: '10px',
-                            border: '2px solid #e5e7eb'
-                          }}>
-                            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              Secondary Color
-                            </p>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              <div style={{
-                                width: '50px',
-                                height: '50px',
-                                background: availableColors.find(c => c.name === formData[`${field.id}_secondaryColor`])?.hex || formData[`${field.id}_secondaryColor`],
-                                borderRadius: '8px',
-                                border: '2px solid #d1d5db',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                              }} />
-                              <div>
-                                <p style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: '#111827' }}>
-                                  {formData[`${field.id}_secondaryColor`].startsWith('#') ? 'Custom' : formData[`${field.id}_secondaryColor`]}
-                                </p>
-                                <p style={{ margin: 0, fontSize: '0.85rem', fontFamily: 'monospace', color: '#6b7280', fontWeight: '600' }}>
-                                  {availableColors.find(c => c.name === formData[`${field.id}_secondaryColor`])?.hex || formData[`${field.id}_secondaryColor`]}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Kit Name */}
-                        <div style={{
-                          padding: '1rem 1.5rem',
-                          background: 'linear-gradient(135deg, #f9fafb 0%, #ffffff 100%)',
-                          borderRadius: '10px',
-                          border: '2px solid #e5e7eb',
-                          textAlign: 'center',
-                          width: '100%'
-                        }}>
-                          <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            Selected Design
-                          </p>
-                          <p style={{ margin: '0.25rem 0 0 0', fontSize: '1.1rem', fontWeight: '800', color: '#111827' }}>
-                            {formData[field.id]}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {field.autofillFromSubmission && formData[field.id] && (
-                    <div>
-                      <p style={{ 
-                        fontSize: '0.85rem', 
-                        color: '#0c4a6e', 
-                        margin: '0 0 1rem 0',
-                        padding: '0.5rem',
-                        background: '#e0f2fe',
-                        borderRadius: '4px',
-                        border: '1px solid #0ea5e9'
-                      }}>
-                        <strong>(auto-filled)</strong> This was selected by your team
-                      </p>
-                      {formData[`${field.id}_primaryColor`] && formData[`${field.id}_secondaryColor`] && (
-                        <div style={{ 
-                          padding: '1rem',
-                          background: '#f0f9ff',
-                          border: '2px solid #0ea5e9',
-                          borderRadius: '8px'
-                        }}>
-                          <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', fontWeight: '600', color: '#0c4a6e' }}>
-                            Team Colors:
-                          </p>
-                          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                            <div style={{ flex: 1 }}>
-                              <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: '#475569' }}>Primary</p>
-                              <div style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '0.5rem',
-                                padding: '0.5rem',
-                                background: 'white',
-                                borderRadius: '6px',
-                                border: '1px solid #d1d5db'
-                              }}>
-                                <div style={{
-                                  width: '40px',
-                                  height: '40px',
-                                  background: formData[`${field.id}_primaryColor`].startsWith('#') 
-                                    ? formData[`${field.id}_primaryColor`]
-                                    : availableColors.find(c => c.name === formData[`${field.id}_primaryColor`])?.hex,
-                                  borderRadius: '4px',
-                                  border: '1px solid #d1d5db'
-                                }} />
-                                <span style={{ fontWeight: '600', fontFamily: formData[`${field.id}_primaryColor`].startsWith('#') ? 'monospace' : 'inherit' }}>
-                                  {formData[`${field.id}_primaryColor`]}
-                                </span>
-                              </div>
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: '#475569' }}>Secondary</p>
-                              <div style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '0.5rem',
-                                padding: '0.5rem',
-                                background: 'white',
-                                borderRadius: '6px',
-                                border: '1px solid #d1d5db'
-                              }}>
-                                <div style={{
-                                  width: '40px',
-                                  height: '40px',
-                                  background: formData[`${field.id}_secondaryColor`].startsWith('#')
-                                    ? formData[`${field.id}_secondaryColor`]
-                                    : availableColors.find(c => c.name === formData[`${field.id}_secondaryColor`])?.hex,
-                                  borderRadius: '4px',
-                                  border: '1px solid #d1d5db'
-                                }} />
-                                <span style={{ fontWeight: '600', fontFamily: formData[`${field.id}_secondaryColor`].startsWith('#') ? 'monospace' : 'inherit' }}>
-                                  {formData[`${field.id}_secondaryColor`]}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
+                          <div style={{ 
+                            flex: 0.5, 
+                            background: formData[`${field.id}_trimColor`] || '#DC2626',
+                            border: '1px solid #e5e7eb'
+                          }} />
                         </div>
                       )}
                     </div>
                   )}
+
                 </div>
               )}
 
               {field.type === 'submission-dropdown' && (
                 <div>
-                  <select
-                    value={formData[field.id] || ''}
-                    onChange={(e) => handleSubmissionDropdownChange(field.id, e.target.value)}
-                    required={field.required}
-                    className={styles.select}
-                  >
-                    <option value="">Select an option...</option>
-                    {submissionDropdownData[field.id]?.submissions.map((submission) => {
-                      const displayFieldId = submissionDropdownData[field.id].displayFieldId;
-                      const displayValue = submission.data[displayFieldId];
-                      return (
-                        <option key={submission.id} value={submission.id}>
-                          {displayValue}
-                        </option>
-                      );
-                    })}
-                  </select>
-
-                  {formData[field.id] && submissionDropdownData[field.id]?.prefillFields.length > 0 && (
-                    <div style={{ marginTop: '1rem' }}>
-                      {submissionDropdownData[field.id].prefillFields.map((prefillField, idx) => {
-                        const value = prefilledData[`${field.id}_${prefillField.sourceFieldId}`];
+                  {(() => {
+                    const submissions = submissionDropdownData[field.id]?.submissions || [];
+                    const isTeamSelect = form?.id === 2 && field.id === 8;
+                    const shouldScroll = isTeamSelect && submissions.length > 3;
+                    const selectClasses = [styles.select];
+                    if (isTeamSelect) selectClasses.push(styles.selectTeam);
+                    if (shouldScroll) selectClasses.push(styles.selectScrollable);
+                    if (isTeamSelect) {
+                      const currentValue = formData[field.id] || '';
+                      const displayFieldId = submissionDropdownData[field.id]?.displayFieldId;
+                      if (!displayFieldId) {
                         return (
-                          <div key={idx} className={styles.fieldGroup} style={{ background: '#f0f9ff', padding: '0.75rem', borderRadius: '4px', border: '1px solid #0ea5e9' }}>
-                            <label className={styles.label} style={{ color: '#0c4a6e', fontSize: '0.9rem' }}>
-                              {prefillField.sourceFieldLabel} (auto-filled)
-                            </label>
-                            <input
-                              type="text"
-                              value={value || ''}
-                              readOnly
-                              className={styles.input}
-                              style={{ background: '#e0f2fe', cursor: 'not-allowed' }}
-                            />
+                          <div className={styles.selectGlowWrap}>
+                            <button
+                              type="button"
+                              className={styles.dropdownButton}
+                              disabled
+                            >
+                              <span className={styles.dropdownButtonText}>Loading teams...</span>
+                              <span className={styles.dropdownChevron} aria-hidden="true">▾</span>
+                            </button>
                           </div>
                         );
-                      })}
-                    </div>
-                  )}
+                      }
+                      const currentSelection = submissions.find(
+                        (submission) => String(submission.id) === String(currentValue)
+                      );
+                      const currentLabel = currentSelection
+                        ? currentSelection.data[displayFieldId]
+                        : 'Select your team...';
+                      const query = dropdownSearch[field.id] || '';
+                      const filtered = submissions.filter((submission) => {
+                        const label = submission.data[displayFieldId] || '';
+                        return label.toLowerCase().includes(query.toLowerCase());
+                      });
+
+                      return (
+                        <div
+                          className={styles.selectGlowWrap}
+                          tabIndex={0}
+                          onBlur={(e) => {
+                            if (!e.currentTarget.contains(e.relatedTarget)) {
+                              setDropdownOpen((prev) => ({ ...prev, [field.id]: false }));
+                            }
+                          }}
+                        >
+                          <button
+                            type="button"
+                            className={styles.dropdownButton}
+                            onClick={() =>
+                              setDropdownOpen((prev) => ({
+                                ...prev,
+                                [field.id]: !prev[field.id]
+                              }))
+                            }
+                          >
+                            <span className={styles.dropdownButtonText}>{currentLabel}</span>
+                            <span className={styles.dropdownChevron} aria-hidden="true">▾</span>
+                          </button>
+                          {dropdownOpen[field.id] && (
+                            <div className={styles.dropdownPanel}>
+                              <div className={styles.dropdownSearchWrap}>
+                                <input
+                                  type="text"
+                                  placeholder="Search team"
+                                  value={query}
+                                  onChange={(e) =>
+                                    setDropdownSearch((prev) => ({
+                                      ...prev,
+                                      [field.id]: e.target.value
+                                    }))
+                                  }
+                                  className={styles.dropdownSearch}
+                                />
+                              </div>
+                              <div
+                                className={`${styles.dropdownList} ${filtered.length > 3 ? styles.dropdownListScroll : ''}`}
+                              >
+                                {filtered.length === 0 && (
+                                  <div className={styles.dropdownEmpty}>No teams found</div>
+                                )}
+                                {filtered.map((submission) => {
+                                  const label = submission.data[displayFieldId];
+                                  const isSelected = String(submission.id) === String(currentValue);
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={submission.id}
+                                      className={`${styles.dropdownItem} ${isSelected ? styles.dropdownItemActive : ''}`}
+                                      onClick={() => {
+                                        handleSubmissionDropdownChange(field.id, submission.id);
+                                        setDropdownOpen((prev) => ({ ...prev, [field.id]: false }));
+                                      }}
+                                    >
+                                      {label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className={styles.selectGlowWrap}>
+                        <select
+                          value={formData[field.id] || ''}
+                          onChange={(e) => handleSubmissionDropdownChange(field.id, e.target.value)}
+                          required={field.required}
+                          className={selectClasses.join(' ')}
+                          size={shouldScroll ? 4 : undefined}
+                        >
+                          <option value="">Select an option...</option>
+                          {submissions.map((submission) => {
+                            const displayFieldId = submissionDropdownData[field.id].displayFieldId;
+                            const displayValue = submission.data[displayFieldId];
+                            return (
+                              <option key={submission.id} value={submission.id}>
+                                {displayValue}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
               {field.type === 'sub-team-selector' && (() => {
+                const allFields = isMultiPage
+                  ? form.pages.flatMap(page => page.fields || [])
+                  : form.fields;
                 const selectedTeamSubmissionId = formData[field.dependsOn];
                 if (!selectedTeamSubmissionId) return null;
 
@@ -2975,32 +4337,87 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                 if (!teamDropdownField || !submissionDropdownData[teamDropdownField.id]) return null;
 
                 const selectedSubmission = submissionDropdownData[teamDropdownField.id].submissions.find(
-                  sub => sub.id === parseInt(selectedTeamSubmissionId)
+                  sub => String(sub.id) === String(selectedTeamSubmissionId)
                 );
 
                 if (!selectedSubmission) return null;
 
                 // Get sub-teams from field 33
-                const subTeams = selectedSubmission.data[33];
+                const rawSubTeams = selectedSubmission.data?.[33] ?? selectedSubmission.data?.['33'];
+                const subTeams = typeof rawSubTeams === 'string'
+                  ? JSON.parse(rawSubTeams || '[]')
+                  : rawSubTeams;
                 
-                // Only show if there are multiple sub-teams
-                if (!subTeams || subTeams.length <= 1) return null;
+                // Don't show if no sub-teams at all
+                if (!subTeams || subTeams.length === 0) return null;
+
+                // If only one sub-team, auto-select it
+                if (subTeams.length === 1 && !formData[field.id]) {
+                  const singleTeamValue = JSON.stringify(subTeams[0]);
+                  // Use setTimeout to avoid state update during render
+                  setTimeout(() => handleInputChange(field.id, singleTeamValue), 0);
+                }
 
                 return (
-                  <div>
-                    <select
-                      value={formData[field.id] || ''}
-                      onChange={(e) => handleInputChange(field.id, e.target.value)}
-                      required={field.required}
-                      className={styles.select}
+                  <div
+                    className={styles.selectGlowWrap}
+                    tabIndex={0}
+                    onBlur={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget)) {
+                        setDropdownOpen((prev) => ({ ...prev, [field.id]: false }));
+                      }
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className={styles.dropdownButton}
+                      onClick={() =>
+                        setDropdownOpen((prev) => ({
+                          ...prev,
+                          [field.id]: !prev[field.id]
+                        }))
+                      }
                     >
-                      <option value="">Select age group team...</option>
-                      {subTeams.map((subTeam, index) => (
-                        <option key={index} value={JSON.stringify(subTeam)}>
-                          {subTeam.teamName} ({subTeam.gender} - {subTeam.ageGroup})
-                        </option>
-                      ))}
-                    </select>
+                      <span className={styles.dropdownButtonText}>
+                        {formData[field.id]
+                          ? (() => {
+                              try {
+                                const parsed = JSON.parse(formData[field.id]);
+                                return `${parsed.teamName} (${parsed.gender} - ${parsed.ageGroup})`;
+                              } catch (error) {
+                                return 'Select age group team...';
+                              }
+                            })()
+                          : 'Select age group team...'}
+                      </span>
+                      <span className={styles.dropdownChevron} aria-hidden="true">▾</span>
+                    </button>
+                    {dropdownOpen[field.id] && (
+                      <div className={styles.dropdownPanel}>
+                        <div
+                          className={`${styles.dropdownList} ${subTeams.length > 3 ? styles.dropdownListScroll : ''}`}
+                        >
+                          {subTeams.map((subTeam, index) => {
+                            const label = `${subTeam.teamName} (${subTeam.gender} - ${subTeam.ageGroup})`;
+                            const value = JSON.stringify(subTeam);
+                            const isSelected = formData[field.id] === value;
+                            return (
+                              <button
+                                type="button"
+                                key={index}
+                                className={`${styles.dropdownItem} ${isSelected ? styles.dropdownItemActive : ''}`}
+                                onClick={() => {
+                                  handleInputChange(field.id, value);
+                                  setDropdownOpen((prev) => ({ ...prev, [field.id]: false }));
+                                }}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     {field.helpText && (
                       <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '0.5rem' }}>
                         {field.helpText}
@@ -3010,7 +4427,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                 );
               })()}
 
-              {field.type === 'product-bundle' && (
+              {field.type === 'product-bundle' && form.id !== 2 && (
                 <div>
                   <div style={{ 
                     padding: '2rem', 
@@ -3300,7 +4717,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                               type="button"
                               onClick={() => {
                                 if (product.sizeOptions.length > 0 && !formData[`upsell_${product.id}_size`]) {
-                                  alert('Please select a size first');
+                                  setFormAlert({ open: true, message: 'Please select a size first.' });
                                   return;
                                 }
                                 addToCart(
@@ -3339,30 +4756,24 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
 
               {field.type === 'kit-pricing' && (
                 <div>
-                  <div style={{
+                  <div className={styles.kitPricingContainer} style={{
                     background: 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)',
                     border: '2px solid #e5e7eb',
                     borderRadius: '16px',
-                    padding: '2rem',
                     marginBottom: '1.5rem'
                   }}>
                     {/* Kit Preview Card */}
-                    <div style={{
+                    <div className={styles.kitPreviewCard} style={{
                       background: 'white',
                       border: '2px solid #e5e7eb',
                       borderRadius: '12px',
                       overflow: 'hidden',
-                      marginBottom: '1.5rem',
                       boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
                     }}>
-                      <div style={{
-                        width: '100%',
-                        height: '250px',
+                      <div className={styles.kitImagePreview} style={{
                         background: formData[23] && shirtDesigns.find(d => d.name === formData[23])
                           ? `url(${getMainImage(shirtDesigns.find(d => d.name === formData[23]))})`
                           : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -3410,17 +4821,17 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                       <div style={{ padding: '1.5rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                           <div>
-                            <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.4rem', fontWeight: '800', color: '#111827' }}>
+                            <h4 className={styles.kitPricingTitle} style={{ margin: '0 0 0.5rem 0', fontSize: '1.4rem', fontWeight: '800', color: '#111827' }}>
                               Basic Kit Package
                             </h4>
-                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#6b7280', lineHeight: '1.5' }}>
+                            <p className={styles.kitPricingSubtitle} style={{ margin: 0, fontSize: '0.9rem', color: '#6b7280', lineHeight: '1.5' }}>
                               Includes: Playing Top, Pants, and Cap
                             </p>
                           </div>
                         </div>
 
                         {/* Base Price */}
-                        <div style={{
+                        <div className={styles.kitBasePriceCard} style={{
                           background: '#f9fafb',
                           padding: '1rem',
                           borderRadius: '8px',
@@ -3436,7 +4847,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                             borderRadius: '8px',
                             border: '2px solid #e5e7eb'
                           }}>
-                            <p style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', color: '#111827' }}>
+                            <p className={styles.kitPriceAmount} style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', color: '#111827' }}>
                               R{(formData[`${field.id}_basePrice`] || 150).toFixed(2)}
                             </p>
                           </div>
@@ -3447,7 +4858,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                         </div>
 
                         {/* Team Markup */}
-                        <div style={{
+                        <div className={styles.kitMarkupCard} style={{
                           background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
                           padding: '1.25rem',
                           borderRadius: '12px',
@@ -3461,18 +4872,6 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                             gap: '0.75rem',
                             marginBottom: '1rem'
                           }}>
-                            <div style={{
-                              width: '36px',
-                              height: '36px',
-                              background: 'linear-gradient(135deg, #dc0000 0%, #000000 100%)',
-                              borderRadius: '8px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '1.2rem'
-                            }}>
-                              💰
-                            </div>
                             <div style={{ flex: 1 }}>
                               <label style={{ display: 'block', fontSize: '1rem', fontWeight: '700', color: '#111827', margin: 0 }}>
                                 Team Markup (Optional)
@@ -3482,8 +4881,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                               </p>
                             </div>
                           </div>
-                          <div style={{ position: 'relative' }}>
-                            <span style={{
+                          <div className={styles.kitPriceInputWrapper} style={{ position: 'relative' }}>
+                            <span className={styles.kitPricePrefix} style={{
                               position: 'absolute',
                               left: '1rem',
                               top: '50%',
@@ -3502,6 +4901,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                               min="0"
                               step="0.01"
                               placeholder="0.00"
+                              className={styles.kitPriceInput}
                               style={{
                                 width: '100%',
                                 padding: '1rem 1rem 1rem 2.5rem',
@@ -3535,7 +4935,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                           <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)', fontWeight: '600' }}>
                             Player Basic Kit Price
                           </p>
-                          <p style={{ margin: 0, fontSize: '2.5rem', fontWeight: '900', color: 'white', letterSpacing: '-1px' }}>
+                          <p className={styles.kitTotalAmount} style={{ margin: 0, fontSize: '2.5rem', fontWeight: '900', color: 'white', letterSpacing: '-1px' }}>
                             R{((formData[`${field.id}_basePrice`] || 150) + (formData[`${field.id}_markup`] || 0)).toFixed(2)}
                           </p>
                           <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
@@ -3550,11 +4950,10 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
 
               {field.type === 'entry-fee-pricing' && (
                 <div>
-                  <div style={{
+                  <div className={styles.entryFeeCard} style={{
                     background: 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)',
                     border: '2px solid #e5e7eb',
                     borderRadius: '16px',
-                    padding: '2rem',
                     marginBottom: '1.5rem'
                   }}>
                     {/* Base Entry Fee */}
@@ -3594,7 +4993,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                       <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)', fontWeight: '600' }}>
                         League Entry Fee
                       </p>
-                      <p style={{ margin: 0, fontSize: '2.5rem', fontWeight: '900', color: 'white', letterSpacing: '-1px' }}>
+                      <p className={styles.entryFeeAmount} style={{ margin: 0, fontSize: '2.5rem', fontWeight: '900', color: 'white', letterSpacing: '-1px' }}>
                         R{(formData[`${field.id}_baseFee`] || 500).toFixed(2)}
                       </p>
                       <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
@@ -3611,7 +5010,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                         border: '2px solid #e5e7eb',
                         marginTop: '1rem'
                       }}>
-                        <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '700', color: '#111827' }}>
+                        <h4 className={styles.entryFeeTitle} style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '700', color: '#111827' }}>
                           What's Included
                         </h4>
                         <div style={{ display: 'grid', gap: '0.75rem' }}>
@@ -3773,7 +5172,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                               type="button"
                               onClick={() => {
                                 if (product.sizeOptions && product.sizeOptions.length > 0 && !formData[`supporter_${product.id}_size`]) {
-                                  alert('Please select a size first');
+                                  setFormAlert({ open: true, message: 'Please select a size first.' });
                                   return;
                                 }
                                 addToCart(
@@ -4016,17 +5415,19 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
                   </div>
                 </div>
               )}
-            </div>
-          ))
+                  </div>
+                  {isShirtNumberField(field) && renderAdditionalApparelSection()}
+                </div>
+          );
+        })
         )}
 
-        <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+        <div className={styles.formNav}>
           {isMultiPage && currentPage > 1 && (
             <button
               type="button"
               onClick={handlePrevPage}
-              className={styles.submitButton}
-              style={{ background: '#6b7280' }}
+              className={`${styles.submitButton} ${styles.navButton}`}
             >
               ← Previous
             </button>
@@ -4036,8 +5437,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
             <button
               type="button"
               onClick={handleNextPage}
-              className={styles.submitButton}
-              style={{ flex: 1 }}
+              className={`${styles.submitButton} ${styles.navButton}`}
             >
               Next →
             </button>
@@ -4045,8 +5445,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
             <button
               type="submit"
               disabled={submitting}
-              className={styles.submitButton}
-              style={{ flex: 1 }}
+              className={`${styles.submitButton} ${styles.navButton}`}
             >
               {submitting ? 'Submitting...' : 'Complete Registration'}
             </button>
@@ -4069,6 +5468,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess }) {
           onClose={() => setModalDesign(null)}
         />
       )}
+        </div>
+      </div>
     </div>
   );
 }
