@@ -23,7 +23,7 @@ export function CartProvider({ children }) {
     localStorage.setItem('cricket-cart', JSON.stringify(cart));
   }, [cart]);
 
-  const addToCart = (product, selectedSize = null) => {
+  const addToCart = (product, selectedSize = null, autoOpen = false) => {
     setCart(prevCart => {
       const existingItemIndex = prevCart.findIndex(
         item => item.id === product.id && item.selectedSize === selectedSize
@@ -39,16 +39,22 @@ export function CartProvider({ children }) {
         return [...prevCart, { ...product, quantity: 1, selectedSize }];
       }
     });
-    setIsOpen(true); // Open cart when item added
+    if (autoOpen) {
+      setIsOpen(true); // Only open cart when explicitly requested
+    }
   };
 
   const removeFromCart = (productId, selectedSize = null) => {
+    // Basic kit is required and cannot be removed
+    if (productId === 'basic-kit') return;
     setCart(prevCart => 
       prevCart.filter(item => !(item.id === productId && item.selectedSize === selectedSize))
     );
   };
 
   const updateQuantity = (productId, selectedSize = null, newQuantity) => {
+    // Basic kit is required — cannot go below 1
+    if (productId === 'basic-kit' && newQuantity < 1) return;
     if (newQuantity <= 0) {
       removeFromCart(productId, selectedSize);
       return;
@@ -64,7 +70,9 @@ export function CartProvider({ children }) {
   };
 
   const clearCart = () => {
-    setCart([]);
+    // Preserve basic kit when clearing cart — it's a required purchase
+    setCart(prev => prev.filter(item => item.id === 'basic-kit'));
+    setIsOpen(false);
   };
 
   const getCartTotal = () => {

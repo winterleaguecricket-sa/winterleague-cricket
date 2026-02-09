@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import Link from 'next/link';
 import styles from './Cart.module.css';
@@ -13,6 +14,12 @@ export default function Cart({ hideCheckout = false }) {
     closeCart,
     clearCart 
   } = useCart();
+
+  useEffect(() => {
+    if (isOpen && cart.length === 0) {
+      closeCart();
+    }
+  }, [cart.length, isOpen, closeCart]);
 
   if (!isOpen) return null;
 
@@ -49,6 +56,7 @@ export default function Cart({ hideCheckout = false }) {
                     <button 
                       onClick={() => updateQuantity(item.id, item.selectedSize, item.quantity - 1)}
                       className={styles.quantityButton}
+                      disabled={item.id === 'basic-kit' && item.quantity <= 1}
                     >
                       −
                     </button>
@@ -61,12 +69,16 @@ export default function Cart({ hideCheckout = false }) {
                     </button>
                   </div>
                   
-                  <button 
-                    onClick={() => removeFromCart(item.id, item.selectedSize)}
-                    className={styles.removeButton}
-                  >
-                    Remove
-                  </button>
+                  {item.id !== 'basic-kit' ? (
+                    <button 
+                      onClick={() => removeFromCart(item.id, item.selectedSize)}
+                      className={styles.removeButton}
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontStyle: 'italic' }}>Required</span>
+                  )}
                 </div>
                 
                 <div className={styles.itemTotal}>
