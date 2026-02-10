@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../../styles/adminSettings.module.css';
-import { siteConfig, updateSiteConfig } from '../../data/products';
 
 export default function PaymentSettings() {
   const router = useRouter();
@@ -14,12 +13,30 @@ export default function PaymentSettings() {
     testMode: true
   });
   const [saveStatus, setSaveStatus] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load current config
-    if (siteConfig.paymentConfig?.payfast) {
-      setPaymentConfig(siteConfig.paymentConfig.payfast);
-    }
+    // Load current config from database via API
+    const loadConfig = async () => {
+      try {
+        const res = await fetch('/api/payfast/config');
+        const data = await res.json();
+        if (data.success && data.config) {
+          setPaymentConfig(prev => ({
+            ...prev,
+            testMode: data.config.testMode,
+            // Show masked merchant ID if configured
+            _isConfigured: data.config.isConfigured,
+            _maskedId: data.config.merchantId
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading PayFast config:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadConfig();
   }, []);
 
   const handleChange = (e) => {
@@ -31,18 +48,33 @@ export default function PaymentSettings() {
     setSaveStatus('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Update site config
-    updateSiteConfig({
-      paymentConfig: {
-        payfast: paymentConfig
-      }
-    });
+    setSaveStatus('');
 
-    setSaveStatus('PayFast configuration saved successfully!');
-    setTimeout(() => setSaveStatus(''), 3000);
+    try {
+      const res = await fetch('/api/payfast/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          merchantId: paymentConfig.merchantId,
+          merchantKey: paymentConfig.merchantKey,
+          passphrase: paymentConfig.passphrase,
+          testMode: paymentConfig.testMode
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setSaveStatus('PayFast configuration saved to database successfully!');
+        setTimeout(() => setSaveStatus(''), 3000);
+      } else {
+        setSaveStatus(`Error: ${data.error || 'Failed to save'}`);
+      }
+    } catch (error) {
+      console.error('Error saving PayFast config:', error);
+      setSaveStatus('Error: Failed to save configuration');
+    }
   };
 
   return (

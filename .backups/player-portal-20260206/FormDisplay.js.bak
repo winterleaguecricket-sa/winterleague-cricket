@@ -63,15 +63,6 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
   const [playerLookupState, setPlayerLookupState] = useState({});
   const playerLookupTimeouts = useRef({});
 
-  // Refs to break dependency cycles and enable debouncing
-  const formDataRef = useRef(formData);
-  const additionalApparelDetailsRef = useRef(additionalApparelDetails);
-  const draftTimerRef = useRef(null);
-
-  // Keep refs in sync with state
-  useEffect(() => { formDataRef.current = formData; }, [formData]);
-  useEffect(() => { additionalApparelDetailsRef.current = additionalApparelDetails; }, [additionalApparelDetails]);
-
   const getDraftKey = (formId) => `formDraft_${formId}`;
 
   const slugify = (value) => (
@@ -90,71 +81,52 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     try {
       const parsed = JSON.parse(saved);
       if (parsed?.formData) {
-        // Clamp player count on draft restore to prevent rendering thousands of cards
-        if (parsed.formData[44] !== undefined) {
-          const n = parseInt(parsed.formData[44], 10);
-          if (!isNaN(n)) parsed.formData[44] = String(Math.min(Math.max(n, 1), 4));
-        }
         setFormData(parsed.formData);
       }
       if (parsed?.prefilledData) {
         setPrefilledData(parsed.prefilledData);
       }
       if (parsed?.currentPage) {
-        // For player registration (form 2), always start at page 1 to ensure
-        // all steps are validated in order. Form data is still restored.
-        if (form?.id !== 2) {
-          setCurrentPage(parsed.currentPage);
-        }
+        setCurrentPage(parsed.currentPage);
       }
     } catch (error) {
       console.warn('Failed to restore saved form draft:', error);
     }
   }, [form?.id]);
 
-  // Debounced draft saving — prevents JSON.stringify on every keystroke
   useEffect(() => {
     if (typeof window === 'undefined' || !form?.id) return;
+    const draftKey = getDraftKey(form.id);
 
-    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
-    draftTimerRef.current = setTimeout(() => {
-      const draftKey = getDraftKey(form.id);
-      const currentFormData = formDataRef.current;
-
-      const safeFormData = {};
-      Object.entries(currentFormData || {}).forEach(([key, value]) => {
-        if (typeof value === 'string' && value.startsWith('data:') && value.length > 50000) {
+    const safeFormData = {};
+    Object.entries(formData || {}).forEach(([key, value]) => {
+      if (typeof value === 'string' && value.startsWith('data:') && value.length > 50000) {
+        return;
+      }
+      if (key === '45' || key === 45) {
+        if (Array.isArray(value)) {
+          safeFormData[key] = value.map((entry) => ({
+            ...entry,
+            birthCertificate: entry?.birthCertificate && String(entry.birthCertificate).startsWith('data:') ? '' : entry?.birthCertificate,
+            profileImage: entry?.profileImage && String(entry.profileImage).startsWith('data:') ? '' : entry?.profileImage
+          }));
           return;
         }
-        if (key === '45' || key === 45) {
-          if (Array.isArray(value)) {
-            safeFormData[key] = value.map((entry) => ({
-              ...entry,
-              birthCertificate: entry?.birthCertificate && String(entry.birthCertificate).startsWith('data:') ? '' : entry?.birthCertificate,
-              profileImage: entry?.profileImage && String(entry.profileImage).startsWith('data:') ? '' : entry?.profileImage
-            }));
-            return;
-          }
-        }
-        safeFormData[key] = value;
-      });
-
-      const payload = {
-        formData: safeFormData,
-        prefilledData,
-        currentPage
-      };
-
-      try {
-        window.localStorage.setItem(draftKey, JSON.stringify(payload));
-      } catch (error) {
-        console.warn('Failed to save form draft:', error);
       }
-    }, 1000);
+      safeFormData[key] = value;
+    });
 
-    return () => {
-      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    const payload = {
+      formData: safeFormData,
+      prefilledData,
+      currentPage
     };
+
+    try {
+      window.localStorage.setItem(draftKey, JSON.stringify(payload));
+    } catch (error) {
+      console.warn('Failed to save form draft:', error);
+    }
   }, [formData, prefilledData, currentPage, form?.id]);
 
   const formatSubmissionValue = (value) => {
@@ -212,7 +184,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     return String(value);
   };
 
-  const { cart, setCart, addToCart, removeFromCart, openCart, getCartCount, getCartTotal } = useCart();
+  const { cart, addToCart, removeFromCart, openCart, getCartCount } = useCart();
   const [entryFeeIncludedItems, setEntryFeeIncludedItems] = useState([]);
 
   // Determine if form is multi-page
@@ -326,7 +298,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     const loadAdditionalApparel = async () => {
       setAdditionalApparelLoading(true);
       try {
-        const response = await fetch('/api/products?category=additional-apparel&lite=true', {
+        const response = await fetch('/api/products?category=additional-apparel', {
           cache: 'no-store'
         });
         const data = await response.json();
@@ -423,9 +395,9 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     if (shouldApplyBackground) {
       document.body.style.backgroundImage = `url(${formBackground})`;
       document.body.style.backgroundSize = 'cover';
-      document.body.style.backgroundPosition = 'center top';
+      document.body.style.backgroundPosition = 'center';
       document.body.style.backgroundRepeat = 'no-repeat';
-      document.body.style.backgroundAttachment = 'scroll';
+      document.body.style.backgroundAttachment = 'fixed';
       document.body.style.backgroundColor = '#0b0f16';
     } else {
       document.body.style.backgroundImage = '';
@@ -487,7 +459,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
           setForm(prev => {
             if (!prev?.pages) return prev;
             const updatedPages = prev.pages.map(page => {
-              if (page.pageId !== 4) return page;
+              if (page.pageId !== 3) return page;
               return {
                 ...page,
                 fields: page.fields.map(field => {
@@ -542,16 +514,15 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
   // Load base kit price and entry fee for team registration
   useEffect(() => {
     if (form.id === 1 && typeof window !== 'undefined') {
-      const fd = formDataRef.current;
       const loadKitBasePrice = async () => {
         try {
           const res = await fetch('/api/kit-pricing');
           const data = await res.json();
-          if (data?.success && data.basePrice !== undefined && !fd['29_basePrice']) {
+          if (data?.success && data.basePrice !== undefined && !formData['29_basePrice']) {
             const parsed = parseFloat(data.basePrice);
             if (!Number.isNaN(parsed)) {
               handleInputChange('29_basePrice', parsed);
-              if (fd['29_markup'] === undefined) {
+              if (formData['29_markup'] === undefined) {
                 handleInputChange('29_markup', 0);
               }
               return;
@@ -569,11 +540,11 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
           const res = await fetch('/api/entry-fee-settings');
           const data = await res.json();
           if (data?.success) {
-            if (data.baseFee !== undefined && !fd['31_baseFee']) {
+            if (data.baseFee !== undefined && !formData['31_baseFee']) {
               const parsedFee = parseFloat(data.baseFee);
               if (!Number.isNaN(parsedFee)) {
                 handleInputChange('31_baseFee', parsedFee);
-                if (fd['31_adjustment'] === undefined) {
+                if (formData['31_adjustment'] === undefined) {
                   handleInputChange('31_adjustment', 0);
                 }
               }
@@ -589,8 +560,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
 
       loadEntryFeeSettings();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.id]);
+  }, [form.id, currentPage, formData]);
 
   // Initialize default values for fields
   useEffect(() => {
@@ -629,7 +599,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
           if (field.sourceFormId) {
             const sourceForm = getFormTemplateById(field.sourceFormId);
             try {
-              const response = await fetch(`/api/submissions?formId=${field.sourceFormId}&lightweight=true`);
+              const response = await fetch(`/api/submissions?formId=${field.sourceFormId}`);
               if (response.ok) {
                 const data = await response.json();
                 dropdownData[field.id] = {
@@ -766,7 +736,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
 
     const loadPlayerRegistrations = async () => {
       try {
-        const response = await fetch('/api/submissions?formId=2&lightweight=true');
+        const response = await fetch('/api/submissions?formId=2');
         if (!response.ok) return;
         const data = await response.json();
         if (isMounted) {
@@ -781,14 +751,12 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     return () => {
       isMounted = false;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form?.id]);
+  }, [form]);
 
   useEffect(() => {
     if (!form || form.id !== 2) return;
-    const rawCount = parseInt(formData[44] || 0, 10);
-    if (!Number.isFinite(rawCount) || rawCount <= 0) return;
-    const count = Math.min(rawCount, 4); // Max 4 players per submission
+    const count = parseInt(formData[44] || 0, 10);
+    if (!Number.isFinite(count) || count <= 0) return;
 
     setFormData((prev) => {
       const current = Array.isArray(prev[45]) ? [...prev[45]] : [];
@@ -833,44 +801,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
       });
       return next;
     });
-  }, [form?.id, formData[44]]);
+  }, [form, formData[44]]);
 
-  // Auto-select sub-team when there is exactly one option (player registration only)
-  useEffect(() => {
-    if (!form || form.id !== 2) return;
-    const selectedTeamId = formData[8];
-    if (!selectedTeamId) return;
-    const entries = Array.isArray(formData[45]) ? formData[45] : [];
-    if (entries.length === 0) return;
-
-    const allFields = form.pages ? form.pages.flatMap(p => p.fields) : form.fields;
-    const teamDropdownField = allFields.find(f => f.type === 'submission-dropdown');
-    if (!teamDropdownField) return;
-    const teamSubmissions = submissionDropdownData[teamDropdownField.id]?.submissions || [];
-    const selectedSubmission = teamSubmissions.find(sub => String(sub.id) === String(selectedTeamId));
-    const rawSubTeams = selectedSubmission?.data?.[33] ?? selectedSubmission?.data?.['33'];
-    const subTeams = typeof rawSubTeams === 'string' ? JSON.parse(rawSubTeams || '[]') : rawSubTeams;
-    if (!Array.isArray(subTeams) || subTeams.length !== 1) return;
-
-    const singleValue = JSON.stringify(subTeams[0]);
-    let needsUpdate = false;
-    entries.forEach((entry) => {
-      if (!entry.subTeam) needsUpdate = true;
-    });
-    if (!needsUpdate) return;
-
-    setFormData(prev => {
-      const current = Array.isArray(prev[45]) ? [...prev[45]] : [];
-      const next = current.map(entry => {
-        if (!entry.subTeam) return { ...entry, subTeam: singleValue };
-        return entry;
-      });
-      return { ...prev, [45]: next };
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form?.id, formData[8], formData[45], submissionDropdownData]);
-
-  // Load additional apparel product details — uses ref to avoid self-dependency cascade
   useEffect(() => {
     if (!form || form.id !== 2) return;
     const selectedDesign = getSelectedKitDesign();
@@ -882,30 +814,21 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     let cancelled = false;
 
     const loadMissingDetails = async () => {
-      const currentDetails = additionalApparelDetailsRef.current;
-      const toLoad = matchedProducts.filter(p => !currentDetails[p.id]);
-      if (toLoad.length === 0) return;
-
-      // Fetch all missing products in parallel instead of sequential cascade
-      const results = await Promise.allSettled(
-        toLoad.map(product =>
-          fetch(`/api/products?id=${product.id}&lite=true`)
-            .then(res => res.ok ? res.json() : null)
-            .then(data => data?.success && data.product ? { id: product.id, product: data.product } : null)
-        )
-      );
-
-      if (cancelled) return;
-
-      const newDetails = {};
-      results.forEach(result => {
-        if (result.status === 'fulfilled' && result.value) {
-          newDetails[result.value.id] = result.value.product;
+      for (const product of matchedProducts) {
+        if (cancelled) return;
+        if (additionalApparelDetails[product.id]) continue;
+        try {
+          const response = await fetch(`/api/products?id=${product.id}`);
+          const data = await response.json();
+          if (!cancelled && response.ok && data?.success && data.product) {
+            setAdditionalApparelDetails(prev => ({
+              ...prev,
+              [product.id]: data.product
+            }));
+          }
+        } catch (error) {
+          console.error('Error preloading product details:', error);
         }
-      });
-
-      if (Object.keys(newDetails).length > 0) {
-        setAdditionalApparelDetails(prev => ({ ...prev, ...newDetails }));
       }
     };
 
@@ -913,28 +836,25 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form?.id, additionalApparelProducts, formData[24], formData[8], submissionDropdownData, shirtDesigns]);
+  }, [form, additionalApparelProducts, additionalApparelDetails, formData[24], formData[8], submissionDropdownData, shirtDesigns]);
 
   // Set default color values for image-select-library fields with color pickers
-  // Uses formDataRef to avoid re-triggering on every formData change
   useEffect(() => {
     const allFields = isMultiPage 
       ? form.pages.flatMap(p => p.fields)
       : form.fields;
     
-    const fd = formDataRef.current;
     const colorDefaults = {};
     allFields.forEach(field => {
       if (field.type === 'image-select-library' && field.includeColorPickers && !field.autofillFromSubmission) {
         // Set defaults if not already set
-        if (fd[field.id] && !fd[`${field.id}_primaryColor`]) {
+        if (formData[field.id] && !formData[`${field.id}_primaryColor`]) {
           colorDefaults[`${field.id}_primaryColor`] = '#DC2626';
         }
-        if (fd[field.id] && !fd[`${field.id}_secondaryColor`]) {
+        if (formData[field.id] && !formData[`${field.id}_secondaryColor`]) {
           colorDefaults[`${field.id}_secondaryColor`] = '#2563EB';
         }
-        if (fd[field.id] && !fd[`${field.id}_trimColor`]) {
+        if (formData[field.id] && !formData[`${field.id}_trimColor`]) {
           colorDefaults[`${field.id}_trimColor`] = '#2563EB';
         }
       }
@@ -943,11 +863,9 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     if (Object.keys(colorDefaults).length > 0) {
       setFormData(prev => ({ ...prev, ...colorDefaults }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, isMultiPage]);
+  }, [form, isMultiPage, formData]);
 
   // Auto-add basic kit to cart when reaching page 3
-  // Uses setCart functional updater to always read latest cart state (avoids stale closure)
   useEffect(() => {
     if (currentPage === 3 && form.id === 2) {
       const allFields = isMultiPage 
@@ -958,10 +876,10 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
       if (!basicKitField) return;
 
       const teamPricing = getSelectedTeamKitPricing(basicKitField);
+      const existingKitItems = cart.filter(item => item.id === 'basic-kit');
       const entries = getPlayerEntries();
+      const desiredSizes = [];
 
-      // Build the desired kit items from player entries
-      const desiredKits = [];
       entries.forEach((entry, index) => {
         if (!entry?.shirtSize || !entry?.pantsSize) return;
         const labelParts = [`Player ${index + 1}`];
@@ -969,36 +887,29 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
           labelParts.push(entry.playerName);
         }
         const sizeLabel = `${labelParts.join(' - ')} | Shirt: ${entry.shirtSize} / Pants: ${entry.pantsSize}`;
-        desiredKits.push({
-          id: 'basic-kit',
-          name: basicKitField.label,
-          price: teamPricing.finalPrice,
-          description: basicKitField.description,
-          quantity: 1,
-          selectedSize: sizeLabel
-        });
-      });
+        desiredSizes.push(sizeLabel);
 
-      // Use functional updater to always see the latest cart state
-      setCart(prevCart => {
-        const nonKitItems = prevCart.filter(item => item.id !== 'basic-kit');
-        const existingKitItems = prevCart.filter(item => item.id === 'basic-kit');
+        const existingMatch = existingKitItems.find(item => item.selectedSize === sizeLabel);
+        const priceChanged = existingMatch && Number(existingMatch.price) !== Number(teamPricing.finalPrice);
 
-        // Check if anything actually changed to avoid unnecessary re-renders
-        if (existingKitItems.length === desiredKits.length) {
-          const allMatch = desiredKits.every(dk => 
-            existingKitItems.some(ek => 
-              ek.selectedSize === dk.selectedSize && Number(ek.price) === Number(dk.price)
-            )
-          );
-          if (allMatch) return prevCart; // No change needed
+        if (!existingMatch || priceChanged) {
+          if (existingMatch) {
+            removeFromCart(existingMatch.id, existingMatch.selectedSize);
+          }
+          addToCart({
+            id: 'basic-kit',
+            name: basicKitField.label,
+            price: teamPricing.finalPrice,
+            description: basicKitField.description
+          }, sizeLabel);
         }
-
-        return [...nonKitItems, ...desiredKits];
       });
+
+      existingKitItems
+        .filter(item => !desiredSizes.includes(item.selectedSize))
+        .forEach(item => removeFromCart(item.id, item.selectedSize));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, form?.id, isMultiPage, formData[45], submissionDropdownData]);
+  }, [currentPage, form, isMultiPage, cart, addToCart, removeFromCart, formData, submissionDropdownData]);
 
   const handleInputChange = (fieldId, value) => {
     if (validationErrors[fieldId]) {
@@ -1008,17 +919,52 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
         return next;
       });
     }
-    // Clamp player count (field 44) to 1-4 range for player registration
-    if (fieldId === 44 && form?.id === 2) {
-      const num = parseInt(value, 10);
-      if (value !== '' && !isNaN(num)) {
-        value = String(Math.min(Math.max(num, 1), 4));
-      }
-    }
     setFormData(prev => ({
       ...prev,
       [fieldId]: value
     }));
+  };
+
+  // Player lookup function - searches the CricClubs player database
+  const handlePlayerLookup = async (searchValue) => {
+    // Clear any pending timeout
+    if (playerLookupTimeout.current) {
+      clearTimeout(playerLookupTimeout.current);
+    }
+    
+    // Only clear selected profile if the user is typing a DIFFERENT name
+    // Don't clear if the name matches the selected profile (user just clicked to select)
+    if (selectedPlayerProfile && searchValue !== selectedPlayerProfile.name) {
+      setSelectedPlayerProfile(null);
+    }
+    
+    // If user selected a profile and the name matches, don't re-search
+    if (selectedPlayerProfile && searchValue === selectedPlayerProfile.name) {
+      return;
+    }
+    
+    // Reset if search is too short
+    if (!searchValue || searchValue.trim().length < 2) {
+      setPlayerLookupResults([]);
+      setPlayerLookupSearched(false);
+      return;
+    }
+    
+    // Debounce the search by 500ms
+    playerLookupTimeout.current = setTimeout(async () => {
+      setPlayerLookupLoading(true);
+      try {
+        const response = await fetch(`/api/player-lookup?search=${encodeURIComponent(searchValue.trim())}`);
+        const data = await response.json();
+        setPlayerLookupResults(data.players || []);
+        setPlayerLookupSearched(true);
+      } catch (error) {
+        console.error('Player lookup error:', error);
+        setPlayerLookupResults([]);
+      } finally {
+        setPlayerLookupLoading(false);
+      }
+    }, 500);
   };
 
   const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
@@ -1216,6 +1162,12 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     };
   };
 
+  const isShirtNumberField = (field) => (
+    form?.id === 2
+    && currentPage === 3
+    && field?.id === 36
+  );
+
   const isKitPreviewField = (field) => (
     form?.id === 2
     && currentPage === 3
@@ -1300,7 +1252,11 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
         )}
 
         {selectedDesign && matchedProducts.length > 0 && (
-          <div className={styles.apparelGrid}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: '1rem'
+          }}>
             {matchedProducts.map(product => {
               const sizes = Array.isArray(product.sizes) ? product.sizes : [];
               const selection = apparelSelections[product.id] || { quantity: 0, sizes: [] };
@@ -1350,10 +1306,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                     style={{ cursor: 'pointer' }}
                     onClick={async () => {
                       try {
-                        // Always fetch full product for modal (auto-loaded details are lite/no images)
-                        const existingDetail = additionalApparelDetails[product.id];
-                        const needsFetch = !existingDetail || !existingDetail.image || existingDetail.image === '/images/placeholder.svg' || existingDetail._lite;
-                        if (needsFetch) {
+                        if (!additionalApparelDetails[product.id]) {
                           const response = await fetch(`/api/products?id=${product.id}`);
                           const data = await response.json();
                           if (response.ok && data?.success && data.product) {
@@ -1367,7 +1320,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                           }
                         }
                         setActiveApparelImageIndex(0);
-                        setActiveApparelModal(existingDetail || product);
+                        setActiveApparelModal(additionalApparelDetails[product.id] || product);
                       } catch (error) {
                         console.error('Error loading product details:', error);
                         setActiveApparelImageIndex(0);
@@ -1379,7 +1332,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                     {product.id >= 67 && product.id <= 86 ? (
                       <div style={{
                         width: '100%',
-                        height: '280px',
+                        height: '200px',
                         background: '#0b1220',
                         display: 'flex',
                         alignItems: 'center',
@@ -1396,7 +1349,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                     ) : (
                       <div style={{
                         width: '100%',
-                        height: '280px',
+                        height: '200px',
                         background: '#0b1220',
                         display: 'flex',
                         alignItems: 'center',
@@ -1416,9 +1369,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                       style={{ cursor: 'pointer' }}
                       onClick={async () => {
                         try {
-                          const existingDetail = additionalApparelDetails[product.id];
-                          const needsFetch = !existingDetail || !existingDetail.image || existingDetail.image === '/images/placeholder.svg' || existingDetail._lite;
-                          if (needsFetch) {
+                          if (!additionalApparelDetails[product.id]) {
                             const response = await fetch(`/api/products?id=${product.id}`);
                             const data = await response.json();
                             if (response.ok && data?.success && data.product) {
@@ -1432,7 +1383,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                             }
                           }
                           setActiveApparelImageIndex(0);
-                          setActiveApparelModal(existingDetail || product);
+                          setActiveApparelModal(additionalApparelDetails[product.id] || product);
                         } catch (error) {
                           console.error('Error loading product details:', error);
                           setActiveApparelImageIndex(0);
@@ -1465,8 +1416,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                             }));
                           }}
                           style={{
-                            width: '40px',
-                            height: '40px',
+                            width: '28px',
+                            height: '28px',
                             borderRadius: '6px',
                             border: '1px solid rgba(255, 255, 255, 0.2)',
                             background: '#1f2937',
@@ -1501,8 +1452,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                             }));
                           }}
                           style={{
-                            width: '40px',
-                            height: '40px',
+                            width: '28px',
+                            height: '28px',
                             borderRadius: '6px',
                             border: '1px solid rgba(255, 255, 255, 0.2)',
                             background: '#dc0000',
@@ -1707,16 +1658,14 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Close button - inside modal, stays visible */}
+              {/* Close button - inside modal, top right */}
               <button
                 type="button"
                 onClick={() => setActiveApparelModal(null)}
                 style={{
-                  position: 'sticky',
+                  position: 'absolute',
                   top: '12px',
-                  marginLeft: 'auto',
-                  marginRight: '12px',
-                  marginTop: '12px',
+                  right: '12px',
                   background: 'rgba(0,0,0,0.8)',
                   border: '2px solid rgba(255,255,255,0.3)',
                   color: 'white',
@@ -1728,8 +1677,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                   zIndex: 10,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
+                  justifyContent: 'center'
                 }}
               >
                 ×
@@ -2170,13 +2118,17 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
         )}
 
         {selectedDesign && matchedProducts.length > 0 && (
-          <div className={styles.apparelGrid}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: '1rem'
+          }}>
             {matchedProducts.map(product => {
               const sizes = Array.isArray(product.sizes) ? product.sizes : [];
               const selectedSize = formData[`supporter_${product.id}_size`] || '';
               // Use unique supporter cart ID to track separately from additional apparel
               const supporterCartId = `supporter_${product.id}`;
-              const inCart = cart.some(item => item.id === supporterCartId);
+              const inCart = cart.some(item => item.id === supporterCartId && item.selectedSize === (sizes.length ? selectedSize : null));
               const detailRecord = additionalApparelDetails[product.id];
               const imageUrl = (detailRecord?.images && detailRecord.images.length > 0)
                 ? detailRecord.images[0]
@@ -2199,9 +2151,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                   }}
                   onClick={async () => {
                     try {
-                      const existingDetail = additionalApparelDetails[product.id];
-                      const needsFetch = !existingDetail || !existingDetail.image || existingDetail.image === '/images/placeholder.svg' || existingDetail._lite;
-                      if (needsFetch) {
+                      if (!additionalApparelDetails[product.id]) {
                         const response = await fetch(`/api/products?id=${product.id}`);
                         const data = await response.json();
                         if (response.ok && data?.success && data.product) {
@@ -2215,7 +2165,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                         }
                       }
                       setActiveApparelImageIndex(0);
-                      setActiveApparelModal({ ...(existingDetail || product), isSupporter: true });
+                      setActiveApparelModal({ ...(additionalApparelDetails[product.id] || product), isSupporter: true });
                     } catch (error) {
                       console.error('Error loading product details:', error);
                       setActiveApparelImageIndex(0);
@@ -2240,7 +2190,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                   {product.id >= 67 && product.id <= 86 ? (
                     <div style={{
                       width: '100%',
-                      height: '280px',
+                      height: '200px',
                       background: '#0b1220',
                       display: 'flex',
                       alignItems: 'center',
@@ -2257,7 +2207,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                   ) : (
                     <div style={{
                       width: '100%',
-                      height: '280px',
+                      height: '200px',
                       background: '#0b1220',
                       display: 'flex',
                       alignItems: 'center',
@@ -2401,16 +2351,14 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Close button - inside modal, stays visible */}
+              {/* Close button - inside modal, top right */}
               <button
                 type="button"
                 onClick={() => setActiveApparelModal(null)}
                 style={{
-                  position: 'sticky',
+                  position: 'absolute',
                   top: '12px',
-                  marginLeft: 'auto',
-                  marginRight: '12px',
-                  marginTop: '12px',
+                  right: '12px',
                   background: 'rgba(0,0,0,0.8)',
                   border: '2px solid rgba(255,255,255,0.3)',
                   color: 'white',
@@ -2422,8 +2370,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                   zIndex: 10,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
+                  justifyContent: 'center'
                 }}
               >
                 ×
@@ -2662,8 +2609,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
 
       return next;
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form?.id, formData[45], formData[8], playerRegistrationSubmissions]);
+  }, [form, formData[45], formData[8], playerRegistrationSubmissions]);
 
   const compressImageDataUrl = (dataUrl, options = {}) => {
     if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
@@ -2936,19 +2882,10 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
           return false;
         }
         
-        // Checkout form requires all checkout fields — set per-field errors
+        // Checkout form requires all checkout fields
         if (field.type === 'checkout-form') {
           const requiredCheckoutFields = ['checkout_email', 'checkout_password', 'checkout_firstName', 'checkout_lastName', 'checkout_phone'];
-          const emptyFields = requiredCheckoutFields.filter(fieldName => !formData[fieldName]);
-          if (emptyFields.length > 0) {
-            setValidationErrors(prev => {
-              const next = { ...prev };
-              emptyFields.forEach(f => { next[f] = true; });
-              return next;
-            });
-            return true;
-          }
-          return false;
+          return requiredCheckoutFields.some(fieldName => !formData[fieldName]);
         }
         
         // Kit pricing - only requires base price if field is required (markup is optional)
@@ -2999,39 +2936,6 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
       markMissingFields(missingFields);
       focusMissingField(missingFields[0]);
       return;
-    }
-
-    // Player Registration Step 1: validate email format, password length, phone format
-    if (form.id === 2 && currentPage === 1) {
-      const email = String(formData[38] || '').trim();
-      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        setFormAlert({ open: true, message: 'Please enter a valid email address.' });
-        const emailField = currentFields.find(f => f.id === 38);
-        if (emailField) focusMissingField(emailField);
-        return;
-      }
-      const password = String(formData[39] || '');
-      if (password && password.length < 6) {
-        setFormAlert({ open: true, message: 'Password must be at least 6 characters long.' });
-        const pwField = currentFields.find(f => f.id === 39);
-        if (pwField) focusMissingField(pwField);
-        return;
-      }
-      const phone = String(formData[40] || '').trim();
-      if (phone && !/^[0-9+\-\s()]{7,15}$/.test(phone)) {
-        setFormAlert({ open: true, message: 'Please enter a valid phone number (digits, spaces, +, -, parentheses allowed).' });
-        const phoneField = currentFields.find(f => f.id === 40);
-        if (phoneField) focusMissingField(phoneField);
-        return;
-      }
-      // Also validate secondary phone if provided
-      const phone2 = String(formData[41] || '').trim();
-      if (phone2 && !/^[0-9+\-\s()]{7,15}$/.test(phone2)) {
-        setFormAlert({ open: true, message: 'Please enter a valid secondary phone number.' });
-        const phone2Field = currentFields.find(f => f.id === 41);
-        if (phone2Field) focusMissingField(phone2Field);
-        return;
-      }
     }
 
     if (form.id === 2 && currentPage === 3) {
@@ -3185,11 +3089,6 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     if (window.innerWidth > 768) return;
     if (!isMultiPage) return;
 
-    // Only allow navigating back to previous pages, not skipping ahead
-    const currentIndex = orderedPages.findIndex(p => p.pageId === currentPage);
-    const targetIndex = orderedPages.findIndex(p => p.pageId === pageId);
-    if (targetIndex > currentIndex) return;
-
     const scrollToFirstField = () => {
       const targetPage = form.pages?.find(page => page.pageId === pageId);
       const sortedFields = targetPage?.fields
@@ -3270,19 +3169,10 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
           return false; // Never mark as missing
         }
         
-        // Checkout form requires all checkout fields — set per-field errors
+        // Checkout form requires all checkout fields
         if (field.type === 'checkout-form') {
           const requiredCheckoutFields = ['checkout_email', 'checkout_password', 'checkout_firstName', 'checkout_lastName', 'checkout_phone'];
-          const emptyFields = requiredCheckoutFields.filter(fieldName => !formData[fieldName]);
-          if (emptyFields.length > 0) {
-            setValidationErrors(prev => {
-              const next = { ...prev };
-              emptyFields.forEach(f => { next[f] = true; });
-              return next;
-            });
-            return true;
-          }
-          return false;
+          return requiredCheckoutFields.some(fieldName => !formData[fieldName]);
         }
         
         // Dynamic team entries validation
@@ -3430,27 +3320,15 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
       }
 
       // Submit the form via API
-      // For player registration, include cart items in submission
-      const submissionPayload = {
-        formId: form.id,
-        data: combinedData
-      };
-      if (form.id === 2 && cart.length > 0) {
-        submissionPayload.cartItems = cart.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          selectedSize: item.selectedSize || null
-        }));
-        submissionPayload.cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      }
       const response = await fetch('/api/form-submissions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(submissionPayload)
+        body: JSON.stringify({
+          formId: form.id,
+          data: combinedData
+        })
       });
 
       const result = await response.json();
@@ -3495,7 +3373,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
       setSubmittedFormData(submittedData);
 
       setSubmitting(false);
-      if (typeof window !== 'undefined' && form?.id) {
+      if (typeof window !== 'undefined' && form?.id && form.id !== 2) {
         window.localStorage.removeItem(getDraftKey(form.id));
       }
 
@@ -4035,6 +3913,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                           {field.helpText}
                         </div>
                       )}
+                      {isShirtNumberField(field) && renderAdditionalApparelSection()}
                     </>
                   )}
                   
@@ -4411,6 +4290,9 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
               if (form.id === 2 && field.type === 'product-bundle') {
                 return null;
               }
+              if (form.id === 2 && field.type === 'upsell-products') {
+                return null;
+              }
               return (
                 <div key={field.id}>
                   <div
@@ -4446,7 +4328,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
 
               {field.type === 'player-entries' && (() => {
                 const entries = getPlayerEntries();
-                const playerCount = Math.min(parseInt(formData[field.dependsOn] || 0, 10) || entries.length, 4);
+                const playerCount = parseInt(formData[field.dependsOn] || 0, 10) || entries.length;
                 const allFields = isMultiPage
                   ? form.pages.flatMap(page => page.fields || [])
                   : form.fields;
@@ -4470,7 +4352,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                 }
 
                 return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     {!selectedTeamId && (
                       <div className={styles.kitSizeChartPlaceholder}>Select a team first to load age group options.</div>
                     )}
@@ -4479,6 +4361,10 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                       const lookupState = playerLookupState[index] || {};
                       const entryErrors = playerEntryErrors[index] || {};
                       const hasSubTeams = Array.isArray(subTeams) && subTeams.length > 0;
+                      if (selectedTeamId && hasSubTeams && subTeams.length === 1 && !entry.subTeam) {
+                        const singleValue = JSON.stringify(subTeams[0]);
+                        setTimeout(() => updatePlayerEntry(index, { subTeam: singleValue }), 0);
+                      }
 
                       return (
                         <div key={`player-entry-${index}`} className={styles.playerCard}>
@@ -4489,9 +4375,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                             </div>
                           </div>
 
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {/* Player Name — full width */}
-                            <div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
+                            <div style={{ gridColumn: 'span 2' }}>
                               <label className={styles.kitSizingLabel}>Player Name and Surname *</label>
                               <input
                                 type="text"
@@ -4530,9 +4415,10 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                 <div style={{
                                   marginTop: '10px',
                                   padding: '14px',
-                                  background: '#0f172a',
+                                  background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
                                   borderRadius: '12px',
                                   border: '1px solid rgba(220, 38, 38, 0.4)',
+                                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
                                 }}>
                                   <div style={{
                                     color: '#dc2626',
@@ -4562,13 +4448,15 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                           style={{
                                             padding: '12px 14px',
                                             background: isSelected
-                                              ? '#2a1520'
-                                              : '#0b1120',
+                                              ? 'linear-gradient(135deg, rgba(220, 38, 38, 0.25) 0%, rgba(220, 38, 38, 0.15) 100%)'
+                                              : 'rgba(0, 0, 0, 0.3)',
                                             borderRadius: '8px',
                                             border: isSelected
                                               ? '2px solid #dc2626'
                                               : '1px solid rgba(255, 255, 255, 0.1)',
                                             cursor: 'pointer',
+                                            transition: 'all 0.2s ease',
+                                            boxShadow: isSelected ? '0 0 15px rgba(220, 38, 38, 0.3)' : 'none'
                                           }}
                                         >
                                           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
@@ -4587,6 +4475,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                               justifyContent: 'center',
                                               flexShrink: 0,
                                               marginTop: '2px',
+                                              transition: 'all 0.2s ease'
                                             }}>
                                               {isSelected && (
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
@@ -4699,7 +4588,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                 <div style={{
                                   marginTop: '10px',
                                   padding: '14px',
-                                  background: '#0f172a',
+                                  background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
                                   borderRadius: '10px',
                                   border: '1px solid rgba(34, 197, 94, 0.4)',
                                   color: '#22c55e',
@@ -4714,7 +4603,54 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                               )}
                             </div>
 
-                            {/* Age Group Team — full width */}
+                            <div style={{ gridColumn: 'span 2' }}>
+                              <label className={styles.kitSizingLabel}>Player Profile Image *</label>
+                              <div className={styles.uploadField}>
+                                <label
+                                  className={styles.dropzone}
+                                  onDragOver={(e) => e.preventDefault()}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    const file = e.dataTransfer.files?.[0];
+                                    handlePlayerFileUpload(file, index, 'profileImage', 'Profile image');
+                                  }}
+                                >
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      const file = e.target.files[0];
+                                      handlePlayerFileUpload(file, index, 'profileImage', 'Profile image');
+                                    }}
+                                    className={styles.uploadInput}
+                                  />
+                                  <div className={styles.dropzoneIcon}>⤴</div>
+                                  <div className={styles.dropzoneText}>Drag & drop profile image here</div>
+                                  <div className={styles.dropzoneHint}>or click to browse</div>
+                                </label>
+                                <div className={styles.uploadRow}>
+                                  {entry.profileImage && (
+                                    <button
+                                      type="button"
+                                      className={styles.uploadRemove}
+                                      onClick={() => updatePlayerEntry(index, { profileImage: '' })}
+                                    >
+                                      Remove
+                                    </button>
+                                  )}
+                                </div>
+                                {entry.profileImage && (
+                                  <div className={styles.uploadPreview}>
+                                    <img src={entry.profileImage} alt="Profile preview" />
+                                    <span>Uploaded successfully</span>
+                                  </div>
+                                )}
+                                {entryErrors.profileImage && (
+                                  <div className={styles.fieldErrorText}>{entryErrors.profileImage}</div>
+                                )}
+                              </div>
+                            </div>
+
                             <div>
                               <label className={styles.kitSizingLabel}>Select Age Group Team *</label>
                               {!selectedTeamId && (
@@ -4728,15 +4664,12 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                   className={styles.selectGlowWrap}
                                   tabIndex={0}
                                   onBlur={(e) => {
-                                    const wrapper = e.currentTarget;
-                                    setTimeout(() => {
-                                      if (wrapper && !wrapper.contains(document.activeElement)) {
-                                        setDropdownOpen((prev) => ({
-                                          ...prev,
-                                          [`player_${index}_subTeam`]: false
-                                        }));
-                                      }
-                                    }, 100);
+                                    if (!e.currentTarget.contains(e.relatedTarget)) {
+                                      setDropdownOpen((prev) => ({
+                                        ...prev,
+                                        [`player_${index}_subTeam`]: false
+                                      }));
+                                    }
                                   }}
                                 >
                                   <button
@@ -4797,99 +4730,31 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                               )}
                             </div>
 
-                            {/* Date of Birth + Shirt Number — side by side */}
-                            <div className={styles.playerTwoCol}>
-                              <div>
-                                <label className={styles.kitSizingLabel}>Date of Birth *</label>
-                                <Flatpickr
-                                  value={entry.dob || ''}
-                                  options={{
-                                    dateFormat: 'Y-m-d',
-                                    altInput: true,
-                                    altFormat: 'Y/m/d',
-                                    allowInput: true,
-                                    disableMobile: false,
-                                    monthSelectorType: 'dropdown',
-                                    maxDate: 'today',
-                                    minDate: '1950-01-01'
-                                  }}
-                                  onChange={(_, dateStr) => updatePlayerEntry(index, { dob: dateStr })}
-                                  placeholder="Select date"
-                                  className={styles.input}
-                                />
-                                {entryErrors.dob && (
-                                  <div className={styles.fieldErrorText}>{entryErrors.dob}</div>
-                                )}
-                              </div>
-                              <div>
-                                <label className={styles.kitSizingLabel}>Shirt Number *</label>
-                                <input
-                                  type="number"
-                                  placeholder="1-99"
-                                  value={entry.shirtNumber || ''}
-                                  onChange={(e) => updatePlayerEntry(index, { shirtNumber: e.target.value })}
-                                  className={styles.input}
-                                  min={1}
-                                  max={99}
-                                />
-                                {entryErrors.shirtNumber && (
-                                  <div className={styles.fieldErrorText}>{entryErrors.shirtNumber}</div>
-                                )}
-                              </div>
+                            <div>
+                              <label className={styles.kitSizingLabel}>Date of Birth *</label>
+                              <Flatpickr
+                                value={entry.dob || ''}
+                                options={{
+                                  dateFormat: 'Y-m-d',
+                                  altInput: true,
+                                  altFormat: 'Y/m/d',
+                                  allowInput: true,
+                                  disableMobile: false,
+                                  monthSelectorType: 'dropdown',
+                                  maxDate: 'today',
+                                  minDate: '1950-01-01'
+                                }}
+                                onChange={(_, dateStr) => updatePlayerEntry(index, { dob: dateStr })}
+                                placeholder="Select date"
+                                className={styles.input}
+                              />
+                              {entryErrors.dob && (
+                                <div className={styles.fieldErrorText}>{entryErrors.dob}</div>
+                              )}
                             </div>
 
-                            {/* Profile Image + Birth Certificate — side by side */}
-                            <div className={styles.playerTwoCol}>
-                              <div>
-                                <label className={styles.kitSizingLabel}>Player Profile Image *</label>
-                                <div className={styles.uploadField}>
-                                  <label
-                                    className={styles.dropzone}
-                                    onDragOver={(e) => e.preventDefault()}
-                                    onDrop={(e) => {
-                                      e.preventDefault();
-                                      const file = e.dataTransfer.files?.[0];
-                                      handlePlayerFileUpload(file, index, 'profileImage', 'Profile image');
-                                    }}
-                                  >
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      onChange={(e) => {
-                                        const file = e.target.files[0];
-                                        handlePlayerFileUpload(file, index, 'profileImage', 'Profile image');
-                                      }}
-                                      className={styles.uploadInput}
-                                    />
-                                    <div className={styles.dropzoneIcon}>⤴</div>
-                                    <div className={styles.dropzoneText}>Drag & drop profile image</div>
-                                    <div className={styles.dropzoneHint}>or click to browse</div>
-                                  </label>
-                                  <div className={styles.uploadRow}>
-                                    {entry.profileImage && (
-                                      <button
-                                        type="button"
-                                        className={styles.uploadRemove}
-                                        onClick={() => updatePlayerEntry(index, { profileImage: '' })}
-                                      >
-                                        Remove
-                                      </button>
-                                    )}
-                                  </div>
-                                  {entry.profileImage && (
-                                    <div className={styles.uploadPreview}>
-                                      <img src={entry.profileImage} alt="Profile preview" />
-                                      <span>Uploaded successfully</span>
-                                    </div>
-                                  )}
-                                  {entryErrors.profileImage && (
-                                    <div className={styles.fieldErrorText}>{entryErrors.profileImage}</div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div>
-                                <label className={styles.kitSizingLabel}>Birth Certificate Upload *</label>
+                            <div style={{ gridColumn: 'span 2' }}>
+                              <label className={styles.kitSizingLabel}>Birth Certificate Upload *</label>
                               <div className={styles.uploadField}>
                                 <label
                                   className={styles.dropzone}
@@ -4935,6 +4800,21 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                 )}
                               </div>
                             </div>
+
+                            <div>
+                              <label className={styles.kitSizingLabel}>Shirt Number *</label>
+                              <input
+                                type="number"
+                                placeholder="1-99"
+                                value={entry.shirtNumber || ''}
+                                onChange={(e) => updatePlayerEntry(index, { shirtNumber: e.target.value })}
+                                className={styles.input}
+                                min={1}
+                                max={99}
+                              />
+                              {entryErrors.shirtNumber && (
+                                <div className={styles.fieldErrorText}>{entryErrors.shirtNumber}</div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -4992,6 +4872,235 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                       )}
                       {field.helpText && (
                         <p className={styles.uploadHelp}>{field.helpText}</p>
+                      )}
+                    </div>
+                  ) : field.id === 6 && form?.id === 2 ? (
+                    // Player Name field with CricClubs lookup
+                    <div style={{ width: '100%' }}>
+                      <input
+                        type="text"
+                        placeholder={field.placeholder}
+                        value={formData[field.id] || ''}
+                        onChange={(e) => handleInputChange(field.id, e.target.value)}
+                        required={field.required}
+                        className={styles.input}
+                      />
+                      
+                      {/* Player Lookup Results */}
+                      {playerLookupLoading && (
+                        <div style={{
+                          marginTop: '10px',
+                          padding: '14px',
+                          background: 'rgba(220, 38, 38, 0.1)',
+                          borderRadius: '10px',
+                          border: '1px solid rgba(220, 38, 38, 0.3)',
+                          color: '#dc2626',
+                          fontSize: '0.9rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px'
+                        }}>
+                          <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>🔍</span>
+                          Searching Winter League player database...
+                        </div>
+                      )}
+                      
+                      {!playerLookupLoading && playerLookupSearched && playerLookupResults.length > 0 && (
+                        <div style={{
+                          marginTop: '10px',
+                          padding: '14px',
+                          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
+                          borderRadius: '12px',
+                          border: '1px solid rgba(220, 38, 38, 0.4)',
+                          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+                        }}>
+                          <div style={{
+                            color: '#dc2626',
+                            fontSize: '0.95rem',
+                            fontWeight: '700',
+                            marginBottom: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            ⚠️ Existing player(s) found with this name:
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {playerLookupResults.map((player, idx) => {
+                              const isSelected = selectedPlayerProfile && String(selectedPlayerProfile.id) === String(player.id);
+                              return (
+                              <div
+                                key={idx}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setSelectedPlayerProfile(null);
+                                  } else {
+                                    setSelectedPlayerProfile(player);
+                                    handleInputChange(field.id, player.name);
+                                  }
+                                }}
+                                style={{
+                                  padding: '12px 14px',
+                                  background: isSelected 
+                                    ? 'linear-gradient(135deg, rgba(220, 38, 38, 0.25) 0%, rgba(220, 38, 38, 0.15) 100%)' 
+                                    : 'rgba(0, 0, 0, 0.3)',
+                                  borderRadius: '8px',
+                                  border: isSelected 
+                                    ? '2px solid #dc2626' 
+                                    : '1px solid rgba(255, 255, 255, 0.1)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease',
+                                  boxShadow: isSelected ? '0 0 15px rgba(220, 38, 38, 0.3)' : 'none'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                                  {/* Checkbox */}
+                                  <div style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    borderRadius: '6px',
+                                    border: isSelected 
+                                      ? '2px solid #dc2626' 
+                                      : '2px solid rgba(255, 255, 255, 0.4)',
+                                    background: isSelected 
+                                      ? '#dc2626' 
+                                      : 'transparent',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                    marginTop: '2px',
+                                    transition: 'all 0.2s ease'
+                                  }}>
+                                    {isSelected && (
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                      </svg>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Player Info */}
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ 
+                                      fontWeight: '700', 
+                                      color: isSelected ? '#fff' : '#fff',
+                                      fontSize: '1rem',
+                                      marginBottom: '4px'
+                                    }}>
+                                      {player.name}
+                                      {isSelected && <span style={{ marginLeft: '8px', color: '#22c55e', fontSize: '0.85rem' }}>✓ Selected</span>}
+                                    </div>
+                                    <div style={{ 
+                                      fontSize: '0.85rem', 
+                                      color: 'rgba(255,255,255,0.7)',
+                                      display: 'flex',
+                                      flexWrap: 'wrap',
+                                      gap: '8px'
+                                    }}>
+                                      {player.team && (
+                                        <span style={{
+                                          background: 'rgba(220, 38, 38, 0.2)',
+                                          padding: '2px 8px',
+                                          borderRadius: '4px',
+                                          fontSize: '0.8rem'
+                                        }}>
+                                          {player.team}
+                                        </span>
+                                      )}
+                                      {player.series && (
+                                        <span style={{
+                                          background: 'rgba(255, 255, 255, 0.1)',
+                                          padding: '2px 8px',
+                                          borderRadius: '4px',
+                                          fontSize: '0.8rem'
+                                        }}>
+                                          {player.series}
+                                        </span>
+                                      )}
+                                    </div>
+                                    
+                                    {/* View Profile Link */}
+                                    <a
+                                      href={player.profileUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      style={{
+                                        display: 'inline-block',
+                                        marginTop: '8px',
+                                        fontSize: '0.8rem',
+                                        color: '#dc2626',
+                                        textDecoration: 'none'
+                                      }}
+                                    >
+                                      View CricClubs Profile →
+                                    </a>
+                                  </div>
+                                  
+                                  {/* Select Label */}
+                                  <div style={{
+                                    fontSize: '0.75rem',
+                                    color: isSelected ? '#22c55e' : 'rgba(255,255,255,0.5)',
+                                    fontWeight: '600',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px'
+                                  }}>
+                                    {isSelected ? '✓ SELECTED' : 'TAP TO SELECT'}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                            })}
+                          </div>
+                          
+                          {selectedPlayerProfile && (
+                            <div style={{
+                              marginTop: '12px',
+                              padding: '10px 12px',
+                              background: 'rgba(220, 38, 38, 0.15)',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(220, 38, 38, 0.3)',
+                              color: '#fff',
+                              fontSize: '0.85rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px'
+                            }}>
+                              <span style={{ color: '#dc2626' }}>✓</span>
+                              You selected: <strong>{selectedPlayerProfile.name}</strong> - Your stats will be linked to this profile.
+                            </div>
+                          )}
+                          
+                          {!selectedPlayerProfile && (
+                            <p style={{
+                              marginTop: '12px',
+                              fontSize: '0.85rem',
+                              color: 'rgba(255, 255, 255, 0.6)',
+                              fontStyle: 'italic',
+                              lineHeight: 1.5
+                            }}>
+                              If this is you, select your profile to link your stats. Otherwise, continue with your name as entered.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      
+                      {!playerLookupLoading && playerLookupSearched && playerLookupResults.length === 0 && formData[field.id]?.trim().length >= 2 && (
+                        <div style={{
+                          marginTop: '10px',
+                          padding: '14px',
+                          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
+                          borderRadius: '10px',
+                          border: '1px solid rgba(34, 197, 94, 0.4)',
+                          color: '#22c55e',
+                          fontSize: '0.9rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px'
+                        }}>
+                          <span style={{ fontSize: '1.2rem' }}>✓</span>
+                          <span>No existing player found - you will be registered as a new player on the Winter League Cricket database.</span>
+                        </div>
                       )}
                     </div>
                   ) : (
@@ -5748,8 +5857,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                   {/* Only show if team is selected (for autofill fields) or always show (for non-autofill) */}
                   {(!field.autofillFromSubmission || (field.autofillLinkedDropdownFieldId && formData[field.autofillLinkedDropdownFieldId])) ? (
                     field.autofillFromSubmission ? (
-                      <>
-                      {formData[field.id] ? (() => {
+                      formData[field.id] ? (() => {
                         const selectedDesign = shirtDesigns.find(d => d.name === formData[field.id]);
                         const allFields = isMultiPage
                           ? form.pages.flatMap(page => page.fields || [])
@@ -5955,6 +6063,18 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                                   </div>
                                                 )}
                                               </div>
+                                              {pantsSize && (
+                                                <div className={styles.kitSizeChart}>
+                                                  {kitSizeCharts.pantsChartUrl ? (
+                                                    <img src={kitSizeCharts.pantsChartUrl} alt="Pants size chart" />
+                                                  ) : (
+                                                    <div className={styles.kitSizeChartPlaceholder}>Pants size chart not available yet.</div>
+                                                  )}
+                                                  <div style={{ marginTop: '0.65rem', fontSize: '0.8rem', color: '#cbd5f5', lineHeight: 1.5 }}>
+                                                    Please ensure you select the correct size (measure the player and use this sizing chart to get the right size). Winter League Cricket will not be held responsible for selecting the incorrect size.
+                                                  </div>
+                                                </div>
+                                              )}
                                               {entryErrors.pantsSize && (
                                                 <div className={styles.fieldErrorText}>{entryErrors.pantsSize}</div>
                                               )}
@@ -5973,9 +6093,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                         <div className={styles.kitAutofillNotice}>
                           Select your team to view the basic kit preview.
                         </div>
-                      )}
-                    {isKitPreviewField(field) && renderAdditionalApparelSection()}
-                    </>
+                      )
                     ) : (
                       /* Show shirt selection grid for non-autofill */
                       <>
@@ -6443,43 +6561,29 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                   {(() => {
                     const submissions = submissionDropdownData[field.id]?.submissions || [];
                     const isTeamSelect = form?.id === 2 && field.id === 8;
-                    const shouldScroll = submissions.length > 3;
+                    const shouldScroll = isTeamSelect && submissions.length > 3;
                     const selectClasses = [styles.select];
                     if (isTeamSelect) selectClasses.push(styles.selectTeam);
                     if (shouldScroll) selectClasses.push(styles.selectScrollable);
-                    const displayFieldId = submissionDropdownData[field.id]?.displayFieldId;
-
                     if (isTeamSelect) {
                       const currentValue = formData[field.id] || '';
+                      const displayFieldId = submissionDropdownData[field.id]?.displayFieldId;
                       if (!displayFieldId) {
                         return (
                           <div className={styles.selectGlowWrap}>
                             <button
                               type="button"
                               className={styles.dropdownButton}
-                              disabled={!submissionDropdownData[field.id]?.error}
-                              onClick={() => {
-                                if (submissionDropdownData[field.id]?.error) {
-                                  setSubmissionDropdownData(prev => {
-                                    const next = { ...prev };
-                                    delete next[field.id];
-                                    return next;
-                                  });
-                                }
-                              }}
+                              disabled
                             >
-                              <span className={styles.dropdownButtonText}>
-                                {submissionDropdownData[field.id]?.error
-                                  ? 'Failed to load teams — tap to retry'
-                                  : 'Loading teams...'}
-                              </span>
+                              <span className={styles.dropdownButtonText}>Loading teams...</span>
                               <span className={styles.dropdownChevron} aria-hidden="true">▾</span>
                             </button>
                           </div>
                         );
                       }
                       const currentSelection = submissions.find(
-                        (s) => String(s.id) === String(currentValue)
+                        (submission) => String(submission.id) === String(currentValue)
                       );
                       const currentLabel = currentSelection
                         ? currentSelection.data[displayFieldId]
@@ -6495,12 +6599,9 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                           className={styles.selectGlowWrap}
                           tabIndex={0}
                           onBlur={(e) => {
-                            const wrapper = e.currentTarget;
-                            setTimeout(() => {
-                              if (wrapper && !wrapper.contains(document.activeElement)) {
-                                setDropdownOpen((prev) => ({ ...prev, [field.id]: false }));
-                              }
-                            }, 100);
+                            if (!e.currentTarget.contains(e.relatedTarget)) {
+                              setDropdownOpen((prev) => ({ ...prev, [field.id]: false }));
+                            }
                           }}
                         >
                           <button
@@ -6518,22 +6619,20 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                           </button>
                           {dropdownOpen[field.id] && (
                             <div className={styles.dropdownPanel}>
-                              {submissions.length > 5 && (
-                                <div className={styles.dropdownSearchWrap}>
-                                  <input
-                                    type="text"
-                                    placeholder="Search team..."
-                                    value={query}
-                                    onChange={(e) =>
-                                      setDropdownSearch((prev) => ({
-                                        ...prev,
-                                        [field.id]: e.target.value
-                                      }))
-                                    }
-                                    className={styles.dropdownSearch}
-                                  />
-                                </div>
-                              )}
+                              <div className={styles.dropdownSearchWrap}>
+                                <input
+                                  type="text"
+                                  placeholder="Search team"
+                                  value={query}
+                                  onChange={(e) =>
+                                    setDropdownSearch((prev) => ({
+                                      ...prev,
+                                      [field.id]: e.target.value
+                                    }))
+                                  }
+                                  className={styles.dropdownSearch}
+                                />
+                              </div>
                               <div
                                 className={`${styles.dropdownList} ${filtered.length > 3 ? styles.dropdownListScroll : ''}`}
                               >
@@ -6571,11 +6670,12 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                           onChange={(e) => handleSubmissionDropdownChange(field.id, e.target.value)}
                           required={field.required}
                           className={selectClasses.join(' ')}
+                          size={shouldScroll ? 4 : undefined}
                         >
                           <option value="">Select an option...</option>
                           {submissions.map((submission) => {
-                            const dFieldId = displayFieldId || submissionDropdownData[field.id]?.displayFieldId;
-                            const displayValue = submission.data[dFieldId];
+                            const displayFieldId = submissionDropdownData[field.id].displayFieldId;
+                            const displayValue = submission.data[displayFieldId];
                             return (
                               <option key={submission.id} value={submission.id}>
                                 {displayValue}
@@ -7311,57 +7411,6 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
 
               {field.type === 'checkout-form' && (
                 <div>
-                  {/* Order Summary */}
-                  {form.id === 2 && cart.length > 0 && (
-                    <div style={{
-                      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-                      padding: '1.5rem',
-                      borderRadius: '12px',
-                      marginBottom: '1.5rem',
-                      border: '1px solid rgba(255,255,255,0.1)'
-                    }}>
-                      <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '700', color: '#f8fafc' }}>
-                        🛒 Order Summary
-                      </h3>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                        {cart.map((item, idx) => (
-                          <div key={idx} style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '0.5rem 0',
-                            borderBottom: '1px solid rgba(255,255,255,0.06)'
-                          }}>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ color: '#e5e7eb', fontSize: '0.9rem', fontWeight: '600' }}>
-                                {item.name}{item.quantity > 1 ? ` ×${item.quantity}` : ''}
-                              </div>
-                              {item.selectedSize && (
-                                <div style={{ color: '#9ca3af', fontSize: '0.8rem', marginTop: '2px' }}>
-                                  {item.selectedSize}
-                                </div>
-                              )}
-                            </div>
-                            <div style={{ color: '#22c55e', fontWeight: '700', fontSize: '0.95rem', whiteSpace: 'nowrap' }}>
-                              R{(item.price * item.quantity).toFixed(2)}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginTop: '1rem',
-                        paddingTop: '0.75rem',
-                        borderTop: '2px solid rgba(255,255,255,0.15)'
-                      }}>
-                        <span style={{ color: '#f8fafc', fontWeight: '800', fontSize: '1.1rem' }}>Total</span>
-                        <span style={{ color: '#22c55e', fontWeight: '800', fontSize: '1.2rem' }}>R{getCartTotal().toFixed(2)}</span>
-                      </div>
-                    </div>
-                  )}
-
                   <div style={{ 
                     background: 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)',
                     padding: '1.5rem',
@@ -7383,9 +7432,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                           onChange={(e) => handleInputChange('checkout_email', e.target.value)}
                           placeholder="your.email@example.com"
                           required
-                          style={{ width: '100%', padding: '0.7rem', border: `2px solid ${validationErrors['checkout_email'] ? '#dc2626' : '#e5e7eb'}`, borderRadius: '8px', fontSize: '0.95rem' }}
+                          style={{ width: '100%', padding: '0.7rem', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '0.95rem' }}
                         />
-                        {validationErrors['checkout_email'] && <div style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem' }}>Email address is required.</div>}
                       </div>
 
                       <div>
@@ -7398,9 +7446,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                           onChange={(e) => handleInputChange('checkout_password', e.target.value)}
                           placeholder="Create a password to access your order"
                           required
-                          style={{ width: '100%', padding: '0.7rem', border: `2px solid ${validationErrors['checkout_password'] ? '#dc2626' : '#e5e7eb'}`, borderRadius: '8px', fontSize: '0.95rem' }}
+                          style={{ width: '100%', padding: '0.7rem', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '0.95rem' }}
                         />
-                        {validationErrors['checkout_password'] && <div style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem' }}>Password is required.</div>}
                       </div>
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -7414,9 +7461,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                             onChange={(e) => handleInputChange('checkout_firstName', e.target.value)}
                             placeholder="First name"
                             required
-                            style={{ width: '100%', padding: '0.7rem', border: `2px solid ${validationErrors['checkout_firstName'] ? '#dc2626' : '#e5e7eb'}`, borderRadius: '8px', fontSize: '0.95rem' }}
+                            style={{ width: '100%', padding: '0.7rem', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '0.95rem' }}
                           />
-                          {validationErrors['checkout_firstName'] && <div style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem' }}>First name is required.</div>}
                         </div>
                         <div>
                           <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.4rem', fontSize: '0.85rem', color: '#374151' }}>
@@ -7428,9 +7474,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                             onChange={(e) => handleInputChange('checkout_lastName', e.target.value)}
                             placeholder="Last name"
                             required
-                            style={{ width: '100%', padding: '0.7rem', border: `2px solid ${validationErrors['checkout_lastName'] ? '#dc2626' : '#e5e7eb'}`, borderRadius: '8px', fontSize: '0.95rem' }}
+                            style={{ width: '100%', padding: '0.7rem', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '0.95rem' }}
                           />
-                          {validationErrors['checkout_lastName'] && <div style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem' }}>Last name is required.</div>}
                         </div>
                       </div>
 
@@ -7444,9 +7489,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                           onChange={(e) => handleInputChange('checkout_phone', e.target.value)}
                           placeholder="0XX XXX XXXX"
                           required
-                          style={{ width: '100%', padding: '0.7rem', border: `2px solid ${validationErrors['checkout_phone'] ? '#dc2626' : '#e5e7eb'}`, borderRadius: '8px', fontSize: '0.95rem' }}
+                          style={{ width: '100%', padding: '0.7rem', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '0.95rem' }}
                         />
-                        {validationErrors['checkout_phone'] && <div style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem' }}>Phone number is required.</div>}
                       </div>
                     </div>
                   </div>
@@ -7454,6 +7498,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                 </div>
               )}
                   </div>
+                  {isShirtNumberField(field) && renderAdditionalApparelSection()}
                 </div>
           );
         })

@@ -17,7 +17,7 @@
 //   - Product sales commission (10%) → credited to main team (field 8)
 //   - All revenue is aggregated under the main team name regardless of sub-team
 //
-import { getBasicKit } from './registrationProducts';
+import { getBasicKit, getUpsellProducts } from './registrationProducts';
 import { getSupporterProducts } from './supporterProducts';
 
 let formTemplates = [
@@ -169,7 +169,7 @@ let formTemplates = [
     active: true,
     multiPage: true,
     welcomeBanner: {
-      imageUrl: null,
+      imageUrl: '/images/player-welcome.jpg',
       title: 'Welcome to Player Registration',
       subtitle: 'Join your team and get equipped for the season ahead',
       showOnPage: 1
@@ -278,12 +278,22 @@ let formTemplates = [
             autofillLinkedDropdownFieldId: 8
           },
           {
+            id: 36,
+            type: 'number',
+            label: 'Shirt Number',
+            placeholder: 'Enter your preferred shirt number',
+            required: true,
+            order: 2,
+            min: 1,
+            max: 99
+          },
+          {
             id: 25,
             type: 'product-bundle',
             label: 'Basic Kit',
             description: 'Includes: Playing Top, Pants, and Cap',
             required: true,
-            order: 2,
+            order: 3,
             basePrice: 150.00,
             sizeOptions: ['Small', 'Medium', 'Large', 'X-Large', '2X-Large'],
             shirtSizeOptions: [
@@ -301,22 +311,44 @@ let formTemplates = [
               '4 XL',
               '5 XL'
             ],
-            pantsSizeOptions: [
-              '7/8 years',
-              '9/10 years',
-              '11/12 years',
-              '13/14 years',
-              'Extra Small',
-              'Small',
-              'Medium',
-              'Large',
-              'Extra Large',
-              '2 XL',
-              '3 XL',
-              '4 XL',
-              '5 XL'
-            ],
+            pantsSizeOptions: ['Small', 'Medium', 'Large', 'X-Large', '2X-Large'],
             colorInheritFromTeam: true
+          },
+          {
+            id: 26,
+            type: 'upsell-products',
+            label: 'Additional Equipment (Optional)',
+            order: 4,
+            products: [
+              {
+                id: 'training-shirt',
+                name: 'Training Shirt',
+                description: 'Moisture-wicking training jersey',
+                price: 45.00,
+                sizeOptions: ['Small', 'Medium', 'Large', 'X-Large', '2X-Large']
+              },
+              {
+                id: 'playing-socks',
+                name: 'Playing Socks (Pair)',
+                description: 'Official team playing socks',
+                price: 20.00,
+                sizeOptions: ['Small', 'Medium', 'Large']
+              },
+              {
+                id: 'kit-bag',
+                name: 'Kit Bag',
+                description: 'Durable cricket kit bag with team logo',
+                price: 75.00,
+                sizeOptions: []
+              },
+              {
+                id: 'water-bottle',
+                name: 'Water Bottle',
+                description: 'Insulated water bottle with team branding',
+                price: 25.00,
+                sizeOptions: []
+              }
+            ]
           }
         ]
       },
@@ -461,8 +493,129 @@ let formTemplates = [
 let formTemplateIdCounter = 5;
 let fieldIdCounter = 100;
 
-// Legacy formSubmissions array removed - all submissions now use PostgreSQL
-// via pages/api/form-submissions.js and pages/api/submissions.js
+// Form submissions data
+let formSubmissions = [
+  {
+    id: 1,
+    formId: 1,
+    data: {
+      1: 'Winter Warriors',
+      2: 'John Smith',
+      3: 'warriors@example.com',
+      4: 'Under 15',
+      5: 'Central Park Cricket Ground',
+      22: 'https://example.com/warriors-logo.png',
+      23: 'Classic Red Stripe'
+    },
+    submittedAt: new Date('2025-11-10T10:30:00').toISOString(),
+    status: 'completed',
+    approvalStatus: 'pending'
+  },
+  {
+    id: 1,
+    formId: 1,
+    data: {
+      1: 'Thunder Strikers',
+      2: 'Sarah Johnson',
+      3: 'sarah.j@example.com',
+      4: 'Under 14',
+      5: 'Riverside Cricket Ground',
+      22: 'https://example.com/striker-logo.png',
+      23: 'Classic Red Stripe',
+      '23_primaryColor': 'Red',
+      '23_secondaryColor': 'Black'
+    },
+    submittedAt: new Date('2025-11-12T14:30:00').toISOString(),
+    status: 'completed',
+    approvalStatus: 'reviewed'
+  },
+  {
+    id: 2,
+    formId: 1,
+    data: {
+      1: 'Ocean Warriors',
+      2: 'David Martinez',
+      3: 'dmartinez@example.com',
+      4: 'Under 16',
+      5: 'Central Cricket Park',
+      22: 'https://example.com/ocean-logo.png',
+      23: 'Blue Lightning',
+      '23_primaryColor': 'Blue',
+      '23_secondaryColor': 'Yellow'
+    },
+    submittedAt: new Date('2025-11-13T10:00:00').toISOString(),
+    status: 'completed',
+    approvalStatus: 'complete'
+  },
+  {
+    id: 3,
+    formId: 1,
+    data: {
+      1: 'Lightning Bolts',
+      2: 'Michael Chen',
+      3: 'lightning@example.com',
+      4: 'Under 12',
+      5: 'Westside Cricket Oval',
+      22: 'https://example.com/lightning-logo.png',
+      23: 'Green Thunder',
+      '23_primaryColor': 'Green',
+      '23_secondaryColor': 'Black'
+    },
+    submittedAt: new Date('2025-11-15T09:15:00').toISOString(),
+    status: 'completed'
+  },
+  {
+    id: 4,
+    formId: 1,
+    data: {
+      1: 'Storm Chasers',
+      2: 'Emma Williams',
+      3: 'storm@example.com',
+      4: 'Senior',
+      5: 'Metropolitan Cricket Stadium',
+      22: 'https://example.com/storm-logo.png',
+      23: 'Yellow Storm',
+      '23_primaryColor': 'Yellow',
+      '23_secondaryColor': 'Navy'
+    },
+    submittedAt: new Date('2025-11-16T11:45:00').toISOString(),
+    status: 'completed',
+    approvalStatus: 'pending'
+  },
+  {
+    id: 3,
+    formId: 1,
+    data: {
+      1: 'Lightning Bolts',
+      2: 'Michael Chen',
+      3: 'lightning@example.com',
+      4: 'Under 12',
+      5: 'Westside Cricket Oval',
+      22: 'https://example.com/lightning-logo.png',
+      23: 'Green Thunder'
+    },
+    submittedAt: new Date('2025-11-15T09:15:00').toISOString(),
+    status: 'completed',
+    approvalStatus: 'reviewed'
+  },
+  {
+    id: 4,
+    formId: 1,
+    data: {
+      1: 'Storm Chasers',
+      2: 'Emma Williams',
+      3: 'storm@example.com',
+      4: 'Senior',
+      5: 'Metropolitan Cricket Stadium',
+      22: 'https://example.com/storm-logo.png',
+      23: 'Yellow Storm'
+    },
+    submittedAt: new Date('2025-11-16T11:45:00').toISOString(),
+    status: 'completed',
+    approvalStatus: 'pending'
+  }
+];
+let submissionIdCounter = 5;
 
 // Form Templates CRUD
 export function getFormTemplates() {
@@ -565,11 +718,78 @@ export function reorderFormFields(formId, fieldIds) {
   return false;
 }
 
-// Legacy submission functions removed - all submissions now handled via PostgreSQL
-// Use pages/api/form-submissions.js and pages/api/submissions.js for submission operations
+// Form Submissions
+export function submitForm(formId, data) {
+  const submission = {
+    id: submissionIdCounter++,
+    formId,
+    data,
+    submittedAt: new Date().toISOString(),
+    status: 'pending', // pending, reviewed, completed
+    approvalStatus: 'pending' // pending, reviewed, complete
+  };
+  formSubmissions.push(submission);
+  return submission;
+}
+
+export function getFormSubmissions(formId = null) {
+  if (formId) {
+    return formSubmissions.filter(sub => sub.formId === formId);
+  }
+  return formSubmissions;
+}
+
+export function getFormSubmissionsByFormId(formId) {
+  return formSubmissions.filter(sub => sub.formId === formId);
+}
 
 export function getAllForms() {
   return formTemplates;
+}
+
+export function getSubmissionById(submissionId) {
+  return formSubmissions.find(sub => sub.id === submissionId);
+}
+
+export function updateSubmissionStatus(submissionId, status) {
+  const index = formSubmissions.findIndex(sub => sub.id === submissionId);
+  if (index !== -1) {
+    formSubmissions[index].status = status;
+    return formSubmissions[index];
+  }
+  return null;
+}
+
+export function updateApprovalStatus(submissionId, approvalStatus) {
+  const index = formSubmissions.findIndex(sub => sub.id === submissionId);
+  if (index !== -1) {
+    formSubmissions[index].approvalStatus = approvalStatus;
+    return formSubmissions[index];
+  }
+  return null;
+}
+
+export function deleteSubmission(submissionId) {
+  const index = formSubmissions.findIndex(sub => sub.id === submissionId);
+  if (index !== -1) {
+    formSubmissions.splice(index, 1);
+    return true;
+  }
+  return false;
+}
+
+export function resetSubmissionCounters() {
+  // This function clears all submissions
+  // In a production environment, you might want to keep the data and just reset a counter
+  formSubmissions = [];
+  submissionIdCounter = 1;
+  return true;
+}
+
+export function resetSubmissionCounterForForm(formId) {
+  // Remove all submissions for a specific form
+  formSubmissions = formSubmissions.filter(sub => sub.formId !== formId);
+  return true;
 }
 
 // Helper function to get form with dynamic registration products
@@ -578,6 +798,7 @@ export function getFormWithProducts(formId) {
   if (!form || formId !== 2) return form; // Only apply to Player Registration form
 
   const basicKit = getBasicKit();
+  const upsellProducts = getUpsellProducts();
   const supporterProducts = getSupporterProducts(true);
 
   // Clone the form and update product fields
@@ -585,8 +806,8 @@ export function getFormWithProducts(formId) {
   
   if (formWithProducts.pages) {
     formWithProducts.pages = formWithProducts.pages.map(page => {
-      if (page.pageId === 3) {
-        // Update product fields with current data (Kit & Equipment page)
+      if (page.pageId === 2) {
+        // Update product fields with current data
         page.fields = page.fields.map(field => {
           if (field.type === 'product-bundle' && basicKit) {
             return {
@@ -598,11 +819,17 @@ export function getFormWithProducts(formId) {
               colorInheritFromTeam: basicKit.colorInheritFromTeam
             };
           }
+          if (field.type === 'upsell-products') {
+            return {
+              ...field,
+              products: upsellProducts
+            };
+          }
           return field;
         });
       }
-      if (page.pageId === 4) {
-        // Update supporter apparel products (Supporter Apparel page)
+      if (page.pageId === 3) {
+        // Update supporter apparel products
         page.fields = page.fields.map(field => {
           if (field.type === 'supporter-apparel') {
             return {

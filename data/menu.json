@@ -1,0 +1,36 @@
+{
+  "menuItems": [
+    {
+      "id": 1,
+      "label": "Home",
+      "href": "/",
+      "order": 1,
+      "visible": true,
+      "parentId": null
+    },
+    {
+      "id": 2,
+      "label": "Premium",
+      "href": "/premium",
+      "order": 2,
+      "visible": true,
+      "parentId": null
+    },
+    {
+      "id": 3,
+      "label": "Training",
+      "href": "/training",
+      "order": 3,
+      "visible": true,
+      "parentId": null
+    },
+    {
+      "id": 4,
+      "label": "Forms",
+      "href": "/forms",
+      "order": 4,
+      "visible": true,
+      "parentId": null
+    }
+  ]
+}

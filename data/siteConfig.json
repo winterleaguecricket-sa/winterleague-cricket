@@ -1,0 +1,115 @@
+{
+  "storeName": "Winter League Cricket",
+  "tagline": "Your Premier Cricket Equipment Store",
+  "bannerText": "Winter Season Sale - Up to 30% Off!",
+  "featuredCategory": "premium",
+  "showBanner": true,
+  "primaryColor": "#000000",
+  "secondaryColor": "#dc0000",
+  "accentColor": "#ff3333",
+  "logoUrl": "",
+  "faviconUrl": "",
+  "fontFamily": "Inter",
+  "heroMediaType": "image",
+  "heroMediaUrl": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=1600&h=900&fit=crop",
+  "heroTitle": "Winter League Cricket",
+  "heroSubtitle": "Premium Equipment for Champions",
+  "buttonFunnels": {
+    "heroPrimary": null,
+    "heroSecondary": null,
+    "premiumChannel": null,
+    "trainingChannel": null
+  },
+  "customButtons": [
+    {
+      "id": 1,
+      "name": "Shop Premium",
+      "location": "hero-primary",
+      "href": "/premium",
+      "funnelId": null,
+      "visible": true,
+      "order": 1
+    },
+    {
+      "id": 2,
+      "name": "Training Gear",
+      "location": "hero-secondary",
+      "href": "/training",
+      "funnelId": null,
+      "visible": true,
+      "order": 2
+    },
+    {
+      "id": 3,
+      "name": "Premium Equipment",
+      "location": "channel-premium",
+      "href": "/premium",
+      "funnelId": null,
+      "visible": true,
+      "order": 1,
+      "icon": "⭐",
+      "description": "Professional grade gear for serious players"
+    },
+    {
+      "id": 4,
+      "name": "Training Gear",
+      "location": "channel-training",
+      "href": "/training",
+      "funnelId": null,
+      "visible": true,
+      "order": 2,
+      "icon": "🎯",
+      "description": "Essential equipment for practice and coaching"
+    }
+  ],
+  "menuItems": [
+    {
+      "id": 1,
+      "label": "Home",
+      "href": "/",
+      "order": 1,
+      "visible": true,
+      "parentId": null
+    },
+    {
+      "id": 2,
+      "label": "Premium",
+      "href": "/premium",
+      "order": 2,
+      "visible": true,
+      "parentId": null
+    },
+    {
+      "id": 3,
+      "label": "Training",
+      "href": "/training",
+      "order": 3,
+      "visible": true,
+      "parentId": null
+    },
+    {
+      "id": 4,
+      "label": "Forms",
+      "href": "/forms",
+      "order": 4,
+      "visible": true,
+      "parentId": null
+    },
+    {
+      "id": 5,
+      "label": "Admin",
+      "href": "/admin",
+      "order": 5,
+      "visible": false,
+      "parentId": null
+    }
+  ],
+  "paymentConfig": {
+    "payfast": {
+      "merchantId": "",
+      "merchantKey": "",
+      "passphrase": "",
+      "testMode": true
+    }
+  }
+}

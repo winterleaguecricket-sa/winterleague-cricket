@@ -1,249 +1,291 @@
-// API endpoint for products CRUD operations
+// API endpoint for products CRUD operations - PostgreSQL backed
+import { query } from '../../lib/db';
 import fs from 'fs';
 import path from 'path';
 
-const DATA_FILE = path.join(process.cwd(), 'data', 'products.json');
-
-// Default products
-const defaultProducts = [
-  {
-    id: 1,
-    name: "Elite Pro Cricket Bat",
-    category: "premium",
-    price: 299.99,
-    description: "Professional grade English willow cricket bat",
-    image: "/images/bat-pro.jpg",
-    stock: 15,
-    featured: true,
-    sizes: ["Short Handle", "Long Handle", "Harrow", "Full Size"]
-  },
-  {
-    id: 2,
-    name: "Premium Leather Cricket Ball (Set of 6)",
-    category: "premium",
-    price: 89.99,
-    description: "Tournament quality leather cricket balls",
-    image: "/images/ball-premium.jpg",
-    stock: 30,
-    featured: false
-  },
-  {
-    id: 3,
-    name: "Professional Batting Gloves",
-    category: "premium",
-    price: 79.99,
-    description: "High-quality leather gloves with superior protection",
-    image: "/images/gloves-pro.jpg",
-    stock: 25,
-    featured: true,
-    sizes: ["Youth", "Small", "Medium", "Large", "XL"]
-  },
-  {
-    id: 4,
-    name: "Elite Wicket Keeping Set",
-    category: "premium",
-    price: 249.99,
-    description: "Complete wicket keeper gloves and leg guards",
-    image: "/images/keeper-elite.jpg",
-    stock: 10,
-    featured: false,
-    sizes: ["Youth", "Small", "Medium", "Large"]
-  },
-  {
-    id: 5,
-    name: "Training Cricket Bat - Kashmir Willow",
-    category: "training",
-    price: 79.99,
-    description: "Durable bat perfect for practice sessions",
-    image: "/images/bat-training.jpg",
-    stock: 40,
-    featured: true,
-    sizes: ["Short Handle", "Long Handle", "Full Size"]
-  },
-  {
-    id: 6,
-    name: "Practice Tennis Balls (Set of 12)",
-    category: "training",
-    price: 24.99,
-    description: "Soft tennis balls ideal for training",
-    image: "/images/ball-training.jpg",
-    stock: 100,
-    featured: false
-  },
-  {
-    id: 7,
-    name: "Bowling Machine Portable",
-    category: "training",
-    price: 499.99,
-    description: "Adjustable speed bowling machine for practice",
-    image: "/images/bowling-machine.jpg",
-    stock: 5,
-    featured: true
-  },
-  {
-    id: 8,
-    name: "Training Stumps Set",
-    category: "training",
-    price: 49.99,
-    description: "Lightweight portable stumps for training",
-    image: "/images/stumps-training.jpg",
-    stock: 35,
-    featured: false
-  },
-  {
-    id: 9,
-    name: "Batting Practice Net",
-    category: "training",
-    price: 149.99,
-    description: "Professional grade practice net system",
-    image: "/images/practice-net.jpg",
-    stock: 12,
-    featured: false
-  },
-  {
-    id: 10,
-    name: "Coaching Kit Bundle",
-    category: "training",
-    price: 199.99,
-    description: "Complete coaching essentials kit",
-    image: "/images/coaching-kit.jpg",
-    stock: 20,
-    featured: true
-  }
-];
-
-// Load data from file
-function loadData() {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const fileData = fs.readFileSync(DATA_FILE, 'utf8');
-      return JSON.parse(fileData);
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb'
     }
-  } catch (error) {
-    console.error('Error loading products data:', error);
   }
-  return { products: defaultProducts, idCounter: 11 };
+};
+
+const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'products');
+
+function ensureUploadsDir() {
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  }
 }
 
-// Save data to file
-function saveData(data) {
+/**
+ * Save a base64 data URL to a file and return the public path.
+ * If it's already a file path, return as-is.
+ */
+function saveBase64Image(dataUrl, productId, imageIndex) {
+  if (!dataUrl || typeof dataUrl !== 'string') return '/images/placeholder.svg';
+  if (!dataUrl.startsWith('data:')) return dataUrl; // already a file path
+
+  const match = dataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+  if (!match) return '/images/placeholder.svg';
+
+  ensureUploadsDir();
+  const mimeType = match[1];
+  const data = match[2];
+  const ext = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
+  const timestamp = Date.now();
+  const fileName = `product_${productId}_${imageIndex}_${timestamp}.${ext}`;
+  const filePath = path.join(UPLOADS_DIR, fileName);
+
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
-    console.log('Saved products:', data.products.length, 'products');
-    return true;
+    fs.writeFileSync(filePath, Buffer.from(data, 'base64'));
+    return `/uploads/products/${fileName}`;
   } catch (error) {
-    console.error('Error saving products data:', error);
-    return false;
+    console.error(`Failed to save image for product ${productId}:`, error.message);
+    return '/images/placeholder.svg';
   }
 }
 
-export default function handler(req, res) {
+/**
+ * Map a DB row to the product shape expected by the frontend.
+ * DB uses snake_case (design_id), frontend expects camelCase (designId).
+ */
+function rowToProduct(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    price: parseFloat(row.price),
+    cost: row.cost !== null && row.cost !== undefined ? parseFloat(row.cost) : 0,
+    description: row.description || '',
+    stock: row.stock || 0,
+    featured: row.featured || false,
+    sizes: row.sizes || [],
+    images: row.images || [],
+    image: row.image || (row.images && row.images[0]) || '/images/placeholder.svg',
+    designId: row.design_id || null
+  };
+}
+
+/**
+ * Return a lite version of a product (for listing, no heavy data).
+ */
+function productToLite(product, allowImages) {
+  return {
+    id: product.id,
+    name: product.name,
+    category: product.category,
+    price: product.price,
+    stock: product.stock,
+    featured: product.featured,
+    sizes: product.sizes || [],
+    image: allowImages
+      ? (product.image || (product.images && product.images[0]) || '/images/placeholder.svg')
+      : '/images/placeholder.svg',
+    images: allowImages
+      ? (product.images && product.images.length > 0
+        ? [product.images[0]]
+        : undefined)
+      : undefined,
+    designId: product.designId || null
+  };
+}
+
+export default async function handler(req, res) {
   const { method } = req;
 
-  switch (method) {
-    case 'GET': {
-      // Get all products
-      const data = loadData();
-      const { category, featured } = req.query;
-      let products = data.products;
-      
-      if (category) {
-        products = products.filter(p => p.category === category);
+  try {
+    switch (method) {
+      case 'GET': {
+        const { category, featured, lite, noImages, id } = req.query;
+
+        // Get single product by ID
+        if (id) {
+          const result = await query('SELECT * FROM products WHERE id = $1 AND active = true', [parseInt(id)]);
+          if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Product not found' });
+          }
+          return res.status(200).json({ success: true, product: rowToProduct(result.rows[0]) });
+        }
+
+        // Build query for listing
+        let sql = 'SELECT * FROM products WHERE active = true';
+        const params = [];
+        let paramIdx = 1;
+
+        if (category) {
+          sql += ` AND category = $${paramIdx++}`;
+          params.push(category);
+        }
+        if (featured === 'true') {
+          sql += ' AND featured = true';
+        }
+
+        sql += ' ORDER BY id ASC';
+
+        const result = await query(sql, params);
+        let products = result.rows.map(rowToProduct);
+
+        if (lite === 'true') {
+          const allowImages = noImages !== 'true';
+          products = products.map(p => productToLite(p, allowImages));
+        }
+
+        return res.status(200).json({ success: true, products });
       }
-      if (featured === 'true') {
-        products = products.filter(p => p.featured);
+
+      case 'POST': {
+        const { name, category, price, cost, description, stock, featured, sizes, image, images, designId } = req.body;
+
+        if (!name || !category || price === undefined) {
+          return res.status(400).json({ success: false, error: 'Name, category, and price are required' });
+        }
+
+        // Insert first to get the ID
+        const insertResult = await query(
+          `INSERT INTO products (name, category, price, cost, description, stock, featured, sizes, images, image, design_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           RETURNING *`,
+          [
+            name,
+            category,
+            parseFloat(price),
+            cost !== undefined && cost !== null && cost !== '' ? parseFloat(cost) : 0,
+            description || '',
+            parseInt(stock) || 0,
+            featured || false,
+            JSON.stringify(sizes || []),
+            '[]',
+            '/images/placeholder.svg',
+            designId || null
+          ]
+        );
+
+        const newProduct = insertResult.rows[0];
+        const productId = newProduct.id;
+
+        // Process images - save base64 to files
+        let normalizedImages = Array.isArray(images) && images.length > 0
+          ? images
+          : (image ? [image] : []);
+
+        const savedImages = normalizedImages.map((img, idx) => saveBase64Image(img, productId, idx));
+        const coverImage = savedImages[0] || '/images/placeholder.svg';
+
+        // Update with processed images
+        await query(
+          'UPDATE products SET images = $1, image = $2 WHERE id = $3',
+          [JSON.stringify(savedImages), coverImage, productId]
+        );
+
+        const product = rowToProduct({
+          ...newProduct,
+          images: savedImages,
+          image: coverImage
+        });
+
+        // Return all products for admin refresh
+        const allResult = await query('SELECT * FROM products WHERE active = true ORDER BY id ASC');
+        const allProducts = allResult.rows.map(rowToProduct);
+
+        return res.status(201).json({ success: true, product, products: allProducts });
       }
-      
-      return res.status(200).json({ success: true, products });
+
+      case 'PUT': {
+        const { id, ...updates } = req.body;
+
+        if (!id) {
+          return res.status(400).json({ success: false, error: 'Product ID is required' });
+        }
+
+        const productId = parseInt(id);
+
+        // Get existing product
+        const existing = await query('SELECT * FROM products WHERE id = $1', [productId]);
+        if (existing.rows.length === 0) {
+          return res.status(404).json({ success: false, error: 'Product not found' });
+        }
+
+        const old = existing.rows[0];
+
+        // Process images
+        let updatedImages;
+        if (Array.isArray(updates.images) && updates.images.length > 0) {
+          updatedImages = updates.images;
+        } else if (updates.image) {
+          updatedImages = [updates.image];
+        } else {
+          updatedImages = old.images || [];
+        }
+
+        // Save any new base64 images to files
+        const savedImages = updatedImages.map((img, idx) => saveBase64Image(img, productId, idx));
+        const coverImage = savedImages[0] || updates.image || old.image || '/images/placeholder.svg';
+
+        const result = await query(
+          `UPDATE products SET
+            name = $1, category = $2, price = $3, cost = $4,
+            description = $5, stock = $6, featured = $7,
+            sizes = $8, images = $9, image = $10, design_id = $11
+          WHERE id = $12
+          RETURNING *`,
+          [
+            updates.name !== undefined ? updates.name : old.name,
+            updates.category !== undefined ? updates.category : old.category,
+            updates.price !== undefined ? parseFloat(updates.price) : parseFloat(old.price),
+            updates.cost !== undefined && updates.cost !== null && updates.cost !== ''
+              ? parseFloat(updates.cost)
+              : (old.cost !== null ? parseFloat(old.cost) : 0),
+            updates.description !== undefined ? updates.description : (old.description || ''),
+            updates.stock !== undefined ? parseInt(updates.stock) : old.stock,
+            updates.featured !== undefined ? updates.featured : old.featured,
+            JSON.stringify(updates.sizes !== undefined ? updates.sizes : (old.sizes || [])),
+            JSON.stringify(savedImages),
+            coverImage,
+            updates.designId !== undefined ? updates.designId : old.design_id,
+            productId
+          ]
+        );
+
+        const updatedProduct = rowToProduct(result.rows[0]);
+
+        // Return all products for admin refresh
+        const allResult = await query('SELECT * FROM products WHERE active = true ORDER BY id ASC');
+        const allProducts = allResult.rows.map(rowToProduct);
+
+        return res.status(200).json({ success: true, product: updatedProduct, products: allProducts });
+      }
+
+      case 'DELETE': {
+        const { id } = req.query;
+
+        if (!id) {
+          return res.status(400).json({ success: false, error: 'Product ID is required' });
+        }
+
+        const productId = parseInt(id);
+
+        // Soft delete - mark as inactive
+        const result = await query('UPDATE products SET active = false WHERE id = $1 RETURNING id', [productId]);
+
+        if (result.rows.length === 0) {
+          return res.status(404).json({ success: false, error: 'Product not found' });
+        }
+
+        // Return remaining active products
+        const allResult = await query('SELECT * FROM products WHERE active = true ORDER BY id ASC');
+        const allProducts = allResult.rows.map(rowToProduct);
+
+        return res.status(200).json({ success: true, products: allProducts });
+      }
+
+      default:
+        res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
+        return res.status(405).json({ success: false, error: `Method ${method} Not Allowed` });
     }
-
-    case 'POST': {
-      // Add new product
-      const data = loadData();
-      const { name, category, price, description, stock, featured, sizes, image } = req.body;
-      
-      if (!name || !category || price === undefined) {
-        return res.status(400).json({ success: false, error: 'Name, category, and price are required' });
-      }
-
-      const newProduct = {
-        id: data.idCounter++,
-        name,
-        category,
-        price: parseFloat(price),
-        description: description || '',
-        stock: parseInt(stock) || 0,
-        featured: featured || false,
-        sizes: sizes || [],
-        image: image || '/images/placeholder.jpg'
-      };
-
-      data.products.push(newProduct);
-      
-      if (saveData(data)) {
-        return res.status(201).json({ success: true, product: newProduct, products: data.products });
-      } else {
-        return res.status(500).json({ success: false, error: 'Failed to save product' });
-      }
-    }
-
-    case 'PUT': {
-      // Update existing product
-      const data = loadData();
-      const { id, ...updates } = req.body;
-      
-      if (!id) {
-        return res.status(400).json({ success: false, error: 'Product ID is required' });
-      }
-
-      const index = data.products.findIndex(p => p.id === parseInt(id));
-      
-      if (index === -1) {
-        return res.status(404).json({ success: false, error: 'Product not found' });
-      }
-
-      // Update the product
-      data.products[index] = {
-        ...data.products[index],
-        ...updates,
-        id: parseInt(id), // Ensure ID stays the same
-        price: updates.price !== undefined ? parseFloat(updates.price) : data.products[index].price,
-        stock: updates.stock !== undefined ? parseInt(updates.stock) : data.products[index].stock
-      };
-      
-      if (saveData(data)) {
-        return res.status(200).json({ success: true, product: data.products[index], products: data.products });
-      } else {
-        return res.status(500).json({ success: false, error: 'Failed to update product' });
-      }
-    }
-
-    case 'DELETE': {
-      // Delete product
-      const data = loadData();
-      const { id } = req.query;
-      
-      if (!id) {
-        return res.status(400).json({ success: false, error: 'Product ID is required' });
-      }
-
-      const index = data.products.findIndex(p => p.id === parseInt(id));
-      
-      if (index === -1) {
-        return res.status(404).json({ success: false, error: 'Product not found' });
-      }
-
-      data.products.splice(index, 1);
-      
-      if (saveData(data)) {
-        return res.status(200).json({ success: true, products: data.products });
-      } else {
-        return res.status(500).json({ success: false, error: 'Failed to delete product' });
-      }
-    }
-
-    default:
-      res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
-      return res.status(405).json({ success: false, error: `Method ${method} Not Allowed` });
+  } catch (error) {
+    console.error('Products API error:', error);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

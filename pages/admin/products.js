@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import styles from '../../styles/adminProducts.module.css'
-import { getCategories } from '../../data/categories'
 
 export default function AdminProducts() {
   const [products, setProducts] = useState([]);
@@ -11,21 +10,69 @@ export default function AdminProducts() {
   const [editingName, setEditingName] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [categories, setCategories] = useState([]);
+  const [shirtDesigns, setShirtDesigns] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     category: 'premium',
     price: '',
+    cost: '',
     description: '',
     stock: '',
     featured: false,
     sizes: [],
-    image: ''
+    image: '',
+    images: [],
+    designId: ''
+  });
+
+  const compressImageFile = (file, options = {}) => new Promise((resolve) => {
+    if (!file || !file.type?.startsWith('image/')) {
+      resolve(null);
+      return;
+    }
+
+    const {
+      maxWidth = 1400,
+      maxHeight = 1400,
+      quality = 0.72,
+      mimeType = 'image/jpeg'
+    } = options;
+
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      try {
+        const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+        const width = Math.round(img.width * scale);
+        const height = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL(mimeType, quality);
+        resolve(dataUrl);
+      } catch (error) {
+        console.error('Image compression failed:', error);
+        resolve(null);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(null);
+    };
+
+    img.src = objectUrl;
   });
 
   // Fetch products from API
   const fetchProducts = async () => {
     try {
-      const response = await fetch('/api/products');
+      const response = await fetch('/api/products?lite=true&noImages=true');
       const data = await response.json();
       if (data.success) {
         setProducts(data.products);
@@ -37,13 +84,69 @@ export default function AdminProducts() {
     }
   };
 
+  const slugify = (value) => (
+    (value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+  );
+
+  const loadCategories = async () => {
+    try {
+      const response = await fetch('/api/categories');
+      const data = await response.json();
+      if (response.ok && data?.success) {
+        const normalized = (data.categories || []).map(category => ({
+          ...category,
+          slug: category.slug || slugify(category.name)
+        }));
+        setCategories(normalized);
+        setFormData(prev => {
+          if (!normalized.length) {
+            return prev;
+          }
+          const existing = normalized.find(cat => cat.slug === prev.category);
+          return existing ? prev : { ...prev, category: normalized[0].slug };
+        });
+        return;
+      }
+      console.error('Error loading categories:', data?.error || 'Unknown error');
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
-    setCategories(getCategories());
+    loadCategories();
+    loadShirtDesigns();
   }, []);
 
   const refreshCategories = () => {
-    setCategories(getCategories());
+    loadCategories();
+  };
+
+  const loadShirtDesigns = async () => {
+    try {
+      const response = await fetch('/api/shirt-designs?activeOnly=true');
+      const data = await response.json();
+      if (response.ok && data?.success && Array.isArray(data.designs)) {
+        setShirtDesigns(data.designs);
+        return;
+      }
+      console.error('Error loading shirt designs:', data?.error || 'Unknown error');
+    } catch (error) {
+      console.error('Error loading shirt designs:', error);
+    }
+  };
+
+  const safeParseJson = (text) => {
+    if (!text) return {};
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      return { error: text };
+    }
   };
 
   const handleInputChange = (e) => {
@@ -60,42 +163,91 @@ export default function AdminProducts() {
     setFormData(prev => ({ ...prev, sizes: sizesArray }));
   };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result }));
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const imageData = await Promise.all(
+      files.map(async (file) => {
+        const compressed = await compressImageFile(file);
+        if (compressed) return compressed;
+        return new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+      })
+    );
+
+    setFormData(prev => {
+      const updatedImages = [...prev.images, ...imageData].filter(Boolean);
+      return {
+        ...prev,
+        images: updatedImages,
+        image: updatedImages[0] || prev.image
       };
-      reader.readAsDataURL(file);
-    }
+    });
+
+    e.target.value = '';
+  };
+
+  const handleRemoveImage = (indexToRemove) => {
+    setFormData(prev => {
+      const updatedImages = prev.images.filter((_, index) => index !== indexToRemove);
+      return {
+        ...prev,
+        images: updatedImages,
+        image: updatedImages[0] || ''
+      };
+    });
+  };
+
+  const handleSetCoverImage = (indexToSet) => {
+    setFormData(prev => {
+      const updatedImages = [...prev.images];
+      const [selected] = updatedImages.splice(indexToSet, 1);
+      updatedImages.unshift(selected);
+      return {
+        ...prev,
+        images: updatedImages,
+        image: updatedImages[0] || ''
+      };
+    });
   };
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
     try {
+      const normalizedImages = formData.images.length > 0 ? formData.images : (formData.image ? [formData.image] : []);
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+            designId: formData.designId || null,
           price: parseFloat(formData.price),
+          cost: formData.cost !== '' ? parseFloat(formData.cost) : null,
           stock: parseInt(formData.stock),
-          image: formData.image || '/images/placeholder.jpg'
+          images: normalizedImages,
+          image: normalizedImages[0] || '/images/placeholder.svg'
         })
       });
-      const data = await response.json();
+      const responseText = await response.text();
+      const data = safeParseJson(responseText);
       if (data.success) {
         setProducts(data.products);
         setFormData({
           name: '',
           category: 'premium',
           price: '',
+          cost: '',
           description: '',
           stock: '',
           featured: false,
           sizes: [],
-          image: ''
+          image: '',
+            images: [],
+            designId: ''
         });
         setShowAddForm(false);
       } else {
@@ -107,34 +259,66 @@ export default function AdminProducts() {
     }
   };
 
-  const handleEditProduct = (product) => {
+  const handleEditProduct = async (product) => {
     setEditingProduct(product.id);
     setFormData({
       name: product.name,
       category: product.category,
       price: product.price.toString(),
+      cost: product.cost !== undefined && product.cost !== null ? product.cost.toString() : '',
       description: product.description,
       stock: product.stock.toString(),
       featured: product.featured,
       sizes: product.sizes || [],
-      image: product.image || ''
+      image: (product.images && product.images.length > 0 ? product.images[0] : product.image) || '',
+      images: product.images && product.images.length > 0 ? product.images : (product.image ? [product.image] : []),
+      designId: product.designId || ''
     });
+
+    try {
+      const response = await fetch(`/api/products?id=${product.id}`);
+      const data = await response.json();
+      if (response.ok && data?.success && data.product) {
+        const full = data.product;
+        setFormData({
+          name: full.name,
+          category: full.category,
+          price: full.price.toString(),
+          cost: full.cost !== undefined && full.cost !== null ? full.cost.toString() : '',
+          description: full.description,
+          stock: full.stock.toString(),
+          featured: full.featured,
+          sizes: full.sizes || [],
+          image: (full.images && full.images.length > 0 ? full.images[0] : full.image) || '',
+          images: full.images && full.images.length > 0 ? full.images : (full.image ? [full.image] : []),
+          designId: full.designId || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error loading full product details:', error);
+    }
   };
 
   const handleUpdateProduct = async (e) => {
     e.preventDefault();
     try {
+      const normalizedImages = formData.images.length > 0 ? formData.images : (formData.image ? [formData.image] : []);
       const response = await fetch('/api/products', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: editingProduct,
           ...formData,
+            designId: formData.designId || null,
           price: parseFloat(formData.price),
-          stock: parseInt(formData.stock)
+          cost: formData.cost !== '' ? parseFloat(formData.cost) : null,
+          stock: parseInt(formData.stock),
+          images: normalizedImages,
+          image: normalizedImages[0] || formData.image || '/images/placeholder.svg'
         })
       });
-      const data = await response.json();
+      const responseText = await response.text();
+      const data = safeParseJson(responseText);
       if (data.success) {
         setProducts(data.products);
         setEditingProduct(null);
@@ -142,10 +326,14 @@ export default function AdminProducts() {
           name: '',
           category: 'premium',
           price: '',
+          cost: '',
           description: '',
           stock: '',
           featured: false,
-          sizes: []
+          sizes: [],
+          image: '',
+            images: [],
+            designId: ''
         });
       } else {
         alert('Failed to update product: ' + (data.error || 'Unknown error'));
@@ -175,6 +363,41 @@ export default function AdminProducts() {
     }
   };
 
+  const handleDuplicateProduct = async (product) => {
+    try {
+      const normalizedImages = Array.isArray(product.images) && product.images.length > 0
+        ? product.images
+        : (product.image ? [product.image] : []);
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${product.name} (Copy)`,
+          category: product.category,
+          price: product.price,
+          cost: product.cost ?? 0,
+          description: product.description || '',
+          stock: product.stock ?? 0,
+          featured: product.featured || false,
+          sizes: product.sizes || [],
+          images: normalizedImages,
+          image: normalizedImages[0] || product.image || '/images/placeholder.svg',
+          designId: product.designId || null
+        })
+      });
+      const responseText = await response.text();
+      const data = safeParseJson(responseText);
+      if (response.ok && data?.success) {
+        setProducts(data.products || []);
+        return;
+      }
+      alert('Failed to duplicate product: ' + (data.error || 'Unknown error'));
+    } catch (error) {
+      console.error('Error duplicating product:', error);
+      alert('Failed to duplicate product. Please try again.');
+    }
+  };
+
   const cancelEdit = () => {
     setEditingProduct(null);
     setEditingName(null);
@@ -183,11 +406,14 @@ export default function AdminProducts() {
       name: '',
       category: 'premium',
       price: '',
+      cost: '',
       description: '',
       stock: '',
       featured: false,
       sizes: [],
-      image: ''
+      image: '',
+      images: [],
+      designId: ''
     });
   };
 
@@ -197,6 +423,12 @@ export default function AdminProducts() {
     setEditingName(null);
   };
 
+  const priceValue = parseFloat(formData.price);
+  const costValue = parseFloat(formData.cost);
+  const hasProfitValues = !Number.isNaN(priceValue) && !Number.isNaN(costValue) && priceValue > 0;
+  const profitValue = hasProfitValues ? priceValue - costValue : 0;
+  const profitPercentage = hasProfitValues ? (profitValue / priceValue) * 100 : 0;
+
   return (
     <div className={styles.container}>
       <Head>
@@ -205,7 +437,7 @@ export default function AdminProducts() {
 
       <header className={styles.header}>
         <div className={styles.headerContent}>
-          <h1 className={styles.logo}>🏏 Product Management</h1>
+          <h1 className={styles.logo}>Product Management</h1>
           <nav className={styles.nav}>
             <Link href="/admin" className={styles.navLink}>← Back to Admin</Link>
             <Link href="/" className={styles.navLink}>View Store</Link>
@@ -269,6 +501,7 @@ export default function AdminProducts() {
                   <h3>{editingProduct ? 'Edit Product' : 'Add New Product'}</h3>
                   <button type="button" onClick={cancelEdit} className={styles.closeButton}>✕</button>
                 </div>
+                <div className={styles.modalBody}>
             
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
@@ -300,6 +533,26 @@ export default function AdminProducts() {
 
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
+                <label>Kit Design (Additional Apparel)</label>
+                <select
+                  name="designId"
+                  value={formData.designId || ''}
+                  onChange={handleInputChange}
+                  className={styles.input}
+                >
+                  <option value="">No design link</option>
+                  {shirtDesigns.map(design => (
+                    <option key={design.id} value={design.id}>{design.name}</option>
+                  ))}
+                </select>
+                <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '0.35rem' }}>
+                  Only required for Additional Apparel products.
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
                 <label>Price (R)</label>
                 <input
                   type="number"
@@ -313,6 +566,20 @@ export default function AdminProducts() {
               </div>
 
               <div className={styles.formGroup}>
+                <label>Cost (R)</label>
+                <input
+                  type="number"
+                  name="cost"
+                  step="0.01"
+                  value={formData.cost}
+                  onChange={handleInputChange}
+                  className={styles.input}
+                />
+              </div>
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
                 <label>Stock</label>
                 <input
                   type="number"
@@ -321,6 +588,41 @@ export default function AdminProducts() {
                   onChange={handleInputChange}
                   required
                   className={styles.input}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Profit (R)</label>
+                <input
+                  type="text"
+                  value={hasProfitValues ? `R${profitValue.toFixed(2)}` : ''}
+                  readOnly
+                  className={`${styles.input} ${styles.readOnlyInput}`}
+                  placeholder="R0.00"
+                />
+              </div>
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
+                <label>Profit %</label>
+                <input
+                  type="text"
+                  value={hasProfitValues ? `${profitPercentage.toFixed(1)}%` : ''}
+                  readOnly
+                  className={`${styles.input} ${styles.readOnlyInput}`}
+                  placeholder="0%"
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Pricing Note</label>
+                <input
+                  type="text"
+                  value={hasProfitValues ? (profitValue >= 0 ? 'Healthy margin' : 'Below cost') : ''}
+                  readOnly
+                  className={`${styles.input} ${styles.readOnlyInput}`}
+                  placeholder="Add price and cost"
                 />
               </div>
             </div>
@@ -338,23 +640,42 @@ export default function AdminProducts() {
             </div>
 
             <div className={styles.formGroup}>
-              <label>Product Image</label>
+              <label>Product Images</label>
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handleImageUpload}
                 className={styles.fileInput}
               />
-              {formData.image && (
-                <div className={styles.imagePreview}>
-                  <img src={formData.image} alt="Product preview" />
-                  <button 
-                    type="button" 
-                    onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
-                    className={styles.removeImageButton}
-                  >
-                    Remove Image
-                  </button>
+              {formData.images.length > 0 && (
+                <div className={styles.imageGrid}>
+                  {formData.images.map((img, index) => (
+                    <div key={`${img}-${index}`} className={styles.imageCard}>
+                      <img src={img} alt={`Product preview ${index + 1}`} />
+                      {index === 0 && (
+                        <span className={styles.coverBadge}>Cover</span>
+                      )}
+                      <div className={styles.imageActions}>
+                        {index !== 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleSetCoverImage(index)}
+                            className={styles.secondaryButton}
+                          >
+                            Set as Cover
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index)}
+                          className={styles.removeImageButton}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -375,7 +696,9 @@ export default function AdminProducts() {
                       display: 'inline-block', 
                       padding: '0.25rem 0.5rem', 
                       margin: '0.25rem', 
-                      background: '#f3f4f6', 
+                      background: '#111827', 
+                      color: '#9ca3af',
+                      border: '1px solid rgba(220, 0, 0, 0.35)',
                       borderRadius: '4px' 
                     }}>
                       {size}
@@ -405,6 +728,7 @@ export default function AdminProducts() {
                 {editingProduct ? 'Update Product' : 'Add Product'}
               </button>
             </div>
+                </div>
           </form>
         </div>
       </>
@@ -421,22 +745,8 @@ export default function AdminProducts() {
             if (categoryProducts.length === 0) return null;
             
             return (
-              <div key={category.id} style={{
-                background: 'white',
-                border: '2px solid #e5e7eb',
-                borderRadius: '12px',
-                padding: '1.5rem',
-                marginBottom: '1.5rem'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  marginBottom: '1rem',
-                  paddingBottom: '1rem',
-                  borderBottom: '2px solid #f3f4f6'
-                }}>
-                  <span style={{ fontSize: '1.5rem' }}>{category.icon}</span>
+              <div key={category.id} className={styles.categorySection}>
+                <div className={styles.categoryTitle}>
                   {editingName === category.slug ? (
                     <input
                       type="text"
@@ -458,70 +768,55 @@ export default function AdminProducts() {
                       }}
                     />
                   ) : (
-                    <h3 style={{
-                      margin: 0,
-                      fontSize: '1.3rem',
-                      fontWeight: '800',
-                      color: '#111827',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem'
-                    }}
+                    <h3
                     onClick={() => setEditingName(category.slug)}
                     >
                       {category.name}
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" style={{ opacity: 0.5 }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" style={{ opacity: 0.6 }}>
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                       </svg>
                     </h3>
                   )}
-                  <span style={{
-                    fontSize: '0.85rem',
-                    color: '#6b7280',
-                    fontWeight: '600',
-                    padding: '0.25rem 0.75rem',
-                    background: '#f3f4f6',
-                    borderRadius: '12px'
-                  }}>
+                  <span className={styles.productCount}>
                     {categoryProducts.length} product{categoryProducts.length !== 1 ? 's' : ''}
                   </span>
                 </div>
 
                 {/* Compact Table */}
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ 
-                    width: '100%', 
-                    borderCollapse: 'collapse',
-                    fontSize: '0.9rem'
-                  }}>
+                  <table>
                     <thead>
-                      <tr style={{ 
-                        background: '#f9fafb',
-                        borderBottom: '2px solid #e5e7eb'
-                      }}>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '700', color: '#374151', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>ID</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '700', color: '#374151', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Name</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '700', color: '#374151', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Price</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '700', color: '#374151', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Stock</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '700', color: '#374151', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sizes</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: '700', color: '#374151', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Featured</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '700', color: '#374151', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Actions</th>
+                      <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Sizes</th>
+                        <th style={{ textAlign: 'center' }}>Featured</th>
+                        <th style={{ textAlign: 'right' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {categoryProducts.map(product => (
-                        <tr key={product.id} style={{
-                          borderBottom: '1px solid #f3f4f6',
-                          transition: 'background 0.2s'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                        <tr key={product.id} 
+                          className={styles.mobileClickableRow}
+                          style={{
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                            transition: 'background 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(220, 0, 0, 0.08)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                          onClick={(e) => {
+                            // On mobile, clicking the row opens edit (unless clicking a button)
+                            if (window.innerWidth <= 768 && e.target.tagName !== 'BUTTON') {
+                              handleEditProduct(product);
+                            }
+                          }}
                         >
-                          <td style={{ padding: '0.65rem', color: '#6b7280', fontWeight: '600', fontSize: '0.85rem' }}>#{product.id}</td>
-                          <td style={{ padding: '0.65rem', color: '#111827', fontWeight: '600' }}>{product.name}</td>
-                          <td style={{ padding: '0.65rem', color: '#111827', fontWeight: '700' }}>R{product.price.toFixed(2)}</td>
+                          <td style={{ padding: '0.65rem', color: '#9ca3af', fontWeight: '600', fontSize: '0.85rem' }}>#{product.id}</td>
+                          <td style={{ padding: '0.65rem', color: '#9ca3af', fontWeight: '600' }}>{product.name}</td>
+                          <td style={{ padding: '0.65rem', color: '#9ca3af', fontWeight: '700' }}>R{product.price.toFixed(2)}</td>
                           <td style={{ padding: '0.65rem' }}>
                             <span style={{
                               padding: '0.25rem 0.5rem',
@@ -534,7 +829,7 @@ export default function AdminProducts() {
                               {product.stock}
                             </span>
                           </td>
-                          <td style={{ padding: '0.65rem', fontSize: '0.85rem', color: '#6b7280' }}>
+                          <td style={{ padding: '0.65rem', fontSize: '0.85rem', color: '#9ca3af' }}>
                             {product.sizes && product.sizes.length > 0 ? 
                               `${product.sizes.length} size${product.sizes.length !== 1 ? 's' : ''}` : 
                               '-'
@@ -542,13 +837,14 @@ export default function AdminProducts() {
                           </td>
                           <td style={{ padding: '0.65rem', textAlign: 'center' }}>
                             {product.featured ? 
-                              <span style={{ fontSize: '1.2rem', color: '#eab308' }}>⭐</span> : 
-                              <span style={{ color: '#d1d5db' }}>-</span>
+                              <span className={styles.featuredBadge}>✓</span> : 
+                              <span className={styles.featuredBadgeOff}>—</span>
                             }
                           </td>
                           <td style={{ padding: '0.65rem', textAlign: 'right' }}>
-                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                            <div className={styles.mobileActionButtons} style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                               <button 
+                                className={styles.mobileActionButton}
                                 onClick={() => handleEditProduct(product)}
                                 style={{
                                   padding: '0.4rem 0.75rem',
@@ -567,6 +863,26 @@ export default function AdminProducts() {
                                 Edit
                               </button>
                               <button 
+                                className={styles.mobileActionButton}
+                                onClick={() => handleDuplicateProduct(product)}
+                                style={{
+                                  padding: '0.4rem 0.75rem',
+                                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.opacity = '0.8'}
+                                onMouseLeave={(e) => e.target.style.opacity = '1'}
+                              >
+                                Duplicate
+                              </button>
+                              <button 
+                                className={styles.mobileActionButton}
                                 onClick={() => handleDeleteProduct(product.id)}
                                 style={{
                                   padding: '0.4rem 0.75rem',

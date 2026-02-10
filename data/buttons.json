@@ -1,0 +1,44 @@
+{
+  "buttons": [
+    {
+      "id": 1,
+      "name": "Shop Premium",
+      "location": "hero-primary",
+      "href": "/premium",
+      "funnelId": null,
+      "visible": true,
+      "order": 1
+    },
+    {
+      "id": 2,
+      "name": "Training Gear",
+      "location": "hero-secondary",
+      "href": "/training",
+      "funnelId": null,
+      "visible": true,
+      "order": 2
+    },
+    {
+      "id": 3,
+      "name": "Premium Equipment",
+      "location": "channel-premium",
+      "href": "/premium",
+      "funnelId": null,
+      "visible": true,
+      "order": 1,
+      "icon": "⭐",
+      "description": "Professional grade gear for serious players"
+    },
+    {
+      "id": 4,
+      "name": "Training Gear",
+      "location": "channel-training",
+      "href": "/training",
+      "funnelId": null,
+      "visible": true,
+      "order": 2,
+      "icon": "🎯",
+      "description": "Essential equipment for practice and coaching"
+    }
+  ]
+}

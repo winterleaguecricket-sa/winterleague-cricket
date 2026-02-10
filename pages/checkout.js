@@ -5,7 +5,6 @@ import Link from 'next/link';
 import styles from '../styles/channel.module.css';
 import { siteConfig } from '../data/products';
 import { getProfileByEmail, createProfile, updateProfile, addOrderToProfile, verifyCredentials } from '../data/customers';
-import crypto from 'crypto';
 
 export default function Checkout() {
   const { cart, getCartTotal, clearCart } = useCart();
@@ -103,34 +102,9 @@ export default function Checkout() {
     setStep('payment');
   };
 
-  const generatePayfastSignature = (data, passphrase = '') => {
-    let pfOutput = '';
-    for (let key in data) {
-      if (data.hasOwnProperty(key) && data[key] !== '') {
-        pfOutput += `${key}=${encodeURIComponent(data[key].toString().trim()).replace(/%20/g, '+')}&`;
-      }
-    }
-    
-    let getString = pfOutput.slice(0, -1);
-    if (passphrase !== '') {
-      getString += `&passphrase=${encodeURIComponent(passphrase.trim()).replace(/%20/g, '+')}`;
-    }
-
-    return crypto.createHash('md5').update(getString).digest('hex');
-  };
-
-  const handlePayment = () => {
+  const handlePayment = async () => {
     setStep('processing');
-
-    const merchantId = siteConfig.paymentConfig.payfast.merchantId;
-    const merchantKey = siteConfig.paymentConfig.payfast.merchantKey;
-    const passphrase = siteConfig.paymentConfig.payfast.passphrase;
-
-    if (!merchantId || !merchantKey) {
-      setError('Payment gateway not configured. Please contact administrator.');
-      setStep('payment');
-      return;
-    }
+    setError('');
 
     const orderTotal = getCartTotal().toFixed(2);
     const orderId = `ORD${Date.now()}`;
@@ -144,44 +118,53 @@ export default function Checkout() {
       paymentMethod: 'payfast'
     });
 
-    const paymentData = {
-      merchant_id: merchantId,
-      merchant_key: merchantKey,
-      return_url: `${window.location.origin}/checkout/success?order=${orderId}`,
-      cancel_url: `${window.location.origin}/checkout`,
-      notify_url: `${window.location.origin}/api/payfast/notify`,
-      name_first: customerProfile.firstName,
-      name_last: customerProfile.lastName,
-      email_address: customerProfile.email,
-      cell_number: customerProfile.phone,
-      m_payment_id: orderId,
-      amount: orderTotal,
-      item_name: `Order #${orderId}`,
-      item_description: `${cart.length} item(s)`,
-      custom_str1: customerProfile.id.toString()
-    };
+    try {
+      const response = await fetch('/api/payfast/create-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          amount: orderTotal,
+          itemName: `Order #${orderId}`,
+          itemDescription: `${cart.length} item(s)`,
+          firstName: customerProfile.firstName,
+          lastName: customerProfile.lastName,
+          email: customerProfile.email,
+          phone: customerProfile.phone,
+          customerId: customerProfile.id.toString()
+        })
+      });
 
-    const signature = generatePayfastSignature(paymentData, passphrase);
-    paymentData.signature = signature;
+      const data = await response.json();
 
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = siteConfig.paymentConfig.payfast.testMode 
-      ? 'https://sandbox.payfast.co.za/eng/process'
-      : 'https://www.payfast.co.za/eng/process';
-
-    for (let key in paymentData) {
-      if (paymentData.hasOwnProperty(key)) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = paymentData[key];
-        form.appendChild(input);
+      if (!data.success) {
+        setError(data.error || 'Failed to initiate payment. Please try again.');
+        setStep('payment');
+        return;
       }
-    }
 
-    document.body.appendChild(form);
-    form.submit();
+      // Create and submit the PayFast form
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = data.payfastUrl;
+
+      for (const key in data.paymentData) {
+        if (data.paymentData.hasOwnProperty(key)) {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = data.paymentData[key];
+          form.appendChild(input);
+        }
+      }
+
+      document.body.appendChild(form);
+      form.submit();
+    } catch (err) {
+      console.error('Payment error:', err);
+      setError('Failed to connect to payment gateway. Please try again.');
+      setStep('payment');
+    }
   };
 
   if (cart.length === 0) {
