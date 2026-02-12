@@ -42,6 +42,15 @@ let homepageConfig = {
     enabled: true,
     text: '🎉 FREE SHIPPING on orders over R500! 🎉',
   },
+  // Site Access
+  siteAccess: {
+    comingSoonEnabled: false,
+    title: 'We’re getting things ready',
+    subtitle: 'Thanks for your patience. We’re working on something great and will be live soon.',
+    logoUrl: '',
+    mediaType: 'none',
+    mediaUrl: '',
+  },
 };
 
 export function getHomepageConfig() {
@@ -56,6 +65,7 @@ export function updateHomepageConfig(updates) {
     gallery: updates.gallery ? { ...homepageConfig.gallery, ...updates.gallery } : homepageConfig.gallery,
     channels: updates.channels ? { ...homepageConfig.channels, ...updates.channels } : homepageConfig.channels,
     banner: updates.banner ? { ...homepageConfig.banner, ...updates.banner } : homepageConfig.banner,
+    siteAccess: updates.siteAccess ? { ...homepageConfig.siteAccess, ...updates.siteAccess } : homepageConfig.siteAccess,
   };
   return { ...homepageConfig };
 }

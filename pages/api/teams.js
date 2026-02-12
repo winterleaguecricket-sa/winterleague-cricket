@@ -187,7 +187,7 @@ export default async function handler(req, res) {
         'team_name', 'manager_name', 'manager_phone', 'email', 'suburb',
         'team_logo', 'shirt_design', 'primary_color', 'secondary_color', 'sponsor_logo',
         'number_of_teams', 'age_group_teams', 'kit_pricing', 'entry_fee', 
-        'password', 'status', 'last_login', 'submission_data'
+        'password', 'status', 'last_login', 'submission_data', 'banking_details'
       ];
 
       const updateClauses = [];

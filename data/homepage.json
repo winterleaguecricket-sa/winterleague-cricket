@@ -2,7 +2,7 @@
   "hero": {
     "title": "WINTER LEAGUE CRICKET",
     "subtitle": "Explore our premium cricket equipment collections",
-    "showAnimation": true,
+    "showAnimation": false,
     "backgroundImage": ""
   },
   "gallery": {
@@ -26,32 +26,17 @@
         "alt": "Cricket Equipment"
       },
       {
-        "id": 4,
-        "url": "https://images.unsplash.com/photo-1593766787879-e8c78e09cec5?w=800&q=80",
-        "alt": "Cricket Bat"
-      },
-      {
-        "id": 5,
-        "url": "https://images.unsplash.com/photo-1545428207-928a50ca1c3b?w=800&q=80",
-        "alt": "Cricket Action"
-      },
-      {
-        "id": 6,
-        "url": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&q=80",
-        "alt": "Sports Arena"
-      },
-      {
         "id": 7,
         "url": "https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?w=800&q=80",
         "alt": "Cricket Field"
       },
       {
-        "id": 8,
-        "url": "https://images.unsplash.com/photo-1611329532992-0b7d23da2e1a?w=800&q=80",
-        "alt": "Cricket Gear"
+        "id": 10,
+        "url": "/uploads/homepage-gallery/f9y51gfyv9vxan2gcfslgs6zp.jpeg",
+        "alt": "Winter League Logo"
       }
     ],
-    "imageIdCounter": 10
+    "imageIdCounter": 11
   },
   "channels": {
     "enabled": true,
@@ -64,7 +49,15 @@
     "tiktokAutoLatest": false
   },
   "banner": {
-    "enabled": true,
+    "enabled": false,
     "text": "🎉 FREE SHIPPING on orders over R500! 🎉"
+  },
+  "siteAccess": {
+    "comingSoonEnabled": true,
+    "title": "LAUNCHING 2026!",
+    "subtitle": "We Almost There....",
+    "logoUrl": "/uploads/coming-soon/coming-soon-logo-1768489012975-633.jpeg",
+    "mediaType": "image",
+    "mediaUrl": ""
   }
 }

@@ -1,49 +1,103 @@
 import { useState, useEffect, useRef } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 import styles from '../styles/home.module.css'
 import FormDisplay from '../components/FormDisplay'
 import Cart from '../components/Cart'
 import { useCart } from '../context/CartContext'
-import { siteConfig, getButtonsByLocation, getMenuItems, getSubMenuItems } from '../data/products'
+import { siteConfig } from '../data/products'
 import { getFormTemplates } from '../data/forms'
-import { getHomepageConfig } from '../data/homepage'
+import ComingSoon from '../components/ComingSoon'
 
 function Home() {
+  const router = useRouter();
   const [titleAnimationComplete, setTitleAnimationComplete] = useState(false);
   const audioRef = useRef(null);
   const [homepageConfig, setHomepageConfig] = useState(null);
   const [homepageForms, setHomepageForms] = useState([]);
   const [latestTikTokVideo, setLatestTikTokVideo] = useState(null);
   const [tiktokLoading, setTiktokLoading] = useState(false);
+  const [heroPrimaryButtons, setHeroPrimaryButtons] = useState([]);
+  const [heroSecondaryButtons, setHeroSecondaryButtons] = useState([]);
+  const [channelButtons, setChannelButtons] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [allMenuItems, setAllMenuItems] = useState([]);
   const { toggleCart, getCartCount } = useCart();
-  const heroPrimaryButtons = getButtonsByLocation('hero-primary');
-  const heroSecondaryButtons = getButtonsByLocation('hero-secondary');
-  const channelButtons = [
-    ...getButtonsByLocation('channel-premium'),
-    ...getButtonsByLocation('channel-training')
-  ].sort((a, b) => a.order - b.order);
-  const menuItems = getMenuItems();
+
+  // Helper to get sub menu items
+  const getSubMenuItems = (parentId) => {
+    return allMenuItems
+      .filter(item => item.visible && item.parentId === parentId)
+      .sort((a, b) => a.order - b.order);
+  };
 
   useEffect(() => {
-    const config = getHomepageConfig();
-    setHomepageConfig(config);
+    // Fetch homepage config from API to get latest admin changes
+    const fetchHomepageConfig = async () => {
+      try {
+        const response = await fetch('/api/homepage');
+        const data = await response.json();
+        if (data.success) {
+          setHomepageConfig(data.config);
+          
+          // Fetch latest TikTok video if auto-latest is enabled
+          if (data.config.channels.showTikTok && data.config.channels.tiktokAutoLatest) {
+            if (data.config.channels.tiktokVideoUrl) {
+              fetchTikTokVideo(data.config.channels.tiktokVideoUrl);
+            } else if (data.config.channels.tiktokUsername) {
+              fetchLatestTikTokVideo(data.config.channels.tiktokUsername);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching homepage config:', error);
+      }
+    };
+
+    // Fetch buttons from API
+    const fetchButtons = async () => {
+      try {
+        const response = await fetch('/api/buttons');
+        const data = await response.json();
+        if (data.success) {
+          const buttons = data.buttons;
+          setHeroPrimaryButtons(buttons.filter(b => b.location === 'hero-primary' && b.visible).sort((a, b) => a.order - b.order));
+          setHeroSecondaryButtons(buttons.filter(b => b.location === 'hero-secondary' && b.visible).sort((a, b) => a.order - b.order));
+          setChannelButtons([
+            ...buttons.filter(b => b.location === 'channel-premium' && b.visible),
+            ...buttons.filter(b => b.location === 'channel-training' && b.visible)
+          ].sort((a, b) => a.order - b.order));
+        }
+      } catch (error) {
+        console.error('Error fetching buttons:', error);
+      }
+    };
+
+    // Fetch menu items from API
+    const fetchMenu = async () => {
+      try {
+        const response = await fetch('/api/menu');
+        const data = await response.json();
+        if (data.success) {
+          setAllMenuItems(data.menuItems);
+          setMenuItems(data.menuItems
+            .filter(item => item.visible && item.parentId === null)
+            .sort((a, b) => a.order - b.order));
+        }
+      } catch (error) {
+        console.error('Error fetching menu:', error);
+      }
+    };
+    
+    fetchHomepageConfig();
+    fetchButtons();
+    fetchMenu();
     
     const forms = getFormTemplates().filter(form => 
       form.active && form.displayLocations?.includes('homepage')
     );
     setHomepageForms(forms);
-
-    // Fetch latest TikTok video if auto-latest is enabled
-    if (config.channels.showTikTok && config.channels.tiktokAutoLatest) {
-      if (config.channels.tiktokVideoUrl) {
-        // Fetch specific video URL
-        fetchTikTokVideo(config.channels.tiktokVideoUrl);
-      } else if (config.channels.tiktokUsername) {
-        // Fallback to username only
-        fetchLatestTikTokVideo(config.channels.tiktokUsername);
-      }
-    }
 
     // Play rumble sound effect
     if (audioRef.current) {
@@ -54,23 +108,24 @@ function Home() {
     // Mark animation as complete after 3 seconds
     const timer = setTimeout(() => setTitleAnimationComplete(true), 3000);
     
-    // Load TikTok embed script if needed
-    if (config.channels.showTikTok && (config.channels.tiktokEmbedCode || config.channels.tiktokAutoLatest)) {
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Load TikTok embed script when config changes
+  useEffect(() => {
+    if (homepageConfig?.channels?.showTikTok && (homepageConfig.channels.tiktokEmbedCode || homepageConfig.channels.tiktokAutoLatest)) {
       const script = document.createElement('script');
       script.src = 'https://www.tiktok.com/embed.js';
       script.async = true;
       document.body.appendChild(script);
       
       return () => {
-        clearTimeout(timer);
         if (document.body.contains(script)) {
           document.body.removeChild(script);
         }
       };
     }
-    
-    return () => clearTimeout(timer);
-  }, []);
+  }, [homepageConfig]);
 
   const fetchTikTokVideo = async (videoUrl) => {
     setTiktokLoading(true);
@@ -118,6 +173,13 @@ function Home() {
 
   if (!homepageConfig) return null;
 
+  const isPreview = router.query.preview === '1' || router.query.preview === 'true';
+  const comingSoonEnabled = homepageConfig.siteAccess?.comingSoonEnabled;
+
+  if (comingSoonEnabled && !isPreview) {
+    return <ComingSoon config={homepageConfig} />;
+  }
+
   return (
     <div className={styles.container} style={{ fontFamily: siteConfig.fontFamily }}>
       <Head>
@@ -135,7 +197,7 @@ function Home() {
             {siteConfig.logoUrl ? (
               <img src={siteConfig.logoUrl} alt={siteConfig.storeName} className={styles.logoImage} />
             ) : (
-              <h1 className={styles.logo}>🏏 {siteConfig.storeName}</h1>
+              <h1 className={styles.logo}>{siteConfig.storeName}</h1>
             )}
           </div>
           <nav className={styles.nav}>

@@ -7,11 +7,11 @@
   "primaryColor": "#000000",
   "secondaryColor": "#dc0000",
   "accentColor": "#ff3333",
-  "logoUrl": "",
-  "faviconUrl": "",
+  "logoUrl": "/uploads/site-settings/site-logo-1769366080940-355.jpeg",
+  "faviconUrl": "/uploads/site-settings/site-logo-1768767543121-217.jpeg",
   "fontFamily": "Inter",
   "heroMediaType": "image",
-  "heroMediaUrl": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=1600&h=900&fit=crop",
+  "heroMediaUrl": "/uploads/site-settings/site-hero-1768769975223-602.jpeg",
   "heroTitle": "Winter League Cricket",
   "heroSubtitle": "Premium Equipment for Champions",
   "buttonFunnels": {
@@ -106,10 +106,20 @@
   ],
   "paymentConfig": {
     "payfast": {
-      "merchantId": "",
-      "merchantKey": "",
-      "passphrase": "",
-      "testMode": true
+      "merchantId": "3847386",
+      "merchantKey": "25qhve4askybg",
+      "passphrase": "Tcc-sG1ea/Mars",
+      "testMode": false,
+      "sandbox": {
+        "merchantId": "10000100",
+        "merchantKey": "46f0cd694581a",
+        "passphrase": ""
+      },
+      "live": {
+        "merchantId": "3847386",
+        "merchantKey": "25qhve4askybg",
+        "passphrase": "Tcc-sG1ea/Mars"
+      }
     }
   }
 }

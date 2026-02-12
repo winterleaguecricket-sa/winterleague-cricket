@@ -90,8 +90,9 @@
 }
 
 .cartButton:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: white;
   border-color: white;
+  color: #000000;
   transform: translateY(-2px);
 }
 
@@ -112,8 +113,9 @@
 }
 
 .loginButton:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: white;
   border-color: white;
+  color: #000000;
   transform: translateY(-2px);
 }
 
@@ -532,8 +534,9 @@
 }
 
 .heroCta:hover {
-  background: #ff3333;
-  border-color: #ff3333;
+  background: #b30000;
+  border-color: #b30000;
+  color: white;
   transform: translateY(-3px);
   box-shadow: 0 12px 35px rgba(220,0,0,0.4);
 }
@@ -546,8 +549,9 @@
 
 .heroCtaSecondary:hover {
   background: white;
-  color: #000;
+  color: #000000;
   transform: translateY(-3px);
+  box-shadow: 0 12px 35px rgba(255,255,255,0.3);
 }
 
 @keyframes fadeInUp {
@@ -631,6 +635,16 @@
   transform: translateY(-8px);
   box-shadow: 0 20px 60px rgba(220, 0, 0, 0.2);
   border-color: #dc0000;
+  background: white;
+  color: #000000;
+}
+
+.channelButton:hover h3 {
+  color: #dc0000;
+}
+
+.channelButton:hover p {
+  color: #333333;
 }
 
 .channelIcon {

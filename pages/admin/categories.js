@@ -1,17 +1,7 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import styles from '../../styles/adminManage.module.css';
-import { 
-  getCategories, 
-  addCategory, 
-  updateCategory, 
-  deleteCategory,
-  getSubcategories,
-  addSubcategory,
-  updateSubcategory,
-  deleteSubcategory
-} from '../../data/categories';
+import styles from '../../styles/adminCategories.module.css';
 
 export default function AdminCategories() {
   const [categories, setCategories] = useState([]);
@@ -22,22 +12,36 @@ export default function AdminCategories() {
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
-    description: '',
-    icon: '📦'
+    description: ''
   });
   const [subFormData, setSubFormData] = useState({
     categoryId: '',
     name: '',
     slug: '',
-    description: '',
-    icon: '📂'
+    description: ''
   });
   const [editingSubId, setEditingSubId] = useState(null);
   const [showAddSubForm, setShowAddSubForm] = useState(false);
+  const [categoryMessage, setCategoryMessage] = useState('');
+  const [subCategoryMessage, setSubCategoryMessage] = useState('');
 
   useEffect(() => {
-    setCategories(getCategories());
-    setSubcategories(getSubcategories());
+    const loadCategories = async () => {
+      try {
+        const response = await fetch('/api/categories');
+        const data = await response.json();
+        if (data?.success) {
+          setCategories(data.categories || []);
+          setSubcategories((data.subcategories || []).map(subcategory => ({
+            ...subcategory,
+            categoryId: subcategory.categoryId ?? subcategory.parentId ?? ''
+          })));
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    };
+    loadCategories();
   }, []);
 
   // Category handlers
@@ -56,11 +60,26 @@ export default function AdminCategories() {
     }
   };
 
-  const handleAddCategory = (e) => {
+  const handleAddCategory = async (e) => {
     e.preventDefault();
-    addCategory(formData);
-    setCategories(getCategories());
-    resetForm();
+    try {
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData })
+      });
+      const data = await response.json();
+      if (response.ok && data?.success) {
+        setCategories(prev => [...prev, data.category]);
+        setCategoryMessage('');
+        resetForm();
+        return;
+      }
+      setCategoryMessage(data?.error || 'Unable to save category.');
+    } catch (error) {
+      console.error('Error adding category:', error);
+      setCategoryMessage('Unable to save category.');
+    }
   };
 
   const handleEditCategory = (category) => {
@@ -68,24 +87,46 @@ export default function AdminCategories() {
     setFormData({
       name: category.name,
       slug: category.slug,
-      description: category.description,
-      icon: category.icon
+      description: category.description
     });
     setShowAddForm(false);
+    setCategoryMessage('');
   };
 
-  const handleUpdateCategory = (e) => {
+  const handleUpdateCategory = async (e) => {
     e.preventDefault();
-    updateCategory(editingCategory, formData);
-    setCategories(getCategories());
-    resetForm();
+    try {
+      const response = await fetch('/api/categories', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingCategory, ...formData })
+      });
+      const data = await response.json();
+      if (response.ok && data?.success) {
+        setCategories(prev => prev.map(cat => cat.id === editingCategory ? data.category : cat));
+        setCategoryMessage('');
+        resetForm();
+        return;
+      }
+      setCategoryMessage(data?.error || 'Unable to update category.');
+    } catch (error) {
+      console.error('Error updating category:', error);
+      setCategoryMessage('Unable to update category.');
+    }
   };
 
-  const handleDeleteCategory = (id) => {
+  const handleDeleteCategory = async (id) => {
     if (confirm('Are you sure you want to delete this category? This will also delete all its subcategories.')) {
-      deleteCategory(id);
-      setCategories(getCategories());
-      setSubcategories(getSubcategories());
+      try {
+        const response = await fetch(`/api/categories?id=${id}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (data?.success) {
+          setCategories(prev => prev.filter(cat => cat.id !== id));
+          setSubcategories(prev => prev.filter(sub => sub.categoryId !== id));
+        }
+      } catch (error) {
+        console.error('Error deleting category:', error);
+      }
     }
   };
 
@@ -93,11 +134,11 @@ export default function AdminCategories() {
     setFormData({
       name: '',
       slug: '',
-      description: '',
-      icon: '📦'
+      description: ''
     });
     setEditingCategory(null);
     setShowAddForm(false);
+    setCategoryMessage('');
   };
 
   // Subcategory handlers
@@ -116,40 +157,83 @@ export default function AdminCategories() {
     }
   };
 
-  const handleAddSubcategory = (e) => {
+  const handleAddSubcategory = async (e) => {
     e.preventDefault();
     if (!subFormData.categoryId) {
       alert('Please select a category');
       return;
     }
-    addSubcategory(subFormData);
-    setSubcategories(getSubcategories());
-    resetSubForm();
+    try {
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...subFormData, parentId: subFormData.categoryId })
+      });
+      const data = await response.json();
+      if (response.ok && data?.success) {
+        setSubcategories(prev => [...prev, {
+          ...data.category,
+          categoryId: data.category.categoryId ?? data.category.parentId ?? subFormData.categoryId
+        }]);
+        setSubCategoryMessage('');
+        resetSubForm();
+        return;
+      }
+      setSubCategoryMessage(data?.error || 'Unable to save subcategory.');
+    } catch (error) {
+      console.error('Error adding subcategory:', error);
+      setSubCategoryMessage('Unable to save subcategory.');
+    }
   };
 
   const handleEditSubcategory = (subcategory) => {
     setEditingSubId(subcategory.id);
     setSubFormData({
-      categoryId: subcategory.categoryId,
+      categoryId: subcategory.categoryId ?? subcategory.parentId ?? '',
       name: subcategory.name,
       slug: subcategory.slug,
-      description: subcategory.description,
-      icon: subcategory.icon
+      description: subcategory.description
     });
     setShowAddSubForm(false);
+    setSubCategoryMessage('');
   };
 
-  const handleUpdateSubcategory = (e) => {
+  const handleUpdateSubcategory = async (e) => {
     e.preventDefault();
-    updateSubcategory(editingSubId, subFormData);
-    setSubcategories(getSubcategories());
-    resetSubForm();
+    try {
+      const response = await fetch('/api/categories', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingSubId, ...subFormData, parentId: subFormData.categoryId })
+      });
+      const data = await response.json();
+      if (response.ok && data?.success) {
+        setSubcategories(prev => prev.map(sub => sub.id === editingSubId ? {
+          ...data.category,
+          categoryId: data.category.categoryId ?? data.category.parentId ?? subFormData.categoryId
+        } : sub));
+        setSubCategoryMessage('');
+        resetSubForm();
+        return;
+      }
+      setSubCategoryMessage(data?.error || 'Unable to update subcategory.');
+    } catch (error) {
+      console.error('Error updating subcategory:', error);
+      setSubCategoryMessage('Unable to update subcategory.');
+    }
   };
 
-  const handleDeleteSubcategory = (id) => {
+  const handleDeleteSubcategory = async (id) => {
     if (confirm('Are you sure you want to delete this subcategory?')) {
-      deleteSubcategory(id);
-      setSubcategories(getSubcategories());
+      try {
+        const response = await fetch(`/api/categories?id=${id}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (data?.success) {
+          setSubcategories(prev => prev.filter(sub => sub.id !== id));
+        }
+      } catch (error) {
+        console.error('Error deleting subcategory:', error);
+      }
     }
   };
 
@@ -158,11 +242,11 @@ export default function AdminCategories() {
       categoryId: '',
       name: '',
       slug: '',
-      description: '',
-      icon: '📂'
+      description: ''
     });
     setEditingSubId(null);
     setShowAddSubForm(false);
+    setSubCategoryMessage('');
   };
 
   const getCategoryName = (categoryId) => {
@@ -178,7 +262,7 @@ export default function AdminCategories() {
 
       <header className={styles.header}>
         <div className={styles.headerContent}>
-          <h1 className={styles.logo}>📂 Category Management</h1>
+          <h1 className={styles.logo}>Category Management</h1>
           <nav className={styles.nav}>
             <Link href="/admin" className={styles.navLink}>← Back to Admin</Link>
             <Link href="/" className={styles.navLink}>View Store</Link>
@@ -192,13 +276,13 @@ export default function AdminCategories() {
             className={`${styles.tab} ${activeTab === 'categories' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('categories')}
           >
-            📁 Categories
+            Categories
           </button>
           <button 
             className={`${styles.tab} ${activeTab === 'subcategories' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('subcategories')}
           >
-            📂 Subcategories
+            Subcategories
           </button>
         </div>
 
@@ -266,19 +350,9 @@ export default function AdminCategories() {
                   />
                 </div>
 
-                <div className={styles.formGroup}>
-                  <label>Icon (Emoji)</label>
-                  <input
-                    type="text"
-                    name="icon"
-                    value={formData.icon}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="e.g., ⭐ 🏏 🎯"
-                    className={styles.input}
-                    maxLength="2"
-                  />
-                </div>
+                {categoryMessage && (
+                  <div className={styles.formMessage}>{categoryMessage}</div>
+                )}
 
                 <div className={styles.formActions}>
                   <button type="submit" className={styles.saveButton}>
@@ -295,7 +369,6 @@ export default function AdminCategories() {
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th>Icon</th>
                     <th>Name</th>
                     <th>Slug</th>
                     <th>Description</th>
@@ -305,7 +378,6 @@ export default function AdminCategories() {
                 <tbody>
                   {categories.map(category => (
                     <tr key={category.id}>
-                      <td className={styles.iconCell}>{category.icon}</td>
                       <td className={styles.nameCell}>{category.name}</td>
                       <td><code className={styles.code}>{category.slug}</code></td>
                       <td>{category.description}</td>
@@ -362,12 +434,12 @@ export default function AdminCategories() {
                     value={subFormData.categoryId}
                     onChange={handleSubChange}
                     required
-                    className={styles.input}
+                      className={styles.select}
                   >
                     <option value="">Select a category...</option>
                     {categories.map(category => (
                       <option key={category.id} value={category.id}>
-                        {category.icon} {category.name}
+                        {category.name}
                       </option>
                     ))}
                   </select>
@@ -413,18 +485,9 @@ export default function AdminCategories() {
                   />
                 </div>
 
-                <div className={styles.formGroup}>
-                  <label>Icon (Emoji)</label>
-                  <input
-                    type="text"
-                    name="icon"
-                    value={subFormData.icon}
-                    onChange={handleSubChange}
-                    className={styles.input}
-                    placeholder="📂"
-                    maxLength="2"
-                  />
-                </div>
+                {subCategoryMessage && (
+                  <div className={styles.formMessage}>{subCategoryMessage}</div>
+                )}
 
                 <div className={styles.formActions}>
                   <button type="submit" className={styles.saveButton}>
@@ -441,7 +504,6 @@ export default function AdminCategories() {
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th>Icon</th>
                     <th>Name</th>
                     <th>Parent Category</th>
                     <th>Slug</th>
@@ -452,11 +514,9 @@ export default function AdminCategories() {
                 <tbody>
                   {subcategories.map(subcategory => (
                     <tr key={subcategory.id}>
-                      <td className={styles.iconCell}>{subcategory.icon}</td>
                       <td><strong>{subcategory.name}</strong></td>
                       <td>
                         <span className={styles.categoryBadge}>
-                          {categories.find(c => c.id === subcategory.categoryId)?.icon}{' '}
                           {getCategoryName(subcategory.categoryId)}
                         </span>
                       </td>

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../../styles/adminManage.module.css';
-import { getAllButtons, addCustomButton, updateCustomButton, deleteCustomButton } from '../../data/products';
 import { getActiveFunnels } from '../../data/funnels';
 
 export default function AdminButtons() {
@@ -26,8 +25,16 @@ export default function AdminButtons() {
     setFunnels(getActiveFunnels());
   }, []);
 
-  const loadButtons = () => {
-    setButtons(getAllButtons());
+  const loadButtons = async () => {
+    try {
+      const response = await fetch('/api/buttons');
+      const data = await response.json();
+      if (data.success) {
+        setButtons(data.buttons);
+      }
+    } catch (error) {
+      console.error('Error loading buttons:', error);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -38,7 +45,7 @@ export default function AdminButtons() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     const buttonData = {
@@ -47,10 +54,22 @@ export default function AdminButtons() {
       order: Number(formData.order)
     };
 
-    if (editingButton) {
-      updateCustomButton(editingButton.id, buttonData);
-    } else {
-      addCustomButton(buttonData);
+    try {
+      if (editingButton) {
+        await fetch('/api/buttons', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingButton.id, ...buttonData })
+        });
+      } else {
+        await fetch('/api/buttons', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buttonData)
+        });
+      }
+    } catch (error) {
+      console.error('Error saving button:', error);
     }
 
     resetForm();
@@ -72,9 +91,17 @@ export default function AdminButtons() {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (confirm('Are you sure you want to delete this button?')) {
-      deleteCustomButton(id);
+      try {
+        await fetch('/api/buttons', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+      } catch (error) {
+        console.error('Error deleting button:', error);
+      }
       loadButtons();
     }
   };

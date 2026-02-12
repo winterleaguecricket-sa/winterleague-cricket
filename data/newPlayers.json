@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "id": "1770312861685a8cc4cbbc907a",
+    "playerName": "Judah Uriah Vickery",
+    "email": "bonabellojhb@gmail.com",
+    "team": "KCA Academy ",
+    "dob": "2015-01-01",
+    "submissionId": "b05c2b3b-6aec-4b28-963f-e278e087358e",
+    "registrationDate": "2026-02-05T17:34:21.685Z",
+    "uploadedToCricClubs": false
+  },
+  {
+    "id": "1770312861697688cca090792d",
+    "playerName": "Judah Vickery",
+    "email": "winterleague@gmail.com",
+    "team": "Topgun Cricket ",
+    "dob": "2020-03-30",
+    "submissionId": "ffedefe4-d2f6-4b1a-b275-ce33bd34610f",
+    "registrationDate": "2026-02-05T17:34:21.697Z",
+    "uploadedToCricClubs": false
+  }
+]

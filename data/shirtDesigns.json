@@ -1,45 +1,325 @@
 {
   "designs": [
     {
-      "id": 1,
-      "name": "Classic Red Stripe",
-      "imageUrl": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300&h=300&fit=crop",
-      "active": true,
-      "createdAt": "2025-11-01T10:00:00.000Z",
+      "id": 6,
+      "name": "Kit 1",
       "images": [
-        "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300&h=300&fit=crop"
-      ]
+        "/uploads/shirt-designs/shirt-design-1768747330722-588.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747346364-196.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747351402-820.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747355423-217.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747359250-833.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747362854-111.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769516988332-117.png",
+        "/uploads/shirt-designs/shirt-design-1769517011356-912.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:42:55.715Z"
     },
     {
-      "id": 2,
-      "name": "Blue Lightning",
-      "imageUrl": "https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=300&h=300&fit=crop",
-      "active": true,
-      "createdAt": "2025-11-01T10:05:00.000Z",
+      "id": 7,
+      "name": "Kit 2",
       "images": [
-        "https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=300&h=300&fit=crop"
-      ]
+        "/uploads/shirt-designs/shirt-design-1768747419258-716.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747419281-636.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747419297-856.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747419315-415.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747419337-188.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747419353-753.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517046539-358.png",
+        "/uploads/shirt-designs/shirt-design-1769517179172-25.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:43:43.803Z"
     },
     {
-      "id": 3,
-      "name": "Green Thunder",
-      "imageUrl": "https://images.unsplash.com/photo-1598032895397-d4e733ad8b33?w=300&h=300&fit=crop",
-      "active": true,
-      "createdAt": "2025-11-01T10:10:00.000Z",
+      "id": 8,
+      "name": "Kit 3",
       "images": [
-        "https://images.unsplash.com/photo-1598032895397-d4e733ad8b33?w=300&h=300&fit=crop"
-      ]
+        "/uploads/shirt-designs/shirt-design-1768747471309-250.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747471329-13.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747471344-998.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747471362-194.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747471378-291.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747471394-77.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517197486-308.png",
+        "/uploads/shirt-designs/shirt-design-1769517197654-38.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:44:34.627Z"
     },
     {
-      "id": 4,
-      "name": "Yellow Storm",
-      "imageUrl": "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=300&h=300&fit=crop",
-      "active": true,
-      "createdAt": "2025-11-01T10:15:00.000Z",
+      "id": 9,
+      "name": "Kit 4",
       "images": [
-        "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=300&h=300&fit=crop"
-      ]
+        "/uploads/shirt-designs/shirt-design-1768747490286-298.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747490311-727.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747490326-437.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747490342-673.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747490360-119.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747490376-425.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517215398-557.png",
+        "/uploads/shirt-designs/shirt-design-1769517215603-405.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:44:51.323Z"
+    },
+    {
+      "id": 11,
+      "name": "Kit 5",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747571725-546.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747571748-793.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747571765-183.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747571805-730.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747571825-538.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747571848-115.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517269278-978.png",
+        "/uploads/shirt-designs/shirt-design-1769517291466-229.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:46:13.882Z"
+    },
+    {
+      "id": 13,
+      "name": "Kit 6",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747610613-799.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747610640-695.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747610657-837.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747610672-905.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747610691-928.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747610706-94.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517311447-906.png",
+        "/uploads/shirt-designs/shirt-design-1769517316107-285.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:46:54.793Z"
+    },
+    {
+      "id": 14,
+      "name": "Kit 7",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747640298-282.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747640322-830.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747640338-77.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747640359-333.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747640383-133.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747640400-264.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517331295-486.png",
+        "/uploads/shirt-designs/shirt-design-1769517331490-173.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:47:22.298Z"
+    },
+    {
+      "id": 15,
+      "name": "Kit 8",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747660656-626.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747660676-95.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747660695-39.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747660714-181.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747660730-804.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747660748-415.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517347612-29.png",
+        "/uploads/shirt-designs/shirt-design-1769517347868-454.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:47:42.239Z"
+    },
+    {
+      "id": 16,
+      "name": "Kit 9",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747682438-319.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747682460-208.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747682480-733.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747682497-169.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747682521-452.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747682538-566.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517371169-338.png",
+        "/uploads/shirt-designs/shirt-design-1769517371402-757.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:48:04.910Z"
+    },
+    {
+      "id": 17,
+      "name": "Kit 10",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747706706-264.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747706724-785.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747706741-687.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747706757-986.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747706773-83.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747706795-283.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517395007-279.png",
+        "/uploads/shirt-designs/shirt-design-1769517395236-37.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:48:27.590Z"
+    },
+    {
+      "id": 18,
+      "name": "Kit 11",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747736436-658.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747736457-43.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747736473-403.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747736488-478.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747736504-212.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747736520-628.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517420486-725.png",
+        "/uploads/shirt-designs/shirt-design-1769517420775-495.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:48:57.741Z"
+    },
+    {
+      "id": 19,
+      "name": "Kit 12",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747764195-260.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747764212-896.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747764230-173.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747764248-58.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747764264-481.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747764279-493.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517438806-703.png",
+        "/uploads/shirt-designs/shirt-design-1769517439073-804.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:49:25.590Z"
+    },
+    {
+      "id": 20,
+      "name": "Kit 13",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747787598-657.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747787624-254.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747787640-464.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747787659-942.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747787678-289.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747787696-154.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517457026-542.png",
+        "/uploads/shirt-designs/shirt-design-1769517457297-387.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:49:49.171Z"
+    },
+    {
+      "id": 21,
+      "name": "Kit 14",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747811223-365.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747811243-694.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747811260-450.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747811278-708.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747811295-218.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747811311-843.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517477521-444.png",
+        "/uploads/shirt-designs/shirt-design-1769517477771-757.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:50:12.618Z"
+    },
+    {
+      "id": 22,
+      "name": "Kit 15",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747834962-735.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747834983-333.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747835006-847.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747835025-503.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747835047-622.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747835067-65.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517520994-616.png",
+        "/uploads/shirt-designs/shirt-design-1769517521236-84.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:50:36.753Z"
+    },
+    {
+      "id": 23,
+      "name": "Kit 16",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747861589-501.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747861610-43.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747861628-610.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747861647-849.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747861662-780.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747861684-330.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517637160-59.png",
+        "/uploads/shirt-designs/shirt-design-1769517637415-720.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:51:03.124Z"
+    },
+    {
+      "id": 24,
+      "name": "Kit 17",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747884391-180.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747884408-942.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747884424-887.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747884440-82.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747884460-368.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747884475-677.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517658511-648.png",
+        "/uploads/shirt-designs/shirt-design-1769517658739-464.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:51:27.078Z"
+    },
+    {
+      "id": 25,
+      "name": "Kit 18",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747905458-807.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747905478-111.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747905498-103.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747905518-371.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747905534-868.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747905558-946.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517672806-875.png",
+        "/uploads/shirt-designs/shirt-design-1769517673023-777.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:51:47.190Z"
+    },
+    {
+      "id": 26,
+      "name": "Kit 19",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747925652-917.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747925674-640.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747925689-732.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747925707-34.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747925723-717.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747925740-651.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517695947-924.png",
+        "/uploads/shirt-designs/shirt-design-1769517696206-822.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:52:12.097Z"
+    },
+    {
+      "id": 27,
+      "name": "Kit 20",
+      "images": [
+        "/uploads/shirt-designs/shirt-design-1768747952237-617.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747952257-696.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747952274-138.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747952293-309.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747952309-111.jpeg",
+        "/uploads/shirt-designs/shirt-design-1768747952329-900.jpeg",
+        "/uploads/shirt-designs/shirt-design-1769517707890-982.png",
+        "/uploads/shirt-designs/shirt-design-1769517708163-853.png"
+      ],
+      "active": true,
+      "createdAt": "2026-01-18T14:52:33.390Z"
     }
   ],
-  "idCounter": 6
+  "idCounter": 31
 }

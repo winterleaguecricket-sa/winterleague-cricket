@@ -6,19 +6,121 @@ import styles from '../../styles/adminSettings.module.css';
 export default function KitPricing() {
   const [basePrice, setBasePrice] = useState(150);
   const [saved, setSaved] = useState(false);
+  const [shirtChartUrl, setShirtChartUrl] = useState('');
+  const [pantsChartUrl, setPantsChartUrl] = useState('');
+  const [chartsSaved, setChartsSaved] = useState(false);
+  const [uploadingChart, setUploadingChart] = useState({ shirt: false, pants: false });
 
   useEffect(() => {
-    // Load from localStorage
-    const savedPrice = localStorage.getItem('kitBasePrice');
-    if (savedPrice) {
-      setBasePrice(parseFloat(savedPrice));
-    }
+    const loadBasePrice = async () => {
+      try {
+        const res = await fetch('/api/kit-pricing');
+        const data = await res.json();
+        if (data?.success && data.basePrice !== undefined) {
+          setBasePrice(parseFloat(data.basePrice));
+        }
+      } catch (error) {
+        console.error('Error loading kit base price:', error);
+      }
+    };
+
+    const loadSizeCharts = async () => {
+      try {
+        const res = await fetch('/api/kit-size-charts');
+        const data = await res.json();
+        if (data?.success) {
+          setShirtChartUrl(data.shirtChartUrl || '');
+          setPantsChartUrl(data.pantsChartUrl || '');
+        }
+      } catch (error) {
+        console.error('Error loading kit size charts:', error);
+      }
+    };
+
+    loadBasePrice();
+    loadSizeCharts();
   }, []);
 
-  const handleSave = () => {
-    localStorage.setItem('kitBasePrice', basePrice.toString());
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  const handleSave = async () => {
+    try {
+      const res = await fetch('/api/kit-pricing', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ basePrice })
+      });
+      const data = await res.json();
+      if (data?.success) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+        return;
+      }
+    } catch (error) {
+      console.error('Error saving kit base price:', error);
+    }
+  };
+
+  const saveCharts = async (nextShirtUrl, nextPantsUrl) => {
+    try {
+      const res = await fetch('/api/kit-size-charts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shirtChartUrl: nextShirtUrl,
+          pantsChartUrl: nextPantsUrl
+        })
+      });
+      const data = await res.json();
+      if (data?.success) {
+        setChartsSaved(true);
+        setTimeout(() => setChartsSaved(false), 3000);
+      }
+    } catch (error) {
+      console.error('Error saving kit size charts:', error);
+    }
+  };
+
+  const uploadChart = async (file, type) => {
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please upload a valid image (JPG, PNG, GIF, WebP, SVG).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingChart((prev) => ({ ...prev, [type]: true }));
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`/api/upload-site-asset?type=kit-size-${type}`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data?.success && data.url) {
+        if (type === 'shirt') {
+          setShirtChartUrl(data.url);
+          await saveCharts(data.url, pantsChartUrl);
+        } else {
+          setPantsChartUrl(data.url);
+          await saveCharts(shirtChartUrl, data.url);
+        }
+      }
+    } catch (error) {
+      console.error('Error uploading size chart:', error);
+    } finally {
+      setUploadingChart((prev) => ({ ...prev, [type]: false }));
+    }
+  };
+
+  const handleSaveCharts = async () => {
+    await saveCharts(shirtChartUrl, pantsChartUrl);
   };
 
   return (
@@ -145,6 +247,110 @@ export default function KitPricing() {
                 💾 Save Base Price
               </button>
             </div>
+          </div>
+
+          <div className={styles.section}>
+            <h3>Kit Size Charts</h3>
+            <p style={{ color: '#6b7280', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
+              Upload sizing charts for player registration. Each chart is shown when a player selects a shirt or pants size.
+            </p>
+
+            <div style={{
+              display: 'grid',
+              gap: '1.5rem',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))'
+            }}>
+              <div style={{
+                background: 'white',
+                border: '2px solid #e5e7eb',
+                borderRadius: '12px',
+                padding: '1.25rem'
+              }}>
+                <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: '700' }}>Shirt Size Chart</h4>
+                {shirtChartUrl ? (
+                  <img
+                    src={shirtChartUrl}
+                    alt="Shirt size chart"
+                    style={{ width: '100%', borderRadius: '10px', border: '1px solid #e5e7eb', marginBottom: '0.75rem' }}
+                  />
+                ) : (
+                  <div style={{
+                    border: '2px dashed #e5e7eb',
+                    borderRadius: '10px',
+                    padding: '2rem',
+                    textAlign: 'center',
+                    color: '#6b7280',
+                    marginBottom: '0.75rem'
+                  }}>
+                    No chart uploaded yet
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => uploadChart(e.target.files?.[0], 'shirt')}
+                  disabled={uploadingChart.shirt}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div style={{
+                background: 'white',
+                border: '2px solid #e5e7eb',
+                borderRadius: '12px',
+                padding: '1.25rem'
+              }}>
+                <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: '700' }}>Pants Size Chart</h4>
+                {pantsChartUrl ? (
+                  <img
+                    src={pantsChartUrl}
+                    alt="Pants size chart"
+                    style={{ width: '100%', borderRadius: '10px', border: '1px solid #e5e7eb', marginBottom: '0.75rem' }}
+                  />
+                ) : (
+                  <div style={{
+                    border: '2px dashed #e5e7eb',
+                    borderRadius: '10px',
+                    padding: '2rem',
+                    textAlign: 'center',
+                    color: '#6b7280',
+                    marginBottom: '0.75rem'
+                  }}>
+                    No chart uploaded yet
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => uploadChart(e.target.files?.[0], 'pants')}
+                  disabled={uploadingChart.pants}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleSaveCharts}
+              style={{
+                width: '100%',
+                padding: '1rem 1.25rem',
+                marginTop: '1.25rem',
+                background: 'linear-gradient(135deg, #111827 0%, #dc0000 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '1rem',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              💾 Save Size Charts
+            </button>
+            {chartsSaved && (
+              <p style={{ marginTop: '0.75rem', color: '#16a34a', fontWeight: '600' }}>
+                ✓ Size charts updated
+              </p>
+            )}
           </div>
 
           {/* Example Preview */}

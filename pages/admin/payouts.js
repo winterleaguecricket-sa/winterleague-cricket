@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { getAllPayoutRequests, getPendingPayoutRequests, processPayout, rejectPayoutRequest, getTeamById } from '../../data/teams';
 
 export default function AdminPayouts() {
   const [payoutRequests, setPayoutRequests] = useState([]);
@@ -16,11 +15,17 @@ export default function AdminPayouts() {
     loadPayoutRequests();
   }, []);
 
-  const loadPayoutRequests = () => {
-    const requests = getAllPayoutRequests();
-    console.log('Loading payout requests:', requests);
-    console.log('Total requests:', requests.length);
-    setPayoutRequests(requests);
+  const loadPayoutRequests = async () => {
+    try {
+      const res = await fetch('/api/team-finance?action=allPayouts');
+      const data = await res.json();
+      const requests = data.requests || [];
+      console.log('Loading payout requests:', requests);
+      console.log('Total requests:', requests.length);
+      setPayoutRequests(requests);
+    } catch (err) {
+      console.error('Error loading payouts:', err);
+    }
   };
 
   const filteredRequests = payoutRequests.filter(request => {
@@ -35,33 +40,51 @@ export default function AdminPayouts() {
     setShowModal(true);
   };
 
-  const handleProcessPayout = () => {
+  const handleProcessPayout = async () => {
     if (!selectedRequest) return;
 
-    const result = processPayout(selectedRequest.id, notes);
-    
-    if (result) {
-      setMessage(`Payout #${selectedRequest.id} processed successfully!`);
-      loadPayoutRequests();
-      setShowModal(false);
-      setTimeout(() => setMessage(''), 3000);
-    } else {
+    try {
+      const res = await fetch('/api/team-finance', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'processPayout', payoutId: selectedRequest.id, notes })
+      });
+      
+      if (res.ok) {
+        setMessage(`Payout #${selectedRequest.id} processed successfully!`);
+        await loadPayoutRequests();
+        setShowModal(false);
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        setMessage(`Failed to process payout #${selectedRequest.id}`);
+        setTimeout(() => setMessage(''), 3000);
+      }
+    } catch (err) {
       setMessage(`Failed to process payout #${selectedRequest.id}`);
       setTimeout(() => setMessage(''), 3000);
     }
   };
 
-  const handleRejectPayout = () => {
+  const handleRejectPayout = async () => {
     if (!selectedRequest) return;
 
-    const result = rejectPayoutRequest(selectedRequest.id, notes);
-    
-    if (result) {
-      setMessage(`Payout #${selectedRequest.id} rejected`);
-      loadPayoutRequests();
-      setShowModal(false);
-      setTimeout(() => setMessage(''), 3000);
-    } else {
+    try {
+      const res = await fetch('/api/team-finance', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'rejectPayout', payoutId: selectedRequest.id, notes })
+      });
+      
+      if (res.ok) {
+        setMessage(`Payout #${selectedRequest.id} rejected`);
+        await loadPayoutRequests();
+        setShowModal(false);
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        setMessage(`Failed to reject payout #${selectedRequest.id}`);
+        setTimeout(() => setMessage(''), 3000);
+      }
+    } catch (err) {
       setMessage(`Failed to reject payout #${selectedRequest.id}`);
       setTimeout(() => setMessage(''), 3000);
     }

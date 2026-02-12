@@ -139,7 +139,7 @@ export default function DynamicPage() {
               fontWeight: 'bold', 
               color: 'white' 
             }}>
-              🏏 Winter League Cricket
+              Winter League Cricket
             </span>
           </Link>
           <nav style={{ display: 'flex', gap: '20px' }}>

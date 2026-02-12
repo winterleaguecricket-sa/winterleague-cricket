@@ -475,3 +475,79 @@
   color: #dc0000;
   margin: 0.5rem 0;
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .header {
+    padding: 1rem;
+  }
+
+  .headerContent {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .logo {
+    font-size: 1.3rem;
+  }
+
+  .nav {
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .main {
+    padding: 1rem;
+  }
+
+  .funnelsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .funnelCard {
+    padding: 1.25rem;
+  }
+
+  .funnelCardHeader h3 {
+    font-size: 1.15rem;
+  }
+
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.25rem;
+  }
+
+  .tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  .funnelActions {
+    flex-direction: column;
+  }
+
+  .funnelMeta {
+    flex-wrap: wrap;
+  }
+
+  .stepsList {
+    max-height: 150px;
+  }
+}
+
+@media (max-width: 480px) {
+  .main {
+    padding: 0.75rem;
+  }
+
+  .funnelCard {
+    padding: 1rem;
+  }
+
+  .funnelsList h2 {
+    font-size: 1.5rem;
+  }
+}

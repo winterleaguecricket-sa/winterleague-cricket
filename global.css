@@ -1,3 +1,104 @@
+/* Flatpickr theme overrides */
+.flatpickr-calendar {
+  background: rgba(15, 23, 42, 0.98) !important;
+  border: 1px solid rgba(220, 0, 0, 0.35) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.55) !important;
+}
+
+.flatpickr-months {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2) !important;
+}
+
+.flatpickr-current-month,
+.flatpickr-monthDropdown-months,
+.flatpickr-weekday {
+  color: #e2e8f0 !important;
+}
+
+.flatpickr-weekday {
+  font-weight: 600 !important;
+}
+
+.flatpickr-day {
+  color: #e2e8f0 !important;
+  border-radius: 10px !important;
+}
+
+.flatpickr-day:hover {
+  background: rgba(220, 0, 0, 0.18) !important;
+  border-color: rgba(220, 0, 0, 0.4) !important;
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange {
+  background: #dc0000 !important;
+  border-color: #dc0000 !important;
+  color: #fff !important;
+}
+
+.flatpickr-day.today {
+  border-color: rgba(220, 0, 0, 0.8) !important;
+}
+
+.flatpickr-prev-month,
+.flatpickr-next-month {
+  color: #fca5a5 !important;
+}
+
+.flatpickr-monthDropdown-months,
+.numInputWrapper {
+  background: transparent !important;
+}
+
+.flatpickr-monthDropdown-months {
+  color: #e2e8f0 !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+  border-radius: 10px !important;
+  padding: 0.2rem 0.4rem !important;
+  -webkit-appearance: menulist !important;
+  -moz-appearance: menulist !important;
+  appearance: menulist !important;
+  color-scheme: dark;
+}
+
+.flatpickr-monthDropdown-months option {
+  color: #e2e8f0 !important;
+  background: rgba(15, 23, 42, 0.98) !important;
+}
+
+.flatpickr-current-month input.cur-year {
+  color: #e2e8f0 !important;
+  background: rgba(15, 23, 42, 0.9) !important;
+  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+  border-radius: 10px !important;
+  padding: 0.2rem 0.5rem !important;
+  min-width: 4.5rem;
+}
+
+.flatpickr-current-month input.cur-year:focus {
+  outline: none !important;
+  border-color: rgba(220, 0, 0, 0.6) !important;
+  box-shadow: 0 0 0 3px rgba(220, 0, 0, 0.12) !important;
+}
+
+.flatpickr-current-month .numInputWrapper span.arrowUp,
+.flatpickr-current-month .numInputWrapper span.arrowDown {
+  color: #dc0000 !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+}
+
+.flatpickr-current-month .numInputWrapper span.arrowUp::after,
+.flatpickr-current-month .numInputWrapper span.arrowDown::after {
+  border-bottom-color: #dc0000 !important;
+  border-top-color: #dc0000 !important;
+}
+
+.flatpickr-time {
+  border-top: 1px solid rgba(148, 163, 184, 0.2) !important;
+}
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800;900&family=Montserrat:wght@300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
 
 * {

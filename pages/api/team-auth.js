@@ -18,7 +18,7 @@ export default async function handler(req, res) {
         }
 
         const result = await query(
-          `SELECT * FROM teams WHERE LOWER(email) = LOWER($1)`,
+          `SELECT * FROM teams WHERE LOWER(email) = LOWER($1) OR LOWER(team_name) = LOWER($1)`,
           [email]
         );
 

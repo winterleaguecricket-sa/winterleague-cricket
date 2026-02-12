@@ -9,6 +9,7 @@ export default function HomepageEditor() {
   const [editingImage, setEditingImage] = useState(null);
   const [newImage, setNewImage] = useState({ url: '', alt: '' });
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   // Fetch config from API
   const fetchConfig = async () => {
@@ -48,6 +49,30 @@ export default function HomepageEditor() {
   const showMessage = (msg) => {
     setMessage(msg);
     setTimeout(() => setMessage(''), 3000);
+  };
+
+  const uploadGalleryImage = async (file) => {
+    if (!file) return null;
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch('/api/upload-homepage-gallery', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Upload failed');
+      }
+      return data.url;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      showMessage('Failed to upload image');
+      return null;
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleHeroUpdate = async (e) => {
@@ -119,25 +144,31 @@ export default function HomepageEditor() {
 
   const handleAddImage = async (e) => {
     e.preventDefault();
-    if (newImage.url && newImage.alt) {
-      try {
-        const response = await fetch('/api/homepage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newImage)
-        });
-        const data = await response.json();
-        if (data.success) {
-          setConfig(data.config);
-          setNewImage({ url: '', alt: '' });
-          showMessage('Image added successfully!');
-        } else {
-          showMessage('Failed to add image');
-        }
-      } catch (error) {
-        console.error('Error adding image:', error);
-        showMessage('Failed to add image');
+    if (!newImage.url) {
+      showMessage('Please upload an image or enter an image URL');
+      return;
+    }
+    if (!newImage.alt) {
+      showMessage('Please enter alt text for the image');
+      return;
+    }
+    try {
+      const response = await fetch('/api/homepage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newImage)
+      });
+      const data = await response.json();
+      if (data.success) {
+        setConfig(data.config);
+        setNewImage({ url: '', alt: '' });
+        showMessage('Image added successfully!');
+      } else {
+        showMessage('Failed to add image: ' + (data.error || 'Unknown error'));
       }
+    } catch (error) {
+      console.error('Error adding image:', error);
+      showMessage('Failed to add image: ' + error.message);
     }
   };
 
@@ -504,14 +535,13 @@ export default function HomepageEditor() {
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files[0];
                         if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setNewImage({ ...newImage, url: reader.result });
-                          };
-                          reader.readAsDataURL(file);
+                          const url = await uploadGalleryImage(file);
+                          if (url) {
+                            setNewImage({ ...newImage, url });
+                          }
                         }
                       }}
                       style={{ display: 'none' }}
@@ -560,30 +590,33 @@ export default function HomepageEditor() {
 
                 <button 
                   type="submit" 
+                  disabled={uploading}
                   style={{
                     width: '100%',
                     padding: '0.875rem',
-                    background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                    background: uploading ? '#9ca3af' : 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
                     color: 'white',
                     border: 'none',
                     borderRadius: '10px',
                     fontSize: '0.95rem',
                     fontWeight: '700',
-                    cursor: 'pointer',
+                    cursor: uploading ? 'not-allowed' : 'pointer',
                     transition: 'all 0.3s',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 8px 24px rgba(220, 0, 0, 0.4)';
+                    if (!uploading) {
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 8px 24px rgba(220, 0, 0, 0.4)';
+                    }
                   }}
                   onMouseLeave={(e) => {
                     e.target.style.transform = 'translateY(0)';
                     e.target.style.boxShadow = 'none';
                   }}
                 >
-                  ➕ Add Image to Gallery
+                  {uploading ? '⏳ Uploading...' : '➕ Add Image to Gallery'}
                 </button>
               </form>
             </div>
@@ -646,14 +679,13 @@ export default function HomepageEditor() {
                           <input
                             type="file"
                             accept="image/*"
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const file = e.target.files[0];
                               if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setEditingImage({ ...editingImage, url: reader.result });
-                                };
-                                reader.readAsDataURL(file);
+                                const url = await uploadGalleryImage(file);
+                                if (url) {
+                                  setEditingImage({ ...editingImage, url });
+                                }
                               }
                             }}
                             style={{ display: 'none' }}

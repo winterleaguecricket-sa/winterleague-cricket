@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { getAdminSettings } from '../../data/adminSettings';
+// Note: adminSettings uses Node.js fs module - fetch via API instead
 
 export default function EmailConfig() {
   const [activeTab, setActiveTab] = useState('setup'); // setup, test, guide
@@ -33,9 +33,18 @@ export default function EmailConfig() {
   const [updateResult, setUpdateResult] = useState(null);
 
   useEffect(() => {
-    const adminSettings = getAdminSettings();
-    setSettings(adminSettings);
-    setTestSupplierEmail(adminSettings.supplierEmail || '');
+    // Fetch admin settings via API (adminSettings uses Node.js fs, can't run client-side)
+    const loadSettings = async () => {
+      try {
+        const res = await fetch('/api/admin-settings');
+        const adminSettings = await res.json();
+        setSettings(adminSettings);
+        setTestSupplierEmail(adminSettings.supplierEmail || '');
+      } catch (error) {
+        console.error('Error loading admin settings:', error);
+      }
+    };
+    loadSettings();
     
     // Try to load from localStorage (browser-side only)
     if (typeof window !== 'undefined') {
@@ -921,16 +930,52 @@ This is a test email from your Cricket League system.`
               marginBottom: '1.5rem'
             }}>
               <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#92400e', fontWeight: '700' }}>
-                📧 Gmail Setup (Most Common)
+                📧 Gmail Setup (Step-by-Step)
               </h3>
-              <ol style={{ margin: 0, paddingLeft: '1.5rem', fontSize: '0.85rem', color: '#92400e', lineHeight: '1.6' }}>
-                <li>Go to <a href="https://myaccount.google.com/security" target="_blank" style={{ color: '#92400e', fontWeight: '700' }}>Google Account Security</a></li>
-                <li>Enable "2-Step Verification" if not already enabled</li>
-                <li>Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" style={{ color: '#92400e', fontWeight: '700' }}>App Passwords</a></li>
-                <li>Select app: "Mail", Device: "Other (Custom name)"</li>
-                <li>Click "Generate" and copy the 16-character password</li>
-                <li>Use this password in the "SMTP Password" field above</li>
+              <ol style={{ margin: 0, paddingLeft: '1.5rem', fontSize: '0.85rem', color: '#92400e', lineHeight: '1.8' }}>
+                <li><strong>Sign in to Gmail</strong> with the account you want to send emails from</li>
+                <li><strong>Enable 2-Step Verification:</strong>
+                  <ul style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}>
+                    <li>Go to <a href="https://myaccount.google.com" target="_blank" style={{ color: '#1d4ed8', fontWeight: '700' }}>myaccount.google.com</a></li>
+                    <li>Click <strong>"Security"</strong> in the left sidebar</li>
+                    <li>Under "How you sign in to Google", click <strong>"2-Step Verification"</strong></li>
+                    <li>Follow the prompts to enable it (you may need to verify your phone)</li>
+                  </ul>
+                </li>
+                <li><strong>Create an App Password:</strong>
+                  <ul style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}>
+                    <li>Go directly to: <a href="https://myaccount.google.com/apppasswords" target="_blank" style={{ color: '#1d4ed8', fontWeight: '700' }}>myaccount.google.com/apppasswords</a></li>
+                    <li>You may need to sign in again</li>
+                    <li>In the "App name" field, type: <strong>Winter League Cricket</strong></li>
+                    <li>Click <strong>"Create"</strong></li>
+                    <li>A 16-character password will appear (like: <code style={{ background: '#fde68a', padding: '2px 6px', borderRadius: '4px' }}>abcd efgh ijkl mnop</code>)</li>
+                    <li><strong>Copy this password immediately</strong> - you won't see it again!</li>
+                  </ul>
+                </li>
+                <li><strong>Enter your settings above:</strong>
+                  <ul style={{ marginTop: '0.25rem' }}>
+                    <li>SMTP Host: <code style={{ background: '#fde68a', padding: '2px 6px', borderRadius: '4px' }}>smtp.gmail.com</code></li>
+                    <li>SMTP Port: <code style={{ background: '#fde68a', padding: '2px 6px', borderRadius: '4px' }}>465</code></li>
+                    <li>SMTP User: <code style={{ background: '#fde68a', padding: '2px 6px', borderRadius: '4px' }}>your-email@gmail.com</code></li>
+                    <li>SMTP Password: The 16-character app password (without spaces)</li>
+                    <li>From Email: Same as your Gmail address</li>
+                  </ul>
+                </li>
               </ol>
+              <div style={{ 
+                marginTop: '1rem', 
+                padding: '0.75rem', 
+                background: '#fde68a', 
+                borderRadius: '6px',
+                fontSize: '0.8rem'
+              }}>
+                <strong>⚠️ Important:</strong> If you don't see "App passwords" option:
+                <ul style={{ margin: '0.5rem 0 0 1rem', paddingLeft: '0' }}>
+                  <li>Make sure 2-Step Verification is <strong>enabled first</strong></li>
+                  <li>Try accessing App passwords directly: <a href="https://myaccount.google.com/apppasswords" target="_blank" style={{ color: '#1d4ed8' }}>Click here</a></li>
+                  <li>If using a Google Workspace account, your admin may need to enable it</li>
+                </ul>
+              </div>
             </div>
 
             {/* Production Setup */}

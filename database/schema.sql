@@ -23,11 +23,14 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE TABLE IF NOT EXISTS categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255),
+    icon VARCHAR(20),
     parent_id UUID REFERENCES categories(id),
     description TEXT,
     display_order INTEGER DEFAULT 0,
     active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Customers Table
@@ -127,15 +130,28 @@ CREATE TABLE IF NOT EXISTS landing_pages (
 -- Teams Table (for team portal)
 CREATE TABLE IF NOT EXISTS teams (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    form_submission_id UUID,
     team_name VARCHAR(255) UNIQUE NOT NULL,
+    manager_name VARCHAR(255),
+    manager_phone VARCHAR(50),
     email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    contact_person VARCHAR(255),
-    phone VARCHAR(20),
-    registration_fee DECIMAL(10, 2),
-    payment_status VARCHAR(50) DEFAULT 'pending',
+    suburb VARCHAR(255),
+    team_logo TEXT,
+    shirt_design VARCHAR(255),
+    primary_color VARCHAR(50),
+    secondary_color VARCHAR(50),
+    sponsor_logo TEXT,
+    number_of_teams INTEGER DEFAULT 1,
+    age_group_teams JSONB DEFAULT '[]'::jsonb,
+    kit_pricing JSONB DEFAULT '{"basePrice": 150, "markup": 0}'::jsonb,
+    entry_fee JSONB DEFAULT '{"baseFee": 500}'::jsonb,
+    banking_details JSONB DEFAULT '{}'::jsonb,
+    password VARCHAR(255) NOT NULL,
+    submission_data JSONB,
     status VARCHAR(50) DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP
 );
 
 -- Team Players Table
@@ -147,6 +163,18 @@ CREATE TABLE IF NOT EXISTS team_players (
     player_phone VARCHAR(20),
     jersey_size VARCHAR(10),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Player Removal Requests Table
+CREATE TABLE IF NOT EXISTS player_removal_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    team_id UUID REFERENCES teams(id),
+    player_id UUID REFERENCES team_players(id),
+    status VARCHAR(20) DEFAULT 'pending',
+    manager_message TEXT,
+    admin_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Payouts Table
@@ -189,6 +217,8 @@ CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_form_submissions_form_id ON form_submissions(form_id);
 CREATE INDEX IF NOT EXISTS idx_teams_email ON teams(email);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_player_removal_team_id ON player_removal_requests(team_id);
+CREATE INDEX IF NOT EXISTS idx_player_removal_status ON player_removal_requests(status);
 
 -- Update timestamp function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

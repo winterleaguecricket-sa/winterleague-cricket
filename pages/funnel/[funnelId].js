@@ -126,7 +126,7 @@ export default function FunnelPage() {
         background: `linear-gradient(135deg, ${siteConfig.primaryColor} 0%, ${siteConfig.secondaryColor} 100%)`
       }}>
         <div className={styles.headerContent}>
-          <h1 className={styles.logo}>🏏 {siteConfig.storeName}</h1>
+          <h1 className={styles.logo}>{siteConfig.storeName}</h1>
           <nav className={styles.nav}>
             <Link href="/" className={styles.navLink}>Exit Funnel</Link>
             <button onClick={toggleCart} className={styles.cartButton}>

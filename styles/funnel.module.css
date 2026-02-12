@@ -215,16 +215,37 @@
     font-size: 0.85rem;
   }
 
+  .cartButton {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .progressContainer {
+    padding: 1rem;
+  }
+
   .main {
     padding: 1rem;
   }
 
   .stepHeader h1 {
-    font-size: 2rem;
+    font-size: 1.75rem;
   }
 
   .stepDescription {
     font-size: 1rem;
+  }
+
+  .stepContent {
+    padding: 1.5rem;
+    border-radius: 16px;
+  }
+
+  .categoryContent h2,
+  .formContent h2,
+  .pageContent h2,
+  .checkoutContent h2 {
+    font-size: 1.5rem;
   }
 
   .productGrid {
@@ -242,10 +263,29 @@
   .finishButton {
     width: 100%;
     padding: 1rem;
+    margin-left: 0;
   }
 
   .progressText {
     font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .main {
+    padding: 0.75rem;
+  }
+
+  .stepContent {
+    padding: 1rem;
+  }
+
+  .stepHeader {
+    margin-bottom: 2rem;
+  }
+
+  .stepHeader h1 {
+    font-size: 1.5rem;
   }
 }
 

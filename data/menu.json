@@ -13,7 +13,7 @@
       "label": "Premium",
       "href": "/premium",
       "order": 2,
-      "visible": true,
+      "visible": false,
       "parentId": null
     },
     {
@@ -21,7 +21,7 @@
       "label": "Training",
       "href": "/training",
       "order": 3,
-      "visible": true,
+      "visible": false,
       "parentId": null
     },
     {
@@ -29,8 +29,16 @@
       "label": "Forms",
       "href": "/forms",
       "order": 4,
-      "visible": true,
+      "visible": false,
       "parentId": null
+    },
+    {
+      "label": "Forms",
+      "href": "/forms",
+      "parentId": null,
+      "visible": true,
+      "order": 1,
+      "id": 5
     }
   ]
 }

@@ -1,3 +1,6 @@
+// API endpoint to send approval status notification emails
+import nodemailer from 'nodemailer';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -7,55 +10,68 @@ export default async function handler(req, res) {
     const { to, subject, body } = req.body;
 
     if (!to || !subject || !body) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: 'Missing required fields (to, subject, body)' });
     }
 
-    // In a production environment, you would use a service like:
-    // - SendGrid
-    // - AWS SES
-    // - Mailgun
-    // - Nodemailer with SMTP
-    
-    // For development/demo purposes, we'll just log the email
-    console.log('=== EMAIL SENT ===');
-    console.log('To:', to);
-    console.log('Subject:', subject);
-    console.log('Body:', body);
-    console.log('==================');
+    // Get SMTP configuration from environment
+    const host = process.env.SMTP_HOST;
+    const port = process.env.SMTP_PORT;
+    const user = process.env.SMTP_USER;
+    const password = process.env.SMTP_PASSWORD;
+    const rawFromEmail = process.env.SMTP_FROM_EMAIL;
+    const fromEmail = rawFromEmail && rawFromEmail.includes('@') ? rawFromEmail : user;
+    const fromName = process.env.SMTP_FROM_NAME || 'Winter League Cricket';
 
-    // Simulate sending email
-    // In production, replace this with actual email service:
-    /*
-    const nodemailer = require('nodemailer');
-    
+    // Check if email is configured
+    if (!host || !user || !password) {
+      console.log('=== APPROVAL EMAIL (Development Mode) ===');
+      console.log('To:', to);
+      console.log('Subject:', subject);
+      console.log('Body:', body);
+      console.log('==========================================');
+
+      return res.status(200).json({ 
+        success: true,
+        message: 'Email logged (development mode - configure SMTP to send real emails)',
+        emailSent: { to, subject, body }
+      });
+    }
+
+    // Create Nodemailer transporter
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT,
-      secure: true,
+      host: host,
+      port: parseInt(port || '465'),
+      secure: parseInt(port || '465') === 465,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
+        user: user,
+        pass: password
+      }
     });
 
-    await transporter.sendMail({
-      from: process.env.ADMIN_EMAIL,
+    // Verify transporter connection
+    await transporter.verify();
+    console.log('Email server connection verified for approval email');
+
+    // Send the approval status email
+    const info = await transporter.sendMail({
+      from: `"${fromName}" <${fromEmail || user}>`,
       to: to,
       subject: subject,
       text: body,
+      html: body.replace(/\n/g, '<br>')
     });
-    */
+    console.log('Approval email sent:', info.messageId);
 
     return res.status(200).json({ 
       success: true, 
       message: 'Email sent successfully',
-      // For demo purposes, return the email content
-      emailSent: { to, subject, body }
+      messageId: info.messageId
     });
 
   } catch (error) {
-    console.error('Email sending error:', error);
+    console.error('Approval email sending error:', error);
     return res.status(500).json({ 
+      success: false,
       error: 'Failed to send email',
       details: error.message 
     });

@@ -217,12 +217,12 @@ export default function AdminShirtDesigns() {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 100%)' }}>
       <Head>
-        <title>Shirt Design Manager - Admin Panel</title>
+        <title>Kit Design Manager - Admin Panel</title>
       </Head>
 
       <header style={{ background: 'rgba(0,0,0,0.8)', borderBottom: '2px solid #dc0000', padding: '1rem 2rem' }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ color: 'white', fontSize: '1.5rem', margin: 0 }}>👕 Shirt Designs</h1>
+          <h1 style={{ color: 'white', fontSize: '1.5rem', margin: 0 }}>👕 Kit Designs</h1>
           <Link href="/admin" style={{ color: '#dc0000', textDecoration: 'none', fontWeight: '600', fontSize: '0.95rem' }}>
             ← Back to Admin
           </Link>
@@ -502,11 +502,11 @@ export default function AdminShirtDesigns() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
           {loading ? (
             <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: '#dc0000' }}>
-              Loading shirt designs...
+              Loading kit designs...
             </div>
           ) : designs.length === 0 ? (
             <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: '#666' }}>
-              No shirt designs yet. Click "Add New Design" to create one.
+              No kit designs yet. Click "Add New Design" to create one.
             </div>
           ) : (
             designs.map(design => (

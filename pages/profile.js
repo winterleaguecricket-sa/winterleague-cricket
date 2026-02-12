@@ -1,9 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../styles/channel.module.css';
-import { verifyCredentials, getProfileByEmail, resetPassword, generateResetCode } from '../data/customers';
-import { getOrdersByEmail } from '../data/orders';
 
 export default function CustomerProfile() {
   const [email, setEmail] = useState('');
@@ -11,6 +9,14 @@ export default function CustomerProfile() {
   const [profile, setProfile] = useState(null);
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [adminViewTab, setAdminViewTab] = useState('directory');
+  const [allCustomers, setAllCustomers] = useState([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState(null);
+  const [showDirectory, setShowDirectory] = useState(false);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [previousProfile, setPreviousProfile] = useState(null);
+  const [previousOrders, setPreviousOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
@@ -30,36 +36,142 @@ export default function CustomerProfile() {
     cancelled: '#ef4444'
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     
-    const result = verifyCredentials(email, password);
-    if (result.authenticated) {
-      setProfile(result.profile);
-      const customerOrders = getOrdersByEmail(email);
-      setOrders(customerOrders);
-    } else {
-      setError(result.error);
+    try {
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', email, password })
+      });
+      const result = await res.json();
+      if (result.authenticated) {
+        setProfile(result.profile);
+        // Load orders via API
+        const ordersRes = await fetch(`/api/orders?email=${encodeURIComponent(email)}`);
+        const ordersData = await ordersRes.json();
+        setOrders(ordersData.orders || []);
+      } else {
+        setError(result.error || 'Invalid email or password');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('An error occurred during login. Please try again.');
     }
   };
 
-  const handleForgotPasswordSubmit = (e) => {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const adminBypass = urlParams.get('admin') === 'true';
+
+    if (adminBypass) {
+      setIsAdminMode(true);
+      setShowDirectory(true);
+      setAdminViewTab('directory');
+      const loadCustomers = async () => {
+        try {
+          const res = await fetch('/api/customers');
+          if (!res.ok) return;
+          const data = await res.json();
+          const list = Array.isArray(data.customers) ? data.customers : [];
+          setAllCustomers(list);
+        } catch (err) {
+          console.error('Failed to load customers:', err);
+        }
+      };
+      loadCustomers();
+    }
+  }, []);
+
+  const handleCustomerSelect = async (customer) => {
+    setIsPreviewMode(false);
+    setSelectedCustomerId(customer.id);
+    setProfile(customer);
+    // Load orders via API
+    try {
+      const ordersRes = await fetch(`/api/orders?email=${encodeURIComponent(customer.email)}`);
+      const ordersData = await ordersRes.json();
+      setOrders(ordersData.orders || []);
+    } catch (err) {
+      console.error('Error loading orders:', err);
+      setOrders([]);
+    }
+    setShowDirectory(false);
+    setAdminViewTab('profile');
+  };
+
+  const previewProfile = {
+    id: null,
+    firstName: 'Preview',
+    lastName: 'Customer',
+    email: 'preview@winterleaguecricket.co.za',
+    phone: '0800000000',
+    createdAt: new Date().toISOString()
+  };
+
+  const enterPreviewMode = () => {
+    if (!isPreviewMode) {
+      setPreviousProfile(profile);
+      setPreviousOrders(orders);
+    }
+    setIsPreviewMode(true);
+    setProfile(previewProfile);
+    setOrders([]);
+    setSelectedCustomerId(null);
+  };
+
+  const exitPreviewMode = () => {
+    if (isPreviewMode) {
+      setIsPreviewMode(false);
+      setProfile(previousProfile);
+      setOrders(previousOrders);
+      if (previousProfile?.id) {
+        setSelectedCustomerId(previousProfile.id);
+      }
+    }
+  };
+
+  const handleAdminTabChange = (tab) => {
+    if (tab === 'profile' && !selectedCustomerId && !previousProfile) return;
+    setAdminViewTab(tab);
+    if (tab === 'preview') {
+      enterPreviewMode();
+      setShowDirectory(false);
+    } else if (tab === 'directory') {
+      exitPreviewMode();
+      setShowDirectory(true);
+    } else {
+      exitPreviewMode();
+      setShowDirectory(false);
+    }
+  };
+
+  const handleForgotPasswordSubmit = async (e) => {
     e.preventDefault();
     setResetError('');
     
     if (resetStep === 'email') {
-      // Generate and send verification code
-      const result = generateResetCode(resetEmail);
-      if (!result.success) {
-        setResetError(result.error);
-        return;
+      try {
+        const res = await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'generate-reset-code', email: resetEmail })
+        });
+        const result = await res.json();
+        if (!result.success) {
+          setResetError(result.error);
+          return;
+        }
+        setGeneratedCode(result.code);
+        setResetMessage(`A 6-digit verification code has been sent to ${resetEmail}. Please check your email.`);
+        setResetStep('verification');
+      } catch (err) {
+        setResetError('An error occurred. Please try again.');
       }
-      setGeneratedCode(result.code); // Only for demo - remove in production
-      setResetMessage(`A 6-digit verification code has been sent to ${resetEmail}. Please check your email.`);
-      setResetStep('verification');
     } else if (resetStep === 'verification') {
-      // Verify code before proceeding
       if (verificationCode.length !== 6) {
         setResetError('Please enter the 6-digit verification code.');
         return;
@@ -67,7 +179,6 @@ export default function CustomerProfile() {
       setResetMessage('');
       setResetStep('newPassword');
     } else if (resetStep === 'newPassword') {
-      // Reset password with verification
       if (newPassword !== confirmPassword) {
         setResetError('Passwords do not match.');
         return;
@@ -78,22 +189,31 @@ export default function CustomerProfile() {
         return;
       }
       
-      const result = resetPassword(resetEmail, newPassword, verificationCode);
-      if (result.success) {
-        setResetMessage('Password reset successful! You can now login with your new password.');
-        setTimeout(() => {
-          setShowForgotPassword(false);
-          setResetStep('email');
-          setResetEmail('');
-          setVerificationCode('');
-          setNewPassword('');
-          setConfirmPassword('');
-          setResetMessage('');
-          setResetError('');
-          setGeneratedCode('');
-        }, 3000);
-      } else {
-        setResetError(result.error);
+      try {
+        const res = await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'reset-password', email: resetEmail, newPassword, verificationCode })
+        });
+        const result = await res.json();
+        if (result.success) {
+          setResetMessage('Password reset successful! You can now login with your new password.');
+          setTimeout(() => {
+            setShowForgotPassword(false);
+            setResetStep('email');
+            setResetEmail('');
+            setVerificationCode('');
+            setNewPassword('');
+            setConfirmPassword('');
+            setResetMessage('');
+            setResetError('');
+            setGeneratedCode('');
+          }, 3000);
+        } else {
+          setResetError(result.error);
+        }
+      } catch (err) {
+        setResetError('An error occurred. Please try again.');
       }
     }
   };
@@ -125,7 +245,7 @@ export default function CustomerProfile() {
     return `R ${amount.toFixed(2)}`;
   };
 
-  if (!profile) {
+  if (!profile && !isAdminMode) {
     return (
       <div className={styles.container}>
         <Head>
@@ -135,7 +255,7 @@ export default function CustomerProfile() {
         <header className={styles.header}>
           <div className={styles.headerContent}>
             <Link href="/" className={styles.logoLink}>
-              <h1 className={styles.logo}>🏏 Winter League Cricket</h1>
+              <h1 className={styles.logo}>Winter League Cricket</h1>
             </Link>
             <nav className={styles.nav}>
               <Link href="/" className={styles.navLink}>Home</Link>
@@ -352,6 +472,167 @@ export default function CustomerProfile() {
     );
   }
 
+  if (isAdminMode && adminViewTab === 'directory') {
+    return (
+      <div className={styles.container}>
+        <Head>
+          <title>Customer Portal - Admin Preview</title>
+        </Head>
+
+        <header className={styles.header}>
+          <div className={styles.headerContent}>
+            <Link href="/" className={styles.logoLink}>
+              <h1 className={styles.logo}>Winter League Cricket</h1>
+            </Link>
+            <nav className={styles.nav}>
+              <Link href="/admin/profile" className={styles.navLink}>Back to Admin</Link>
+            </nav>
+          </div>
+        </header>
+
+        <main className={styles.main}>
+          <div style={{ maxWidth: '1200px', margin: '2rem auto 1rem' }}>
+            <div style={{
+              background: '#0b0b0b',
+              borderRadius: '16px',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
+              overflow: 'hidden',
+              border: '1px solid rgba(220, 0, 0, 0.3)',
+              marginBottom: '1.5rem'
+            }}>
+              <div style={{
+                padding: '1rem 1.75rem',
+                background: '#0f0f0f',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+              }}>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  {[
+                    { key: 'directory', label: 'Directory' },
+                    { key: 'preview', label: 'Preview' },
+                    { key: 'profile', label: 'Selected Customer' }
+                  ].map((tab) => {
+                    const isDisabled = tab.key === 'profile' && !selectedCustomerId;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => handleAdminTabChange(tab.key)}
+                        disabled={isDisabled}
+                        style={{
+                          padding: '0.55rem 1.2rem',
+                          background: adminViewTab === tab.key ? 'linear-gradient(135deg, #000000 0%, #dc0000 100%)' : 'rgba(255,255,255,0.08)',
+                          color: adminViewTab === tab.key ? '#ffffff' : '#e5e7eb',
+                          border: 'none',
+                          borderRadius: '999px',
+                          fontSize: '0.85rem',
+                          fontWeight: '700',
+                          cursor: isDisabled ? 'not-allowed' : 'pointer',
+                          opacity: isDisabled ? 0.5 : 1
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ maxWidth: '1200px', margin: '2rem auto' }}>
+            <div style={{
+              background: '#0b0b0b',
+              borderRadius: '16px',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
+              overflow: 'hidden',
+              border: '1px solid rgba(220, 0, 0, 0.3)'
+            }}>
+              <div style={{
+                padding: '1.5rem 1.75rem',
+                background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                color: '#ffffff',
+                fontWeight: '900',
+                fontSize: '1.4rem',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+              }}>
+                Customer Directory
+                <span style={{
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  color: '#ffffff',
+                  marginLeft: '0.75rem',
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  padding: '0.3rem 0.85rem',
+                  borderRadius: '999px'
+                }}>
+                  {allCustomers.length} customers
+                </span>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      {['Customer', 'Email', 'Phone', 'Member Since', 'Orders'].map((label) => (
+                        <th key={label} style={{
+                          background: '#111827',
+                          padding: '1.25rem',
+                          textAlign: 'left',
+                          fontWeight: '800',
+                          color: '#ffffff',
+                          borderBottom: '1px solid rgba(220, 0, 0, 0.4)',
+                          textTransform: 'uppercase',
+                          fontSize: '0.85rem',
+                          letterSpacing: '0.5px',
+                          whiteSpace: 'nowrap'
+                        }}>{label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allCustomers.length === 0 && (
+                      <tr>
+                        <td colSpan={5} style={{
+                          padding: '1.5rem',
+                          color: '#9ca3af',
+                          textAlign: 'center'
+                        }}>
+                          No customers found.
+                        </td>
+                      </tr>
+                    )}
+                    {allCustomers.map((customer) => (
+                      <tr
+                        key={customer.id}
+                        onClick={() => handleCustomerSelect(customer)}
+                        style={{ cursor: 'pointer' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(220, 0, 0, 0.12)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#f3f4f6', fontWeight: '700' }}>
+                          {customer.firstName || 'Customer'} {customer.lastName || ''}
+                        </td>
+                        <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#9ca3af' }}>
+                          {customer.email || '—'}
+                        </td>
+                        <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#9ca3af' }}>
+                          {customer.phone || '—'}
+                        </td>
+                        <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#9ca3af' }}>
+                          {customer.createdAt ? formatDate(customer.createdAt) : '—'}
+                        </td>
+                        <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#9ca3af' }}>
+                          {customer.orders ? customer.orders.length : 0}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
       <Head>
@@ -361,13 +642,21 @@ export default function CustomerProfile() {
       <header className={styles.header}>
         <div className={styles.headerContent}>
           <Link href="/" className={styles.logoLink}>
-            <h1 className={styles.logo}>🏏 Winter League Cricket</h1>
+            <h1 className={styles.logo}>Winter League Cricket</h1>
           </Link>
           <nav className={styles.nav}>
             <Link href="/" className={styles.navLink}>Home</Link>
             <Link href="/premium" className={styles.navLink}>Shop</Link>
             <button 
               onClick={() => {
+                if (isAdminMode) {
+                  setShowDirectory(true);
+                  setAdminViewTab('directory');
+                  setProfile(null);
+                  setOrders([]);
+                  setSelectedCustomerId(null);
+                  return;
+                }
                 setProfile(null);
                 setOrders([]);
                 setEmail('');
@@ -391,6 +680,53 @@ export default function CustomerProfile() {
       </header>
 
       <main className={styles.main}>
+        {isAdminMode && (
+          <div style={{ maxWidth: '1200px', margin: '2rem auto 1rem' }}>
+            <div style={{
+              background: '#0b0b0b',
+              borderRadius: '16px',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
+              overflow: 'hidden',
+              border: '1px solid rgba(220, 0, 0, 0.3)'
+            }}>
+              <div style={{
+                padding: '1rem 1.75rem',
+                background: '#0f0f0f',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+              }}>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  {[
+                    { key: 'directory', label: 'Directory' },
+                    { key: 'preview', label: 'Preview' },
+                    { key: 'profile', label: 'Selected Customer' }
+                  ].map((tab) => {
+                    const isDisabled = tab.key === 'profile' && !selectedCustomerId && !previousProfile;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => handleAdminTabChange(tab.key)}
+                        disabled={isDisabled}
+                        style={{
+                          padding: '0.55rem 1.2rem',
+                          background: adminViewTab === tab.key ? 'linear-gradient(135deg, #000000 0%, #dc0000 100%)' : 'rgba(255,255,255,0.08)',
+                          color: adminViewTab === tab.key ? '#ffffff' : '#e5e7eb',
+                          border: 'none',
+                          borderRadius: '999px',
+                          fontSize: '0.85rem',
+                          fontWeight: '700',
+                          cursor: isDisabled ? 'not-allowed' : 'pointer',
+                          opacity: isDisabled ? 0.5 : 1
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Profile Header */}
         <div style={{
           background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
@@ -406,6 +742,11 @@ export default function CustomerProfile() {
           <p style={{ margin: '0.5rem 0 0 0', opacity: 0.9 }}>
             {profile.email}
           </p>
+          {isPreviewMode && (
+            <p style={{ margin: '0.5rem 0 0 0', opacity: 0.9, fontSize: '0.85rem' }}>
+              Preview Mode
+            </p>
+          )}
         </div>
 
         {/* Profile Info */}

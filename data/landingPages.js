@@ -14,22 +14,22 @@ let landingPages = {
     },
     features: [
       {
-        icon: '👥',
+        icon: 'teams',
         title: 'Multi-Team Support',
         description: 'Register up to 20 age group teams under one organization'
       },
       {
-        icon: '🎽',
+        icon: 'palette',
         title: 'Custom Kit Design',
         description: 'Choose from our library of shirt designs and customize your team colors'
       },
       {
-        icon: '💰',
+        icon: 'trending',
         title: 'Flexible Pricing',
         description: 'Set your own markup and entry fees for your team members'
       },
       {
-        icon: '📊',
+        icon: 'compass',
         title: 'Team Portal',
         description: 'Access your dashboard to manage players, fixtures, and revenue'
       }

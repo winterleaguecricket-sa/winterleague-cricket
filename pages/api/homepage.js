@@ -42,6 +42,14 @@ const defaultConfig = {
     enabled: true,
     text: '🎉 FREE SHIPPING on orders over R500! 🎉',
   },
+  siteAccess: {
+    comingSoonEnabled: false,
+    title: 'We’re getting things ready',
+    subtitle: 'Thanks for your patience. We’re working on something great and will be live soon.',
+    logoUrl: '',
+    mediaType: 'none',
+    mediaUrl: '',
+  },
 };
 
 // Load data from file
@@ -50,6 +58,11 @@ function loadData() {
     if (fs.existsSync(DATA_FILE)) {
       const fileData = fs.readFileSync(DATA_FILE, 'utf8');
       const data = JSON.parse(fileData);
+      if (!data.siteAccess) {
+        data.siteAccess = { ...defaultConfig.siteAccess };
+      } else {
+        data.siteAccess = { ...defaultConfig.siteAccess, ...data.siteAccess };
+      }
       // Ensure imageIdCounter exists
       if (!data.gallery.imageIdCounter) {
         data.gallery.imageIdCounter = Math.max(...data.gallery.images.map(img => img.id), 0) + 1;
@@ -99,6 +112,8 @@ export default function handler(req, res) {
         data.banner = { ...data.banner, ...updates };
       } else if (section === 'channels') {
         data.channels = { ...data.channels, ...updates };
+      } else if (section === 'siteAccess') {
+        data.siteAccess = { ...data.siteAccess, ...updates };
       } else if (section === 'gallery') {
         // Only update gallery settings, not images
         data.gallery = { 

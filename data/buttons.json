@@ -2,32 +2,25 @@
   "buttons": [
     {
       "id": 1,
-      "name": "Shop Premium",
+      "name": "Team Registration",
       "location": "hero-primary",
-      "href": "/premium",
-      "funnelId": null,
-      "visible": true,
-      "order": 1
-    },
-    {
-      "id": 2,
-      "name": "Training Gear",
-      "location": "hero-secondary",
-      "href": "/training",
-      "funnelId": null,
-      "visible": true,
-      "order": 2
-    },
-    {
-      "id": 3,
-      "name": "Premium Equipment",
-      "location": "channel-premium",
-      "href": "/premium",
+      "href": "/forms?formId=1",
       "funnelId": null,
       "visible": true,
       "order": 1,
-      "icon": "⭐",
-      "description": "Professional grade gear for serious players"
+      "icon": "",
+      "description": "Register your team for WL 2026"
+    },
+    {
+      "id": 3,
+      "name": "Team Registration",
+      "location": "channel-premium",
+      "href": "/forms",
+      "funnelId": null,
+      "visible": true,
+      "order": 1,
+      "icon": "",
+      "description": "Register your team for WL 2026"
     },
     {
       "id": 4,

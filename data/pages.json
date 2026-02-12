@@ -1,0 +1,186 @@
+{
+  "pages": [
+    {
+      "id": 1,
+      "title": "About Us",
+      "slug": "about",
+      "category": "company",
+      "content": "# About Winter League Cricket\n\nWelcome to **Winter League Cricket**, South Africa's premier destination for cricket excellence.\n\n## Our Story\n\nFounded with a passion for the gentleman's game, Winter League Cricket has been serving cricket enthusiasts across South Africa since our inception. We believe in making quality cricket accessible to everyone, from beginners taking their first steps to seasoned professionals perfecting their craft.\n\n## Our Mission\n\nTo foster the growth of cricket in South Africa by providing:\n- **Quality Equipment** at competitive prices\n- **Professional Training** programs for all skill levels\n- **Community Events** that bring players together\n- **Youth Development** initiatives to nurture future talent\n\n## What Sets Us Apart\n\n- 🏏 **Expert Knowledge** - Our team comprises former players and coaches\n- ⭐ **Quality Assurance** - We only stock equipment we'd use ourselves\n- 🚚 **Fast Delivery** - Nationwide shipping within 3-5 business days\n- 💯 **Customer First** - Your satisfaction is our top priority\n\n## Contact Us\n\nHave questions? We'd love to hear from you!\n- **Email**: info@winterleaguecricket.co.za\n- **Phone**: +27 12 345 6789\n- **Address**: Pretoria, Gauteng, South Africa",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-13T15:58:36.672Z"
+    },
+    {
+      "id": 2,
+      "title": "Careers",
+      "slug": "careers",
+      "category": "company",
+      "content": "# Join Our Team\n\nAt Winter League Cricket, we're always looking for passionate individuals who share our love for the game.\n\n## Current Openings\n\nWe're currently building our team. Check back soon for exciting opportunities in:\n- Sales & Customer Service\n- Marketing & Social Media\n- Logistics & Operations\n- Coaching & Training\n\n## Why Work With Us?\n\n- 🏏 Work in an industry you love\n- 📈 Growth opportunities\n- 👥 Supportive team environment\n- 🎯 Make a real impact in SA cricket\n\n## How to Apply\n\nSend your CV and a brief cover letter to **careers@winterleaguecricket.co.za**\n\nTell us why you're passionate about cricket and how you can contribute to our mission!",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 3,
+      "title": "Press & Media",
+      "slug": "press",
+      "category": "company",
+      "content": "# Press & Media\n\n## Media Enquiries\n\nFor press enquiries, interviews, or media partnerships, please contact our communications team:\n\n**Email**: media@winterleaguecricket.co.za\n\n## Press Kit\n\nDownload our press kit for logos, brand guidelines, and company information.\n\n## Recent News\n\nStay tuned for exciting announcements about:\n- New product launches\n- Community events\n- Partnership announcements\n- Player sponsorships\n\n## Social Media\n\nFollow us on social media for the latest updates:\n- Facebook: @WinterLeagueCricket\n- Instagram: @winterleaguecricket\n- Twitter: @WLCricket",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 4,
+      "title": "Blog",
+      "slug": "blog",
+      "category": "company",
+      "content": "# Cricket Blog\n\nWelcome to the Winter League Cricket blog - your source for cricket tips, news, and insights.\n\n## Latest Articles\n\n*Coming soon!*\n\nWe're working on bringing you great content including:\n- **Equipment Guides** - How to choose the right gear\n- **Training Tips** - Improve your game\n- **Match Reports** - Coverage of local cricket\n- **Player Interviews** - Stories from the community\n\n## Subscribe\n\nWant to be notified when new articles are published? Sign up to our newsletter!\n\n## Contribute\n\nAre you a cricket enthusiast with insights to share? We welcome guest contributions. Contact us at blog@winterleaguecricket.co.za",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 5,
+      "title": "Contact Us",
+      "slug": "contact",
+      "category": "company",
+      "content": "# Contact Us\n\nWe'd love to hear from you! Get in touch with Winter League Cricket.\n\n## Contact Information\n\n**Email**: info@winterleaguecricket.co.za\n**Phone**: +27 12 345 6789\n**WhatsApp**: +27 82 123 4567\n\n## Business Hours\n\nMonday - Friday: 8:00 AM - 5:00 PM\nSaturday: 9:00 AM - 1:00 PM\nSunday: Closed\n\n## Location\n\nPretoria, Gauteng\nSouth Africa\n\n## Quick Links\n\n- **Orders**: orders@winterleaguecricket.co.za\n- **Support**: support@winterleaguecricket.co.za\n- **Partnerships**: partners@winterleaguecricket.co.za\n\n## Response Time\n\nWe aim to respond to all enquiries within 24 business hours.",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 6,
+      "title": "Help Center",
+      "slug": "help",
+      "category": "customer-service",
+      "content": "# Help Center\n\nWelcome to our Help Center. Find answers to common questions below.\n\n## Popular Topics\n\n### Orders\n- How do I place an order?\n- Can I modify my order after placing it?\n- How do I track my order?\n\n### Payments\n- What payment methods do you accept?\n- Is it safe to pay online?\n- When will I be charged?\n\n### Delivery\n- How long does delivery take?\n- Do you deliver nationwide?\n- What are the shipping costs?\n\n### Returns\n- What is your return policy?\n- How do I initiate a return?\n- When will I receive my refund?\n\n## Still Need Help?\n\nContact our support team:\n- **Email**: support@winterleaguecricket.co.za\n- **Phone**: +27 12 345 6789\n- **Hours**: Mon-Fri, 8AM-5PM",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 7,
+      "title": "Shipping Information",
+      "slug": "shipping",
+      "category": "customer-service",
+      "content": "# Shipping Information\n\n## Delivery Areas\n\nWe deliver nationwide across South Africa.\n\n## Shipping Rates\n\n| Region | Standard | Express |\n|--------|----------|---------|\n| Gauteng | R50 | R100 |\n| Other Provinces | R80 | R150 |\n| Remote Areas | R120 | R200 |\n\n**FREE SHIPPING** on orders over R500!\n\n## Delivery Times\n\n- **Standard**: 3-5 business days\n- **Express**: 1-2 business days\n\n## Order Processing\n\nOrders placed before 12:00 PM are processed the same day.\n\n## Tracking\n\nOnce shipped, you'll receive a tracking number via email and SMS.\n\n## Collection\n\nFree collection available from our Pretoria location.\n\n## International Shipping\n\nCurrently, we only ship within South Africa. International shipping coming soon!",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 8,
+      "title": "Returns & Exchanges",
+      "slug": "returns",
+      "category": "customer-service",
+      "content": "# Returns & Exchanges\n\n## Return Policy\n\nWe want you to be completely satisfied with your purchase. If you're not happy, we're here to help.\n\n### Eligibility\n\n- Items must be returned within **30 days** of delivery\n- Products must be unused and in original packaging\n- Proof of purchase required\n\n### Non-Returnable Items\n\n- Used or damaged equipment\n- Personalized items\n- Clearance items marked as final sale\n\n## How to Return\n\n1. Email support@winterleaguecricket.co.za with your order number\n2. Receive a Return Authorization (RA) number\n3. Pack items securely with RA number visible\n4. Ship to our returns address\n\n## Refunds\n\n- Refunds processed within 5-7 business days\n- Original payment method will be credited\n- Shipping costs are non-refundable\n\n## Exchanges\n\nWant a different size or product? We offer free exchanges on eligible items.",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 9,
+      "title": "Track Order",
+      "slug": "track-order",
+      "category": "customer-service",
+      "content": "# Track Your Order\n\n## How to Track\n\nEnter your order number and email address to track your shipment.\n\n*Tracking functionality coming soon!*\n\n## Order Statuses\n\n- **Processing**: We're preparing your order\n- **Shipped**: Your order is on its way\n- **Out for Delivery**: Arriving today\n- **Delivered**: Order complete\n\n## Tracking Number\n\nYour tracking number is sent via:\n- Email confirmation\n- SMS notification\n\n## Delivery Issues?\n\nIf your order hasn't arrived within the expected timeframe, please contact us:\n- **Email**: orders@winterleaguecricket.co.za\n- **Phone**: +27 12 345 6789\n\nHave your order number ready for faster assistance.",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 10,
+      "title": "FAQ",
+      "slug": "faq",
+      "category": "customer-service",
+      "content": "# Frequently Asked Questions\n\n## Orders & Payment\n\n**Q: What payment methods do you accept?**\nA: We accept credit/debit cards (Visa, Mastercard), PayFast, and EFT.\n\n**Q: Can I cancel my order?**\nA: Orders can be cancelled within 1 hour of placing. Contact us immediately.\n\n**Q: Is my payment information secure?**\nA: Yes, we use industry-standard SSL encryption.\n\n## Shipping\n\n**Q: How long does delivery take?**\nA: Standard delivery is 3-5 business days. Express is 1-2 days.\n\n**Q: Do you offer free shipping?**\nA: Yes, on orders over R500!\n\n## Products\n\n**Q: Are your products genuine?**\nA: Absolutely. We only stock authentic, quality equipment.\n\n**Q: Do you offer warranties?**\nA: Yes, manufacturer warranties apply to all products.\n\n## Returns\n\n**Q: What is your return policy?**\nA: 30-day returns on unused items in original packaging.\n\n**Q: How long do refunds take?**\nA: Refunds are processed within 5-7 business days.",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 11,
+      "title": "Privacy Policy",
+      "slug": "privacy",
+      "category": "legal",
+      "content": "# Privacy Policy\n\n**Last Updated**: January 2025\n\n## Introduction\n\nWinter League Cricket (\"we\", \"our\", \"us\") respects your privacy and is committed to protecting your personal data.\n\n## Information We Collect\n\n### Personal Information\n- Name and contact details\n- Billing and shipping addresses\n- Payment information\n- Order history\n\n### Automatically Collected\n- IP address\n- Browser type\n- Device information\n- Usage data\n\n## How We Use Your Data\n\n- Process and fulfill orders\n- Communicate about your orders\n- Send marketing communications (with consent)\n- Improve our services\n- Comply with legal obligations\n\n## Data Sharing\n\nWe do not sell your personal data. We share data only with:\n- Payment processors\n- Delivery partners\n- Legal authorities when required\n\n## Your Rights\n\nYou have the right to:\n- Access your personal data\n- Correct inaccurate data\n- Request deletion\n- Withdraw consent\n\n## Contact\n\nFor privacy enquiries: privacy@winterleaguecricket.co.za",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 12,
+      "title": "Terms of Service",
+      "slug": "terms",
+      "category": "legal",
+      "content": "# Terms of Service\n\n**Effective Date**: January 2025\n\n## Agreement\n\nBy accessing Winter League Cricket, you agree to these Terms of Service.\n\n## Use of Service\n\nYou agree to:\n- Provide accurate information\n- Maintain account security\n- Use the service lawfully\n\n## Orders\n\n- Prices are in South African Rand (ZAR)\n- We reserve the right to cancel orders\n- Availability is not guaranteed until payment confirmed\n\n## Intellectual Property\n\nAll content on this site is owned by Winter League Cricket. You may not reproduce without permission.\n\n## Limitation of Liability\n\nWe are not liable for:\n- Indirect or consequential damages\n- Loss of data or profits\n- Third-party actions\n\n## Governing Law\n\nThese terms are governed by South African law.\n\n## Changes\n\nWe may update these terms. Continued use constitutes acceptance.\n\n## Contact\n\nQuestions? Email legal@winterleaguecricket.co.za",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 13,
+      "title": "Cookie Policy",
+      "slug": "cookies",
+      "category": "legal",
+      "content": "# Cookie Policy\n\n## What Are Cookies?\n\nCookies are small text files stored on your device when you visit our website.\n\n## Cookies We Use\n\n### Essential Cookies\nRequired for the website to function. Cannot be disabled.\n- Session management\n- Shopping cart\n- Security\n\n### Analytics Cookies\nHelp us understand how visitors use our site.\n- Page views\n- Traffic sources\n- User behavior\n\n### Marketing Cookies\nUsed to deliver relevant advertisements.\n- Ad preferences\n- Remarketing\n\n## Managing Cookies\n\nYou can control cookies through your browser settings:\n- Chrome: Settings > Privacy\n- Firefox: Options > Privacy\n- Safari: Preferences > Privacy\n\n## Third-Party Cookies\n\nWe use services that may set cookies:\n- Google Analytics\n- Payment processors\n\n## Contact\n\nQuestions about cookies? Email privacy@winterleaguecricket.co.za",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 14,
+      "title": "Accessibility",
+      "slug": "accessibility",
+      "category": "legal",
+      "content": "# Accessibility Statement\n\n## Our Commitment\n\nWinter League Cricket is committed to ensuring digital accessibility for people with disabilities.\n\n## Standards\n\nWe aim to conform to WCAG 2.1 Level AA guidelines.\n\n## Features\n\nOur site includes:\n- Keyboard navigation\n- Alt text for images\n- Sufficient color contrast\n- Resizable text\n- Clear headings and structure\n\n## Ongoing Efforts\n\nWe continually:\n- Review our content\n- Train our staff\n- Test with assistive technologies\n- Address feedback promptly\n\n## Known Issues\n\nWe're working to resolve:\n- Some PDF documents may not be fully accessible\n- Certain interactive features are being improved\n\n## Feedback\n\nEncountered an accessibility barrier? Let us know:\n- **Email**: accessibility@winterleaguecricket.co.za\n- **Phone**: +27 12 345 6789\n\nWe'll respond within 5 business days.",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 15,
+      "title": "Disclaimer",
+      "slug": "disclaimer",
+      "category": "legal",
+      "content": "# Disclaimer\n\n## General Information\n\nThe information on this website is for general informational purposes only.\n\n## No Warranties\n\nWe make no representations about:\n- Accuracy of information\n- Completeness of content\n- Suitability for any purpose\n\n## External Links\n\nLinks to third-party sites are provided for convenience. We are not responsible for their content.\n\n## Product Information\n\n- Product images are for illustration\n- Specifications may change\n- Prices subject to change without notice\n\n## Professional Advice\n\nContent on this site does not constitute professional advice. Consult appropriate professionals for specific guidance.\n\n## Limitation\n\nTo the maximum extent permitted by law, we exclude all liability for any loss or damage.\n\n## Changes\n\nWe may update this disclaimer at any time without notice.\n\n## Contact\n\nQuestions? Email legal@winterleaguecricket.co.za",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 16,
+      "title": "Sitemap",
+      "slug": "sitemap",
+      "category": "resources",
+      "content": "# Sitemap\n\n## Main Pages\n- [Home](/)\n- [Premium Equipment](/premium)\n- [Training Gear](/training)\n- [Forms](/forms)\n\n## Company\n- [About Us](/about)\n- [Careers](/careers)\n- [Press & Media](/press)\n- [Blog](/blog)\n- [Contact Us](/contact)\n\n## Customer Service\n- [Help Center](/help)\n- [Shipping Information](/shipping)\n- [Returns & Exchanges](/returns)\n- [Track Order](/track-order)\n- [FAQ](/faq)\n\n## Legal\n- [Privacy Policy](/privacy)\n- [Terms of Service](/terms)\n- [Cookie Policy](/cookies)\n- [Accessibility](/accessibility)\n- [Disclaimer](/disclaimer)\n\n## Resources\n- [Partners](/partners)\n- [Affiliate Program](/affiliates)\n- [Developers](/developers)\n- [Sustainability](/sustainability)",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 17,
+      "title": "Partners",
+      "slug": "partners",
+      "category": "resources",
+      "content": "# Our Partners\n\n## Strategic Partnerships\n\nWinter League Cricket partners with leading organizations to bring you the best cricket experience.\n\n## Become a Partner\n\nInterested in partnering with us? We're looking for:\n\n### Retail Partners\nStock our products in your store.\n\n### Coaching Partners\nCollaborate on training programs.\n\n### Event Partners\nSponsor and host cricket events.\n\n### Equipment Partners\nSupply quality cricket gear.\n\n## Benefits\n\n- Access to our customer base\n- Co-marketing opportunities\n- Exclusive partner pricing\n- Featured placement on our platform\n\n## Apply\n\nSend partnership enquiries to:\n**partners@winterleaguecricket.co.za**\n\nInclude:\n- Company information\n- Partnership type of interest\n- Proposed collaboration",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 18,
+      "title": "Affiliate Program",
+      "slug": "affiliates",
+      "category": "resources",
+      "content": "# Affiliate Program\n\n## Earn With Us\n\nJoin our affiliate program and earn commission by promoting Winter League Cricket.\n\n## How It Works\n\n1. **Sign Up** - Apply to become an affiliate\n2. **Get Links** - Receive unique tracking links\n3. **Promote** - Share with your audience\n4. **Earn** - Get paid for every sale\n\n## Commission Structure\n\n- **Standard**: 5% per sale\n- **Premium Affiliates**: Up to 10%\n- **Bulk Referrals**: Custom rates available\n\n## Who Should Apply?\n\n- Cricket bloggers\n- Sports influencers\n- Coaching academies\n- Cricket clubs\n- Sports websites\n\n## Requirements\n\n- Active online presence\n- Cricket-related audience\n- Quality content\n\n## Apply Now\n\nEmail **affiliates@winterleaguecricket.co.za** with:\n- Your website/social media links\n- Audience demographics\n- Promotion ideas",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 19,
+      "title": "Developers",
+      "slug": "developers",
+      "category": "resources",
+      "content": "# Developer Resources\n\n## API Access\n\n*Coming Soon*\n\nWe're building APIs for:\n- Product catalog\n- Order management\n- Inventory sync\n\n## Integration Partners\n\nLooking to integrate with Winter League Cricket? Contact us to discuss:\n- E-commerce platforms\n- Point of sale systems\n- Inventory management\n\n## Technical Documentation\n\nDeveloper documentation will be available soon, including:\n- API reference\n- Authentication guides\n- Code samples\n- SDKs\n\n## Beta Access\n\nWant early access to our developer tools? Register your interest:\n\n**developers@winterleaguecricket.co.za**\n\nInclude:\n- Company/project name\n- Intended use case\n- Technical requirements",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 20,
+      "title": "Sustainability",
+      "slug": "sustainability",
+      "category": "resources",
+      "content": "# Sustainability\n\n## Our Commitment\n\nWinter League Cricket is committed to sustainable practices and environmental responsibility.\n\n## Our Initiatives\n\n### 🌍 Eco-Friendly Packaging\n- Recyclable materials\n- Minimal plastic use\n- Biodegradable options\n\n### 🚚 Carbon-Conscious Shipping\n- Optimized delivery routes\n- Consolidated shipments\n- Carbon offset programs\n\n### ♻️ Product Lifecycle\n- Durable, long-lasting equipment\n- Repair services\n- Recycling programs\n\n### 🌱 Community Impact\n- Support local cricket clubs\n- Youth development programs\n- Environmental education\n\n## Goals for 2026\n\n- 100% recyclable packaging\n- Carbon-neutral operations\n- Zero waste to landfill\n\n## Join Us\n\nHelp us make a difference:\n- Choose eco-friendly options\n- Recycle old equipment\n- Support sustainable brands\n\n## Contact\n\nSustainability enquiries: sustainability@winterleaguecricket.co.za",
+      "active": true,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "idCounter": 21
+}

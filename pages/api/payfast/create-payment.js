@@ -68,10 +68,30 @@ export default async function handler(req, res) {
     const signature = crypto.createHash('md5').update(signatureString).digest('hex');
     paymentData.signature = signature;
 
+    // Remove empty fields so only signed fields are submitted to PayFast
+    for (const key in paymentData) {
+      if (paymentData.hasOwnProperty(key) && paymentData[key] === '') {
+        delete paymentData[key];
+      }
+    }
+
     // Determine PayFast URL
     const payfastUrl = config.testMode
       ? 'https://sandbox.payfast.co.za/eng/process'
       : 'https://www.payfast.co.za/eng/process';
+
+    // Debug logging for payment troubleshooting
+    console.log('=== PayFast Payment Debug ===');
+    console.log('PayFast URL:', payfastUrl);
+    console.log('Merchant ID:', config.merchantId);
+    console.log('Test Mode:', config.testMode);
+    console.log('Origin:', origin);
+    console.log('Amount:', paymentData.amount);
+    console.log('Order ID:', paymentData.m_payment_id);
+    console.log('Return URL:', paymentData.return_url);
+    console.log('Notify URL:', paymentData.notify_url);
+    console.log('Signature:', signature);
+    console.log('=============================');
 
     return res.status(200).json({
       success: true,

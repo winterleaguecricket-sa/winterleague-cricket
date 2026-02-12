@@ -10,15 +10,11 @@ import {
   deleteFormTemplate,
   addFieldToForm,
   updateFormField,
-  deleteFormField,
-  getFormSubmissions,
-  updateSubmissionStatus,
-  updateApprovalStatus,
-  deleteSubmission
+  deleteFormField
 } from '../../data/forms';
 import { getCategories } from '../../data/categories';
 import { getShirtDesigns } from '../../data/shirtDesigns';
-import { getAdminSettings, getEmailTemplate } from '../../data/adminSettings';
+// Note: adminSettings uses Node.js fs module, so we fetch via API instead
 
 export default function AdminForms() {
   const [forms, setForms] = useState([]);
@@ -53,28 +49,106 @@ export default function AdminForms() {
   const [editingField, setEditingField] = useState(null); // For editing existing fields
   const [draggedField, setDraggedField] = useState(null); // For drag and drop
   const [submissions, setSubmissions] = useState([]);
+  const [submissionCounts, setSubmissionCounts] = useState({}); // Track submission counts per form
   const [editingSubmission, setEditingSubmission] = useState(null);
   const [viewingSubmission, setViewingSubmission] = useState(null);
   const [submissionData, setSubmissionData] = useState({});
   const [selectedSubmissionForm, setSelectedSubmissionForm] = useState('all'); // Track which form's submissions to show
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  const [backgroundImage, setBackgroundImage] = useState('');
+  const [backgroundUploading, setBackgroundUploading] = useState(false);
+  const [backgroundSaving, setBackgroundSaving] = useState(false);
+  const [backgroundMessage, setBackgroundMessage] = useState('');
+  const [backgroundDragActive, setBackgroundDragActive] = useState(false);
+  const [backgroundTransparency, setBackgroundTransparency] = useState(false);
+
 
   useEffect(() => {
     setForms(getFormTemplates());
     setCategories(getCategories());
     setShirtDesigns(getShirtDesigns(true)); // Get only active designs
+    
+    // Load submission counts from database
+    const loadSubmissionCounts = async () => {
+      try {
+        const response = await fetch('/api/submissions');
+        if (response.ok) {
+          const { submissions: dbSubmissions } = await response.json();
+          const counts = {};
+          (dbSubmissions || []).forEach(sub => {
+            const formId = sub.formId;
+            counts[formId] = (counts[formId] || 0) + 1;
+          });
+          setSubmissionCounts(counts);
+        }
+      } catch (error) {
+        console.log('Could not load submission counts:', error.message);
+      }
+    };
+    loadSubmissionCounts();
   }, []);
 
-  // Load all submissions when switching to submissions tab
+  // Load form background image from database when editing
+  useEffect(() => {
+    if (!selectedForm || activeTab !== 'edit') return;
+
+    const loadBackground = async () => {
+      try {
+        const res = await fetch(`/api/form-background?formId=${selectedForm.id}`);
+        const data = await res.json();
+        if (data?.success && data?.background) {
+          setBackgroundImage(data.background.imageUrl || '');
+          setBackgroundTransparency(!!data.background.transparencyEnabled);
+        } else {
+          setBackgroundImage('');
+          setBackgroundTransparency(false);
+        }
+      } catch (error) {
+        console.error('Error loading form background:', error);
+      }
+    };
+
+    loadBackground();
+  }, [selectedForm, activeTab]);
+
+  // Load all submissions when switching to submissions tab - fetch from database API only
   useEffect(() => {
     if (activeTab === 'submissions') {
-      const allSubmissions = forms.flatMap(form => 
-        getFormSubmissions(form.id).map(sub => ({
-          ...sub,
-          formName: form.name,
-          formId: form.id
-        }))
-      );
-      setSubmissions(allSubmissions);
+      const loadSubmissions = async () => {
+        setLoadingSubmissions(true);
+        
+        try {
+          const response = await fetch('/api/submissions');
+          if (response.ok) {
+            const { submissions: dbSubmissions } = await response.json();
+            
+            // Map database submissions to expected format
+            const mappedSubmissions = (dbSubmissions || []).map(sub => ({
+              id: sub.id,
+              shortId: formatSubmissionId(sub.id),
+              formId: sub.formId,
+              formName: sub.formName || forms.find(f => f.id === sub.formId)?.name || 'Unknown Form',
+              data: sub.data,
+              submittedAt: sub.submittedAt,
+              status: sub.status || 'pending',
+              approvalStatus: sub.approvalStatus || 'pending',
+              source: 'database'
+            }));
+            
+            setSubmissions(mappedSubmissions);
+          } else {
+            console.error('Failed to fetch submissions');
+            setSubmissions([]);
+          }
+        } catch (error) {
+          console.error('Error fetching submissions:', error.message);
+          setSubmissions([]);
+        }
+        
+        setLoadingSubmissions(false);
+      };
+      
+      loadSubmissions();
     }
   }, [activeTab, forms]);
 
@@ -86,6 +160,13 @@ export default function AdminForms() {
     }
     return form.fields || [];
   };
+
+  const formatSubmissionId = (id) => {
+    const raw = String(id || '');
+    if (raw.length <= 4) return raw;
+    return raw.slice(-4);
+  };
+
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -165,6 +246,81 @@ export default function AdminForms() {
       displayLocations: ['forms-page'],
       active: true
     });
+  };
+
+  const saveFormBackground = async (imageUrl, transparencyOverride) => {
+    if (!selectedForm) return;
+    try {
+      setBackgroundSaving(true);
+      const res = await fetch(`/api/form-background?formId=${selectedForm.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          background: {
+            imageUrl,
+            transparencyEnabled: typeof transparencyOverride === 'boolean'
+              ? transparencyOverride
+              : backgroundTransparency
+          }
+        })
+      });
+      const data = await res.json();
+      if (data?.success) {
+        setBackgroundMessage('Background saved successfully.');
+      } else {
+        setBackgroundMessage(data?.error || 'Failed to save background.');
+      }
+    } catch (error) {
+      console.error('Error saving form background:', error);
+      setBackgroundMessage('Failed to save background.');
+    } finally {
+      setBackgroundSaving(false);
+      setTimeout(() => setBackgroundMessage(''), 3000);
+    }
+  };
+
+  const handleBackgroundUpload = async (file) => {
+    if (!file || !selectedForm) return;
+    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!validImageTypes.includes(file.type)) {
+      setBackgroundMessage('Please upload a valid image file (JPG, PNG, GIF, WebP, SVG).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setBackgroundMessage('Image must be less than 5MB.');
+      return;
+    }
+
+    try {
+      setBackgroundUploading(true);
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+      const response = await fetch('/api/upload-site-asset?type=form-background', {
+        method: 'POST',
+        body: formDataUpload,
+      });
+      const data = await response.json();
+      if (!data.success) {
+        setBackgroundMessage('Upload failed: ' + (data.error || 'Unknown error'));
+        return;
+      }
+      setBackgroundImage(data.url);
+      await saveFormBackground(data.url);
+    } catch (error) {
+      console.error('Upload error:', error);
+      setBackgroundMessage('Failed to upload image. Please try again.');
+    } finally {
+      setBackgroundUploading(false);
+    }
+  };
+
+  const handleBackgroundDrop = (e) => {
+    e.preventDefault();
+    setBackgroundDragActive(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) {
+      handleBackgroundUpload(file);
+    }
   };
 
   // Field Management
@@ -447,154 +603,158 @@ export default function AdminForms() {
     setEditingField(null);
   };
 
-  const handleViewSubmissions = (form) => {
+  const handleViewSubmissions = async (form) => {
     setSelectedForm(form);
-    setSubmissions(getFormSubmissions(form.id));
+    setLoadingSubmissions(true);
+    
+    try {
+      const response = await fetch(`/api/submissions?formId=${form.id}`);
+      if (response.ok) {
+        const { submissions: dbSubmissions } = await response.json();
+        const mappedSubmissions = (dbSubmissions || []).map(sub => ({
+          ...sub,
+          shortId: formatSubmissionId(sub.id),
+          formName: form.name
+        }));
+        setSubmissions(mappedSubmissions);
+      } else {
+        setSubmissions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching submissions:', error);
+      setSubmissions([]);
+    }
+    
+    setLoadingSubmissions(false);
     setActiveTab('submissions');
   };
 
   const handleEditSubmission = (submission) => {
     setEditingSubmission(submission);
-    setSubmissionData(submission.data);
+    setSubmissionData({ ...(submission.data || {}) });
   };
 
-  const handleUpdateSubmission = (e) => {
+  const handleUpdateSubmission = async (e) => {
     e.preventDefault();
-    // Update the submission data
-    const updatedSubmissions = submissions.map(sub => 
-      sub.id === editingSubmission.id 
-        ? { ...sub, data: submissionData }
-        : sub
-    );
-    setSubmissions(updatedSubmissions);
-    setEditingSubmission(null);
-    setSubmissionData({});
-    alert('Submission updated successfully!');
-  };
-
-  const handleDeleteSubmission = (submissionId) => {
-    if (confirm('Are you sure you want to delete this submission? This action cannot be undone.')) {
-      deleteSubmission(submissionId);
-      // Reload all submissions
-      const allSubmissions = forms.flatMap(form => 
-        getFormSubmissions(form.id).map(sub => ({
-          ...sub,
-          formName: form.name,
-          formId: form.id
-        }))
-      );
-      setSubmissions(allSubmissions);
-    }
-  };
-
-  const handleStatusChange = (submissionId, newStatus) => {
-    updateSubmissionStatus(submissionId, newStatus);
-    // Reload all submissions
-    const allSubmissions = forms.flatMap(form => 
-      getFormSubmissions(form.id).map(sub => ({
-        ...sub,
-        formName: form.name,
-        formId: form.id
-      }))
-    );
-    setSubmissions(allSubmissions);
-  };
-
-  const handleApprovalStatusChange = async (submission, newApprovalStatus) => {
-    // Update the approval status in data
-    updateApprovalStatus(submission.id, newApprovalStatus);
-    
-    // Reload all submissions to reflect the change
-    const allSubmissions = forms.flatMap(form => 
-      getFormSubmissions(form.id).map(sub => ({
-        ...sub,
-        formName: form.name,
-        formId: form.id
-      }))
-    );
-    setSubmissions(allSubmissions);
-
-    // Send email notification
     try {
-      const adminSettings = getAdminSettings();
-      const emailTemplate = getEmailTemplate(newApprovalStatus);
-      
-      if (!emailTemplate) {
-        console.error('No email template found for status:', newApprovalStatus);
-        return;
-      }
-
-      // Get team data from submission
-      const teamName = submission.data['Team Name'] || submission.data[1] || 'Your Team';
-      const coachName = submission.data['Coach Name'] || submission.data[2] || 'Coach';
-      const teamEmail = submission.data['Team Email'] || submission.data[3] || '';
-
-      if (!teamEmail) {
-        alert('Warning: No team email found in submission. Email notification not sent.');
-        return;
-      }
-
-      // Replace variables in template
-      let subject = emailTemplate.subject
-        .replace('{teamName}', teamName)
-        .replace('{coachName}', coachName)
-        .replace('{registrationId}', submission.id);
-
-      let body = emailTemplate.body
-        .replace(/{teamName}/g, teamName)
-        .replace(/{coachName}/g, coachName)
-        .replace(/{registrationId}/g, submission.id);
-
-      // Send email via API
-      const response = await fetch('/api/send-approval-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch('/api/submissions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: teamEmail,
-          subject: subject,
-          body: body
+          id: editingSubmission.id,
+          data: submissionData
         })
       });
 
       const result = await response.json();
-      
-      if (result.success) {
-        alert(`✓ Approval status updated to "${newApprovalStatus}" and email sent to ${teamEmail}`);
-      } else {
-        alert(`Approval status updated but email failed: ${result.error}`);
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to update submission');
       }
+
+      setSubmissions(prev => prev.map(sub =>
+        sub.id === editingSubmission.id
+          ? { ...sub, data: result.submission?.data || submissionData }
+          : sub
+      ));
+      setEditingSubmission(null);
+      setSubmissionData({});
+      alert('Submission updated successfully!');
     } catch (error) {
-      console.error('Error sending approval email:', error);
-      alert('Approval status updated but email sending failed. Check console for details.');
+      console.error('Error updating submission:', error);
+      alert('Failed to update submission');
     }
   };
 
-  const handleDownloadCSV = () => {
-    // Get filtered submissions
-    const filteredSubmissions = submissions.filter(s => 
-      selectedSubmissionForm === 'all' || s.formId === selectedSubmissionForm
-    );
+  const handleDeleteSubmission = async (submissionId) => {
+    if (confirm('Are you sure you want to delete this submission? This action cannot be undone.')) {
+      try {
+        const response = await fetch(`/api/submissions?id=${submissionId}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          // Remove from local state
+          setSubmissions(prev => prev.filter(sub => sub.id !== submissionId));
+        } else {
+          alert('Failed to delete submission');
+        }
+      } catch (error) {
+        console.error('Error deleting submission:', error);
+        alert('Failed to delete submission');
+      }
+    }
+  };
 
-    if (filteredSubmissions.length === 0) {
-      alert('No submissions to download');
+  const handleStatusChange = async (submission, newStatus) => {
+    try {
+      const response = await fetch('/api/submissions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: submission.id,
+          status: newStatus
+        })
+      });
+      
+      if (response.ok) {
+        // Update local state
+        setSubmissions(prev => prev.map(sub => 
+          sub.id === submission.id 
+            ? { ...sub, status: newStatus }
+            : sub
+        ));
+      } else {
+        alert('Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update status');
+    }
+  };
+
+  const handleApprovalStatusChange = async (submission, newApprovalStatus) => {
+    // Update in database
+    try {
+      const response = await fetch('/api/submissions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: submission.id,
+          approvalStatus: newApprovalStatus
+        })
+      });
+      
+      if (!response.ok) {
+        alert('Failed to update approval status in database');
+        return;
+      }
+    } catch (error) {
+      console.error('Error updating database:', error);
+      alert('Failed to update approval status');
       return;
     }
+    
+    // Update local state to reflect the change immediately
+    setSubmissions(prev => prev.map(sub => 
+      sub.id === submission.id 
+        ? { ...sub, approvalStatus: newApprovalStatus }
+        : sub
+    ));
+    
+    // Also update the viewing submission if open
+    if (viewingSubmission && viewingSubmission.id === submission.id) {
+      setViewingSubmission(prev => ({ ...prev, approvalStatus: newApprovalStatus }));
+    }
 
-    // Get the form for field definitions
-    const form = selectedSubmissionForm === 'all' 
-      ? null 
-      : forms.find(f => f.id === selectedSubmissionForm);
+  };
 
-    // Collect all unique field labels across all submissions
+  const getSubmissionFieldLabels = (filteredSubmissions) => {
     const allFieldLabels = new Set();
     filteredSubmissions.forEach(submission => {
       const submissionForm = forms.find(f => f.id === submission.formId);
       if (submissionForm) {
         const formFields = getAllFormFields(submissionForm);
         formFields.forEach(field => {
-          // Handle special field types
           if (field.type === 'kit-pricing') {
             allFieldLabels.add('Kit Markup - Base Price');
             allFieldLabels.add('Kit Markup - Markup');
@@ -615,9 +775,100 @@ export default function AdminForms() {
         });
       }
     });
+    return Array.from(allFieldLabels);
+  };
+
+  const getSubmissionFieldValue = (submission, formFields, label) => {
+    const field = formFields.find(f => {
+      if (f.type === 'kit-pricing') return label.startsWith('Kit Markup');
+      if (f.type === 'entry-fee-pricing') return label.startsWith(f.label);
+      if (f.type === 'image-select-library') return label.startsWith(f.label);
+      if (f.type === 'product-bundle') return label.startsWith(f.label);
+      return f.label === label;
+    });
+
+    if (!field) return '';
+
+    if (field.type === 'kit-pricing') {
+      const basePrice = submission.data[`${field.id}_basePrice`] || 150;
+      const markup = submission.data[`${field.id}_markup`] || 0;
+      if (label.includes('Base Price')) return basePrice;
+      if (label.includes('Markup') && !label.includes('Total')) return markup;
+      if (label.includes('Total')) return parseFloat(basePrice) + parseFloat(markup);
+      return '';
+    }
+
+    if (field.type === 'entry-fee-pricing') {
+      const baseFee = submission.data[`${field.id}_baseFee`] || 0;
+      const adjustment = submission.data[`${field.id}_adjustment`] || 0;
+      if (label.includes('Base Fee')) return baseFee;
+      if (label.includes('Adjustment')) return adjustment;
+      if (label.includes('Total')) return parseFloat(baseFee) + parseFloat(adjustment);
+      return '';
+    }
+
+    if (field.type === 'image-select-library' && field.includeColorPickers) {
+      if (label.includes('Design')) {
+        return submission.data[field.label] || submission.data[field.id] || '';
+      }
+      if (label.includes('Primary Color')) {
+        return submission.data[`${field.id}_primaryColor`] || '';
+      }
+      if (label.includes('Secondary Color')) {
+        return submission.data[`${field.id}_secondaryColor`] || '';
+      }
+      return '';
+    }
+
+    if (field.type === 'product-bundle') {
+      return submission.data[`${field.id}_size`] || '';
+    }
+
+    const value = submission.data[field.label] || submission.data[field.id] || '';
+    if (Array.isArray(value)) return value.join(', ');
+    if (value && typeof value === 'object') return JSON.stringify(value);
+    return value;
+  };
+
+  const normalizeImageValue = (value) => {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('data:image')) return trimmed;
+    const isBase64 = /^[A-Za-z0-9+/=]+$/.test(trimmed) && trimmed.length > 100;
+    if (isBase64) return `data:image/png;base64,${trimmed}`;
+    return trimmed;
+  };
+
+  const isImageValue = (value) => {
+    const normalized = normalizeImageValue(value);
+    if (!normalized) return false;
+    if (normalized.startsWith('data:image')) return true;
+    if (/\.(jpg|jpeg|png|gif|svg|webp)$/i.test(normalized)) return true;
+    if (normalized.includes('/uploads/') || normalized.includes('/images/')) return true;
+    return false;
+  };
+
+  const handleDownloadCSV = () => {
+    // Get filtered submissions
+    const filteredSubmissions = submissions.filter(s => 
+      selectedSubmissionForm === 'all' || s.formId === selectedSubmissionForm
+    );
+
+    if (filteredSubmissions.length === 0) {
+      alert('No submissions to download');
+      return;
+    }
+
+    // Get the form for field definitions
+    const form = selectedSubmissionForm === 'all' 
+      ? null 
+      : forms.find(f => f.id === selectedSubmissionForm);
+
+    const fieldLabels = getSubmissionFieldLabels(filteredSubmissions);
 
     // Build CSV headers
-    const headers = ['ID', 'Form Name', 'Submitted At', 'Status', 'Approval Status', ...Array.from(allFieldLabels)];
+    const headers = ['ID', 'Form Name', 'Submitted At', 'Status', 'Approval Status', ...fieldLabels];
     
     // Build CSV rows
     const rows = filteredSubmissions.map(submission => {
@@ -633,48 +884,8 @@ export default function AdminForms() {
       ];
 
       // Add field values in order
-      allFieldLabels.forEach(label => {
-        // Find the field
-        const field = formFields.find(f => {
-          if (f.type === 'kit-pricing') return label.startsWith('Kit Markup');
-          if (f.type === 'entry-fee-pricing') return label.startsWith(f.label);
-          if (f.type === 'image-select-library') return label.startsWith(f.label);
-          if (f.type === 'product-bundle') return label.startsWith(f.label);
-          return f.label === label;
-        });
-
-        if (!field) {
-          row.push('');
-          return;
-        }
-
-        // Extract value based on field type
-        if (field.type === 'kit-pricing') {
-          const basePrice = submission.data[`${field.id}_basePrice`] || 150;
-          const markup = submission.data[`${field.id}_markup`] || 0;
-          if (label.includes('Base Price')) row.push(basePrice);
-          else if (label.includes('Markup') && !label.includes('Total')) row.push(markup);
-          else if (label.includes('Total')) row.push(parseFloat(basePrice) + parseFloat(markup));
-        } else if (field.type === 'entry-fee-pricing') {
-          const baseFee = submission.data[`${field.id}_baseFee`] || 0;
-          const adjustment = submission.data[`${field.id}_adjustment`] || 0;
-          if (label.includes('Base Fee')) row.push(baseFee);
-          else if (label.includes('Adjustment')) row.push(adjustment);
-          else if (label.includes('Total')) row.push(parseFloat(baseFee) + parseFloat(adjustment));
-        } else if (field.type === 'image-select-library' && field.includeColorPickers) {
-          if (label.includes('Design')) {
-            row.push(submission.data[field.label] || submission.data[field.id] || '');
-          } else if (label.includes('Primary Color')) {
-            row.push(submission.data[`${field.id}_primaryColor`] || '');
-          } else if (label.includes('Secondary Color')) {
-            row.push(submission.data[`${field.id}_secondaryColor`] || '');
-          }
-        } else if (field.type === 'product-bundle') {
-          row.push(submission.data[`${field.id}_size`] || '');
-        } else {
-          const value = submission.data[field.label] || submission.data[field.id] || '';
-          row.push(Array.isArray(value) ? value.join(', ') : value);
-        }
+      fieldLabels.forEach(label => {
+        row.push(getSubmissionFieldValue(submission, formFields, label));
       });
 
       return row;
@@ -708,7 +919,18 @@ export default function AdminForms() {
     }));
   };
 
+  const getEditableFieldKey = (field, data) => {
+    if (data?.hasOwnProperty(field.id)) return field.id;
+    if (data?.hasOwnProperty(String(field.id))) return String(field.id);
+    if (data?.hasOwnProperty(field.label)) return field.label;
+    return field.id;
+  };
+
   const needsOptions = ['radio', 'checkbox', 'select', 'image-select'].includes(fieldData.type);
+  const filteredSubmissions = submissions
+    .filter(s => selectedSubmissionForm === 'all' || s.formId === selectedSubmissionForm)
+    .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+  const submissionFieldLabels = getSubmissionFieldLabels(filteredSubmissions);
 
   return (
     <div className={styles.container}>
@@ -718,7 +940,7 @@ export default function AdminForms() {
 
       <header className={styles.header}>
         <div className={styles.headerContent}>
-          <h1 className={styles.logo}>📋 Form Builder</h1>
+          <h1 className={styles.logo}>Form Builder</h1>
           <nav className={styles.nav}>
             <Link href="/admin" className={styles.navLink}>← Back to Admin</Link>
             <Link href="/" className={styles.navLink}>View Store</Link>
@@ -732,7 +954,7 @@ export default function AdminForms() {
             className={`${styles.tab} ${activeTab === 'list' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('list')}
           >
-            📝 All Forms
+            All Forms
           </button>
           <button 
             className={`${styles.tab} ${activeTab === 'create' ? styles.activeTab : ''}`}
@@ -742,16 +964,16 @@ export default function AdminForms() {
               resetFormData();
             }}
           >
-            ➕ Create New
+            Create New
           </button>
           {selectedForm && activeTab === 'edit' && (
             <button className={`${styles.tab} ${styles.activeTab}`}>
-              ✏️ Editing: {selectedForm.name}
+              Editing: {selectedForm.name}
             </button>
           )}
           {activeTab === 'submissions' && (
             <button className={`${styles.tab} ${styles.activeTab}`}>
-              📊 Submissions
+              Submissions
             </button>
           )}
         </div>
@@ -766,34 +988,32 @@ export default function AdminForms() {
             }}>
               <h2 style={{ margin: 0 }}>Form Templates ({forms.length})</h2>
               <button
-                onClick={() => {
-                  const allSubmissions = forms.flatMap(form => 
-                    getFormSubmissions(form.id).map(sub => ({
-                      ...sub,
-                      formName: form.name,
-                      formId: form.id
-                    }))
-                  );
-                  setSubmissions(allSubmissions);
+                onClick={async () => {
+                  setLoadingSubmissions(true);
+                  try {
+                    const response = await fetch('/api/submissions');
+                    if (response.ok) {
+                      const { submissions: dbSubmissions } = await response.json();
+                      const mappedSubmissions = (dbSubmissions || []).map(sub => ({
+                        ...sub,
+                        shortId: formatSubmissionId(sub.id),
+                        formName: forms.find(f => f.id === sub.formId)?.name || 'Unknown Form'
+                      }));
+                      setSubmissions(mappedSubmissions);
+                    } else {
+                      setSubmissions([]);
+                    }
+                  } catch (error) {
+                    console.error('Error fetching submissions:', error);
+                    setSubmissions([]);
+                  }
+                  setLoadingSubmissions(false);
                   setSelectedSubmissionForm('all');
                   setActiveTab('submissions');
                 }}
-                style={{
-                  padding: '0.65rem 1.5rem',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '0.9rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'transform 0.2s',
-                  boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)'
-                }}
-                onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
-                onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+                className={styles.primaryButton}
               >
-                📊 View All Submissions
+                View All Submissions
               </button>
             </div>
             <div className={styles.formsGrid}>
@@ -806,17 +1026,21 @@ export default function AdminForms() {
                     </span>
                   </div>
                   <p className={styles.formDescription}>{form.description}</p>
+                  <div className={styles.formInfoBox}>
+                    <strong>Form ID:</strong> {form.id} &nbsp;|&nbsp; 
+                    <strong>Direct Link:</strong> <code className={styles.formInfoCode}>/forms?formId={form.id}</code>
+                  </div>
                   <div className={styles.formMeta}>
-                    <span>📝 {getAllFormFields(form).length} fields</span>
-                    <span>📂 {form.categoryIds.length} categories</span>
-                    <span>📊 {getFormSubmissions(form.id).length} submissions</span>
+                    <span>{getAllFormFields(form).length} fields</span>
+                    <span>{form.categoryIds.length} categories</span>
+                    <span>{submissionCounts[form.id] || 0} submissions</span>
                   </div>
                   <div className={styles.formCategories}>
                     {form.categoryIds.map(catId => {
                       const cat = categories.find(c => c.id === catId);
                       return cat ? (
                         <span key={catId} className={styles.categoryTag}>
-                          {cat.icon} {cat.name}
+                          {cat.name}
                         </span>
                       ) : null;
                     })}
@@ -892,7 +1116,7 @@ export default function AdminForms() {
                       checked={formData.displayLocations.includes('category')}
                       onChange={() => handleDisplayLocationToggle('category')}
                     />
-                    <span>📂 Category Pages (show on linked category pages)</span>
+                    <span>Category Pages (show on linked category pages)</span>
                   </label>
                   <label className={styles.checkboxLabel}>
                     <input
@@ -900,7 +1124,7 @@ export default function AdminForms() {
                       checked={formData.displayLocations.includes('forms-page')}
                       onChange={() => handleDisplayLocationToggle('forms-page')}
                     />
-                    <span>📋 Forms Page (show on dedicated /forms page)</span>
+                    <span>Forms Page (show on dedicated /forms page)</span>
                   </label>
                   <label className={styles.checkboxLabel}>
                     <input
@@ -908,7 +1132,7 @@ export default function AdminForms() {
                       checked={formData.displayLocations.includes('homepage')}
                       onChange={() => handleDisplayLocationToggle('homepage')}
                     />
-                    <span>🏠 Homepage (show on main homepage)</span>
+                    <span>Homepage (show on main homepage)</span>
                   </label>
                 </div>
               </div>
@@ -976,7 +1200,7 @@ export default function AdminForms() {
                           checked={formData.displayLocations.includes('category')}
                           onChange={() => handleDisplayLocationToggle('category')}
                         />
-                        <span>📂 Category Pages</span>
+                        <span>Category Pages</span>
                       </label>
                       <label className={styles.checkboxLabel}>
                         <input
@@ -984,7 +1208,7 @@ export default function AdminForms() {
                           checked={formData.displayLocations.includes('forms-page')}
                           onChange={() => handleDisplayLocationToggle('forms-page')}
                         />
-                        <span>📋 Forms Page</span>
+                        <span>Forms Page</span>
                       </label>
                       <label className={styles.checkboxLabel}>
                         <input
@@ -992,9 +1216,98 @@ export default function AdminForms() {
                           checked={formData.displayLocations.includes('homepage')}
                           onChange={() => handleDisplayLocationToggle('homepage')}
                         />
-                        <span>🏠 Homepage</span>
+                        <span>Homepage</span>
                       </label>
                     </div>
+                  </div>
+
+                  <div className={styles.formGroup} style={{
+                    background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                    border: '2px solid #f59e0b',
+                    borderRadius: '12px',
+                    padding: '1.25rem',
+                    marginTop: '1rem'
+                  }}>
+                    <label style={{ 
+                      fontSize: '1.1rem', 
+                      fontWeight: '700', 
+                      color: '#92400e',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}>
+                      🖼️ Form Background Image
+                    </label>
+                    <p style={{ fontSize: '0.85rem', color: '#a16207', marginBottom: '0.75rem', marginTop: '0.5rem' }}>
+                      Upload a background image for this form. This will appear behind the form content.
+                    </p>
+                    <div
+                      className={`${styles.dropzone} ${backgroundDragActive ? styles.dropzoneActive : ''}`}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setBackgroundDragActive(true);
+                      }}
+                      onDragLeave={() => setBackgroundDragActive(false)}
+                      onDrop={handleBackgroundDrop}
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleBackgroundUpload(file);
+                          }
+                        }}
+                        disabled={backgroundUploading}
+                      />
+                      <div>
+                        <strong>{backgroundUploading ? 'Uploading...' : 'Drag & drop an image here'}</strong>
+                        <div style={{ fontSize: '0.8rem', marginTop: '0.35rem' }}>or click to browse</div>
+                      </div>
+                    </div>
+
+                    {backgroundImage && (
+                      <div className={styles.dropzonePreview}>
+                        <img src={backgroundImage} alt="Form background preview" />
+                        <button
+                          type="button"
+                          className={styles.secondaryButton}
+                          onClick={() => {
+                            setBackgroundImage('');
+                            saveFormBackground('');
+                          }}
+                          disabled={backgroundSaving}
+                        >
+                          Remove Background
+                        </button>
+                      </div>
+                    )}
+
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.6rem',
+                      marginTop: '0.75rem',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: '#92400e'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={backgroundTransparency}
+                        onChange={(e) => {
+                          const next = e.target.checked;
+                          setBackgroundTransparency(next);
+                          saveFormBackground(backgroundImage, next);
+                        }}
+                      />
+                      Enable transparent form container
+                    </label>
+
+                    {backgroundMessage && (
+                      <div className={styles.helperText}>{backgroundMessage}</div>
+                    )}
                   </div>
 
                   <button type="submit" className={styles.submitBtn}>
@@ -1997,62 +2310,21 @@ export default function AdminForms() {
 
         {activeTab === 'submissions' && (
           <div className={styles.submissionsView}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1rem'
-            }}>
-              <h2 style={{ fontSize: '1.3rem', margin: 0 }}>📋 All Form Submissions</h2>
+            <div className={styles.submissionsHeader}>
+              <h2>All Form Submissions</h2>
               <button
                 onClick={handleDownloadCSV}
-                style={{
-                  padding: '0.6rem 1.25rem',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  transition: 'transform 0.2s',
-                  boxShadow: '0 2px 4px rgba(16, 185, 129, 0.3)'
-                }}
-                onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
-                onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+                className={styles.downloadButton}
               >
-                📥 Download CSV
+                Download CSV
               </button>
             </div>
             
             {/* Form Filter Tabs */}
-            <div style={{
-              display: 'flex',
-              gap: '0.4rem',
-              marginBottom: '1rem',
-              flexWrap: 'wrap',
-              borderBottom: '2px solid #e5e7eb',
-              paddingBottom: '0.4rem'
-            }}>
+            <div className={styles.submissionTabs}>
               <button
                 onClick={() => setSelectedSubmissionForm('all')}
-                style={{
-                  padding: '0.4rem 0.85rem',
-                  borderRadius: '6px 6px 0 0',
-                  border: 'none',
-                  background: selectedSubmissionForm === 'all' 
-                    ? 'linear-gradient(135deg, #000000 0%, #dc0000 100%)' 
-                    : '#f3f4f6',
-                  color: selectedSubmissionForm === 'all' ? 'white' : '#374151',
-                  fontWeight: selectedSubmissionForm === 'all' ? '700' : '600',
-                  fontSize: '0.75rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  borderBottom: selectedSubmissionForm === 'all' ? '3px solid #dc0000' : 'none'
-                }}
+                className={`${styles.submissionTab} ${selectedSubmissionForm === 'all' ? styles.submissionTabActive : ''}`}
               >
                 All Forms ({submissions.length})
               </button>
@@ -2062,20 +2334,7 @@ export default function AdminForms() {
                   <button
                     key={form.id}
                     onClick={() => setSelectedSubmissionForm(form.id)}
-                    style={{
-                      padding: '0.4rem 0.85rem',
-                      borderRadius: '6px 6px 0 0',
-                      border: 'none',
-                      background: selectedSubmissionForm === form.id 
-                        ? 'linear-gradient(135deg, #000000 0%, #dc0000 100%)' 
-                        : '#f3f4f6',
-                      color: selectedSubmissionForm === form.id ? 'white' : '#374151',
-                      fontWeight: selectedSubmissionForm === form.id ? '700' : '600',
-                      fontSize: '0.75rem',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      borderBottom: selectedSubmissionForm === form.id ? '3px solid #dc0000' : 'none'
-                    }}
+                    className={`${styles.submissionTab} ${selectedSubmissionForm === form.id ? styles.submissionTabActive : ''}`}
                   >
                     {form.name} ({formSubmissions.length})
                   </button>
@@ -2083,108 +2342,106 @@ export default function AdminForms() {
               })}
             </div>
 
-            {submissions.filter(s => selectedSubmissionForm === 'all' || s.formId === selectedSubmissionForm).length === 0 ? (
+            {loadingSubmissions ? (
+              <div className={styles.loadingState}>
+                <div className={styles.loadingIcon}>⏳</div>
+                <p>Loading submissions...</p>
+              </div>
+            ) : filteredSubmissions.length === 0 ? (
               <p className={styles.emptyState}>No submissions for this form yet.</p>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{
-                  width: '100%',
-                  borderCollapse: 'collapse',
-                  background: 'white',
-                  borderRadius: '8px',
-                  overflow: 'hidden',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                }}>
+              <div className={styles.submissionsTableWrapper}>
+                <table className={styles.submissionsTable}>
                   <thead>
-                    <tr style={{
-                      background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-                      color: 'white'
-                    }}>
-                      <th style={{ padding: '0.65rem', fontSize: '0.8rem', fontWeight: '700', textAlign: 'left' }}>ID</th>
-                      <th style={{ padding: '0.65rem', fontSize: '0.8rem', fontWeight: '700', textAlign: 'left' }}>Form</th>
-                      <th style={{ padding: '0.65rem', fontSize: '0.8rem', fontWeight: '700', textAlign: 'left' }}>Submitted At</th>
-                      <th style={{ padding: '0.65rem', fontSize: '0.8rem', fontWeight: '700', textAlign: 'left' }}>Status</th>
-                      <th style={{ padding: '0.65rem', fontSize: '0.8rem', fontWeight: '700', textAlign: 'left' }}>Actions</th>
+                    <tr>
+                      <th>ID</th>
+                      <th>Form</th>
+                      <th>Submitted At</th>
+                      <th>Status</th>
+                      <th>Approval</th>
+                      {submissionFieldLabels.map(label => (
+                        <th key={label}>{label}</th>
+                      ))}
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {submissions
-                      .filter(s => selectedSubmissionForm === 'all' || s.formId === selectedSubmissionForm)
-                      .map(submission => (
-                      <tr key={submission.id} style={{
-                        borderBottom: '1px solid #e5e7eb',
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                      >
-                        <td style={{ fontSize: '0.8rem', padding: '0.65rem', fontWeight: '600' }}>#{submission.id}</td>
-                        <td style={{ padding: '0.65rem' }}>
-                          <span style={{
-                            background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-                            color: 'white',
-                            padding: '0.2rem 0.6rem',
-                            borderRadius: '5px',
-                            fontSize: '0.75rem',
-                            fontWeight: '600'
-                          }}>
-                            {submission.formName}
-                          </span>
-                        </td>
-                        <td style={{ fontSize: '0.75rem', padding: '0.65rem', color: '#6b7280' }}>{new Date(submission.submittedAt).toLocaleString()}</td>
-                        <td style={{ padding: '0.65rem' }}>
-                          <select
-                            value={submission.status}
-                            onChange={(e) => handleStatusChange(submission.id, e.target.value)}
-                            style={{
-                              padding: '0.3rem 0.5rem',
-                              fontSize: '0.75rem',
-                              border: '1px solid #d1d5db',
-                              borderRadius: '5px',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="reviewed">Reviewed</option>
-                            <option value="completed">Completed</option>
-                          </select>
-                        </td>
-                        <td style={{ padding: '0.65rem' }}>
-                          <div style={{ display: 'flex', gap: '0.4rem' }}>
-                            <button 
-                              onClick={() => setViewingSubmission(submission)}
-                              style={{
-                                padding: '0.35rem 0.75rem',
-                                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '5px',
-                                fontSize: '0.75rem',
-                                fontWeight: '700',
-                                cursor: 'pointer'
-                              }}
+                    {filteredSubmissions.map(submission => {
+                      const submissionForm = forms.find(f => f.id === submission.formId);
+                      const formFields = submissionForm ? getAllFormFields(submissionForm) : [];
+
+                      return (
+                        <tr
+                          key={submission.id}
+                          className={styles.submissionRow}
+                          onClick={(e) => {
+                            if (window.innerWidth > 768) return;
+                            const tag = e.target.tagName;
+                            if (['BUTTON', 'SELECT', 'OPTION', 'A', 'INPUT', 'TEXTAREA', 'LABEL', 'IMG', 'SVG', 'PATH'].includes(tag)) return;
+                            setViewingSubmission(submission);
+                          }}
+                        >
+                          <td className={styles.idCell}>#{submission.shortId || formatSubmissionId(submission.id)}</td>
+                          <td>
+                            <span className={styles.formNameTag}>{submission.formName}</span>
+                          </td>
+                          <td className={styles.submittedAtCell}>
+                            {new Date(submission.submittedAt).toLocaleString()}
+                          </td>
+                          <td>
+                            <select
+                              value={submission.status}
+                              onChange={(e) => handleStatusChange(submission, e.target.value)}
+                              className={styles.statusSelect}
                             >
-                              View
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteSubmission(submission.id)}
-                              style={{
-                                padding: '0.35rem 0.75rem',
-                                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '5px',
-                                fontSize: '0.75rem',
-                                fontWeight: '700',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              <option value="pending">Pending</option>
+                              <option value="reviewed">Reviewed</option>
+                              <option value="completed">Completed</option>
+                            </select>
+                          </td>
+                          <td>
+                            <span className={styles.approvalTag}>{submission.approvalStatus || 'pending'}</span>
+                          </td>
+                          {submissionFieldLabels.map(label => {
+                            const cellValue = getSubmissionFieldValue(submission, formFields, label);
+                            const imageSrc = normalizeImageValue(cellValue);
+                            return (
+                              <td key={`${submission.id}-${label}`} className={styles.submissionFieldCell}>
+                                {isImageValue(cellValue) ? (
+                                  <div className={styles.submissionImageCell}>
+                                    <img src={imageSrc} alt={label} className={styles.submissionImagePreview} />
+                                  </div>
+                                ) : (
+                                  cellValue || '-'
+                                )}
+                              </td>
+                            );
+                          })}
+                          <td>
+                            <div className={styles.submissionActions}>
+                              <button 
+                                onClick={() => setViewingSubmission(submission)}
+                                className={styles.viewBtn}
+                              >
+                                View
+                              </button>
+                              <button
+                                onClick={() => handleEditSubmission(submission)}
+                                className={styles.editBtn}
+                              >
+                                Edit
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteSubmission(submission.id)}
+                                className={styles.deleteBtn}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
 
@@ -2197,7 +2454,7 @@ export default function AdminForms() {
                   <div className={styles.editSubmissionModal}>
                     <div className={styles.modalContent}>
                       <div className={styles.modalHeader}>
-                        <h3>📝 View Submission #{editingSubmission.id}</h3>
+                        <h3>Edit Submission #{editingSubmission.shortId || formatSubmissionId(editingSubmission.id)}</h3>
                         <button 
                           onClick={() => {
                             setEditingSubmission(null);
@@ -2208,7 +2465,7 @@ export default function AdminForms() {
                           ×
                         </button>
                       </div>
-                      <div className={styles.submissionForm}>
+                      <form className={styles.submissionForm} onSubmit={handleUpdateSubmission}>
                         <div style={{
                           background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
                           color: 'white',
@@ -2220,26 +2477,107 @@ export default function AdminForms() {
                         }}>
                           Form: {submissionForm.name}
                         </div>
-                        
-                        {Object.entries(editingSubmission.data).map(([key, value]) => (
-                          <div key={key} className={styles.formGroup}>
-                            <label style={{ fontWeight: '600', color: '#111827' }}>
-                              {key}
-                            </label>
-                            <div style={{
-                              padding: '0.75rem',
-                              background: '#f9fafb',
-                              border: '2px solid #e5e7eb',
-                              borderRadius: '8px',
-                              minHeight: '2.5rem',
-                              display: 'flex',
-                              alignItems: 'center'
-                            }}>
-                              {Array.isArray(value) ? value.join(', ') : value || '(empty)'}
+
+                        {formFields.map((field) => {
+                          const key = getEditableFieldKey(field, submissionData);
+                          const value = submissionData[key] ?? '';
+
+                          if (field.type === 'kit-pricing') {
+                            const baseKey = `${field.id}_basePrice`;
+                            const markupKey = `${field.id}_markup`;
+                            const baseValue = submissionData[baseKey] ?? '';
+                            const markupValue = submissionData[markupKey] ?? '';
+
+                            return (
+                              <div key={field.id} className={styles.formGroup}>
+                                <label style={{ fontWeight: '600', color: '#111827' }}>{field.label}</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.35rem' }}>Base Price</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={baseValue}
+                                      onChange={(e) => handleSubmissionDataChange(baseKey, parseFloat(e.target.value) || 0)}
+                                      className={styles.input}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.35rem' }}>Team Markup</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={markupValue}
+                                      onChange={(e) => handleSubmissionDataChange(markupKey, parseFloat(e.target.value) || 0)}
+                                      className={styles.input}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          if (['entry-fee-pricing', 'product-bundle', 'upsell-products', 'supporter-apparel', 'checkout-form', 'image-select-library', 'submission-dropdown', 'sub-team-selector', 'dynamic-team-entries'].includes(field.type)) {
+                            return (
+                              <div key={field.id} className={styles.formGroup}>
+                                <label style={{ fontWeight: '600', color: '#111827' }}>{field.label}</label>
+                                <div style={{
+                                  padding: '0.75rem',
+                                  background: '#f9fafb',
+                                  border: '2px solid #e5e7eb',
+                                  borderRadius: '8px'
+                                }}>
+                                  {String(value || 'Editing not available for this field type.')}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          if (field.type === 'textarea') {
+                            return (
+                              <div key={field.id} className={styles.formGroup}>
+                                <label style={{ fontWeight: '600', color: '#111827' }}>{field.label}</label>
+                                <textarea
+                                  rows={3}
+                                  value={value}
+                                  onChange={(e) => handleSubmissionDataChange(key, e.target.value)}
+                                  className={styles.textarea}
+                                />
+                              </div>
+                            );
+                          }
+
+                          if (field.type === 'select') {
+                            return (
+                              <div key={field.id} className={styles.formGroup}>
+                                <label style={{ fontWeight: '600', color: '#111827' }}>{field.label}</label>
+                                <select
+                                  value={value}
+                                  onChange={(e) => handleSubmissionDataChange(key, e.target.value)}
+                                  className={styles.input}
+                                >
+                                  <option value="">Select an option...</option>
+                                  {field.options?.map((opt, idx) => (
+                                    <option key={idx} value={opt}>{opt}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div key={field.id} className={styles.formGroup}>
+                              <label style={{ fontWeight: '600', color: '#111827' }}>{field.label}</label>
+                              <input
+                                type={field.type === 'email' ? 'email' : field.type === 'tel' ? 'tel' : field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                                value={value}
+                                onChange={(e) => handleSubmissionDataChange(key, e.target.value)}
+                                className={styles.input}
+                              />
                             </div>
-                          </div>
-                        ))}
-                        
+                          );
+                        })}
+
                         <div style={{
                           display: 'flex',
                           gap: '1rem',
@@ -2247,8 +2585,8 @@ export default function AdminForms() {
                           paddingTop: '2rem',
                           borderTop: '2px solid #e5e7eb'
                         }}>
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             onClick={() => {
                               setEditingSubmission(null);
                               setSubmissionData({});
@@ -2265,10 +2603,26 @@ export default function AdminForms() {
                               fontSize: '1rem'
                             }}
                           >
-                            Close
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            style={{
+                              flex: 1,
+                              padding: '1rem',
+                              background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '12px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              fontSize: '1rem'
+                            }}
+                          >
+                            Save Changes
                           </button>
                         </div>
-                      </div>
+                      </form>
                     </div>
                   </div>
                   );
@@ -2276,7 +2630,50 @@ export default function AdminForms() {
 
                 {viewingSubmission && (() => {
                   const submissionForm = forms.find(f => f.id === viewingSubmission.formId);
-                  if (!submissionForm) return null;
+                  
+                  // Safety check - ensure we have valid data
+                  if (!viewingSubmission.data || typeof viewingSubmission.data !== 'object') {
+                    return (
+                      <div className={styles.editSubmissionModal}>
+                        <div className={styles.modalContent}>
+                          <div className={styles.modalHeader}>
+                            <h3>View Submission #{viewingSubmission.shortId || formatSubmissionId(viewingSubmission.id)}</h3>
+                            <button onClick={() => setViewingSubmission(null)} className={styles.closeButton}>×</button>
+                          </div>
+                          <div style={{ padding: '2rem', textAlign: 'center' }}>
+                            <p>Submission data is not available or corrupted.</p>
+                            <pre style={{ textAlign: 'left', background: '#f3f4f6', padding: '1rem', borderRadius: '8px', overflow: 'auto' }}>
+                              {JSON.stringify(viewingSubmission, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  if (!submissionForm) {
+                    // Show raw data if form template not found
+                    return (
+                      <div className={styles.editSubmissionModal}>
+                        <div className={styles.modalContent}>
+                          <div className={styles.modalHeader}>
+                            <h3>View Submission #{viewingSubmission.shortId || formatSubmissionId(viewingSubmission.id)}</h3>
+                            <button onClick={() => setViewingSubmission(null)} className={styles.closeButton}>×</button>
+                          </div>
+                          <div style={{ padding: '1rem' }}>
+                            <p style={{ marginBottom: '1rem', color: '#f59e0b' }}>Form template not found. Showing raw data:</p>
+                            <div style={{ background: '#f9fafb', padding: '1rem', borderRadius: '8px' }}>
+                              {Object.entries(viewingSubmission.data).map(([key, value]) => (
+                                <div key={key} style={{ marginBottom: '0.5rem', padding: '0.5rem', background: 'white', borderRadius: '4px' }}>
+                                  <strong>{key}:</strong> {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
                   
                   // Get all form fields in order (handles multi-page forms)
                   const formFields = getAllFormFields(submissionForm);
@@ -2366,9 +2763,9 @@ export default function AdminForms() {
                   
                   return (
                   <div className={styles.editSubmissionModal}>
-                    <div className={styles.modalContent}>
-                      <div className={styles.modalHeader}>
-                        <h3>👁️ View Submission #{viewingSubmission.id}</h3>
+                    <div className={`${styles.modalContent} ${styles.submissionModalContent}`}>
+                      <div className={`${styles.modalHeader} ${styles.submissionModalHeader}`}>
+                        <h3>View Submission #{viewingSubmission.shortId || formatSubmissionId(viewingSubmission.id)}</h3>
                         <button 
                           onClick={() => setViewingSubmission(null)}
                           className={styles.closeButton}
@@ -2377,174 +2774,116 @@ export default function AdminForms() {
                         </button>
                       </div>
                       <div className={styles.submissionForm}>
-                        <div style={{
-                          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                          color: 'white',
-                          padding: '0.85rem',
-                          borderRadius: '8px',
-                          marginBottom: '1rem'
-                        }}>
-                          <div style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '0.4rem' }}>
+                        <div className={styles.submissionSummary}>
+                          <div className={styles.submissionSummaryTitle}>
                             {submissionForm.name}
                           </div>
-                          <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                          <div className={styles.submissionSummaryMeta}>
                             Submitted: {new Date(viewingSubmission.submittedAt).toLocaleString()}
                           </div>
-                          <div style={{ 
-                            display: 'flex', 
-                            gap: '1rem', 
-                            marginTop: '0.4rem',
-                            flexWrap: 'wrap'
-                          }}>
-                            <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
-                              Status: <span style={{ 
-                                background: 'rgba(255,255,255,0.2)', 
-                                padding: '0.15rem 0.5rem', 
-                                borderRadius: '4px',
-                                textTransform: 'capitalize'
-                              }}>{viewingSubmission.status}</span>
+                          <div className={styles.submissionSummaryBadges}>
+                            <div>
+                              Status: <span className={styles.submissionSummaryBadge}>{viewingSubmission.status}</span>
                             </div>
-                            <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
-                              Approval: <span style={{ 
-                                background: 'rgba(255,255,255,0.2)', 
-                                padding: '0.15rem 0.5rem', 
-                                borderRadius: '4px',
-                                textTransform: 'capitalize'
-                              }}>{viewingSubmission.approvalStatus || 'pending'}</span>
+                            <div>
+                              Approval: <span className={styles.submissionSummaryBadge}>{viewingSubmission.approvalStatus || 'pending'}</span>
                             </div>
                           </div>
                         </div>
 
                         {/* Approval Status Selector */}
-                        <div style={{
-                          background: '#f9fafb',
-                          padding: '1rem',
-                          borderRadius: '8px',
-                          border: '2px solid #3b82f6',
-                          marginBottom: '1rem'
-                        }}>
-                          <label style={{
-                            display: 'block',
-                            fontWeight: '700',
-                            marginBottom: '0.5rem',
-                            fontSize: '0.85rem',
-                            color: '#111827'
-                          }}>
-                            📋 Update Approval Status & Send Email
+                        <div className={styles.approvalBox}>
+                          <label className={styles.approvalLabel}>
+                            Update Approval Status & Send Email
                           </label>
                           <select
                             value={viewingSubmission.approvalStatus || 'pending'}
                             onChange={(e) => handleApprovalStatusChange(viewingSubmission, e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '0.6rem',
-                              border: '2px solid #3b82f6',
-                              borderRadius: '6px',
-                              fontSize: '0.85rem',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                              background: 'white'
-                            }}
+                            className={styles.approvalSelect}
                           >
-                            <option value="pending">⏳ Pending</option>
-                            <option value="reviewed">👀 Reviewed</option>
-                            <option value="complete">✅ Complete</option>
+                            <option value="pending">Pending</option>
+                            <option value="reviewed">Reviewed</option>
+                            <option value="complete">Complete</option>
                           </select>
-                          <p style={{
-                            fontSize: '0.7rem',
-                            color: '#6b7280',
-                            margin: '0.4rem 0 0 0'
-                          }}>
+                          <p className={styles.approvalNote}>
                             Changing status will automatically send an email notification to the team
                           </p>
                         </div>
                         
-                        <div style={{ 
-                          display: 'grid', 
-                          gap: '0.75rem',
-                          maxHeight: '60vh',
-                          overflowY: 'auto',
-                          padding: '0.25rem'
-                        }}>
-                          {orderedData.map((item, idx) => (
-                            <div key={idx} style={{
-                              background: '#f9fafb',
-                              padding: '0.75rem',
-                              borderRadius: '8px',
-                              border: '1px solid #e5e7eb'
-                            }}>
-                              <div style={{ 
-                                fontWeight: '700', 
-                                color: '#111827',
-                                marginBottom: '0.4rem',
-                                fontSize: '0.8rem',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center'
-                              }}>
+                        <div className={styles.submissionDetailsGrid}>
+                          {orderedData.map((item, idx) => {
+                            const detailImageSrc = normalizeImageValue(item.value);
+                            return (
+                            <div key={idx} className={styles.submissionDetailCard}>
+                              <div className={styles.submissionDetailTitle}>
                                 <span>{item.label}</span>
                                 {!item.fromForm && (
-                                  <span style={{
-                                    fontSize: '0.65rem',
-                                    background: '#fbbf24',
-                                    color: '#78350f',
-                                    padding: '0.1rem 0.4rem',
-                                    borderRadius: '3px',
-                                    fontWeight: '600'
-                                  }}>
+                                  <span className={styles.extraFieldBadge}>
                                     Extra Field
                                   </span>
                                 )}
                               </div>
-                              <div style={{
-                                padding: '0.55rem',
-                                background: 'white',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '6px',
-                                color: '#374151',
-                                fontSize: '0.8rem',
-                                lineHeight: '1.5',
-                                whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-word'
-                              }}>
-                                {Array.isArray(item.value) ? (
+                              <div className={styles.submissionDetailValue}>
+                                {/* Check if value is a base64 image or image URL */}
+                                {isImageValue(item.value) ? (
+                                  <div style={{ textAlign: 'center' }}>
+                                    <img 
+                                      src={detailImageSrc} 
+                                      alt={item.label}
+                                      className={styles.submissionImagePreview}
+                                    />
+                                    <div>
+                                      <a
+                                        href={detailImageSrc}
+                                        download={`${item.label.replace(/\s+/g, '_')}_${viewingSubmission.id}.png`}
+                                        className={styles.submissionImageButton}
+                                      >
+                                        Download Image
+                                      </a>
+                                    </div>
+                                  </div>
+                                ) : Array.isArray(item.value) ? (
                                   <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
                                     {item.value.map((val, valIdx) => (
-                                      <li key={valIdx}>{val}</li>
+                                      <li key={valIdx}>
+                                        {typeof val === 'object' && val !== null ? (
+                                          <div style={{ background: '#f3f4f6', padding: '0.5rem', borderRadius: '4px', marginBottom: '0.25rem' }}>
+                                            {Object.entries(val).map(([k, v]) => (
+                                              <div key={k} style={{ fontSize: '0.75rem' }}>
+                                                <strong>{k}:</strong> {String(v || '')}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          String(val || '')
+                                        )}
+                                      </li>
                                     ))}
                                   </ul>
+                                ) : typeof item.value === 'object' && item.value !== null ? (
+                                  <div style={{ background: '#f3f4f6', padding: '0.5rem', borderRadius: '4px' }}>
+                                    {Object.entries(item.value).map(([k, v]) => (
+                                      <div key={k} style={{ fontSize: '0.75rem' }}>
+                                        <strong>{k}:</strong> {typeof v === 'object' ? JSON.stringify(v) : String(v || '')}
+                                      </div>
+                                    ))}
+                                  </div>
                                 ) : item.value !== undefined && item.value !== null && item.value !== '' ? (
                                   String(item.value)
                                 ) : (
-                                  <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>(not provided)</span>
+                                  <span className={styles.submissionEmpty}>(not provided)</span>
                                 )}
                               </div>
                             </div>
-                          ))}
+                          );
+                          })}
                         </div>
                         
-                        <div style={{
-                          display: 'flex',
-                          gap: '0.75rem',
-                          marginTop: '1.25rem',
-                          paddingTop: '1rem',
-                          borderTop: '1px solid #e5e7eb'
-                        }}>
+                        <div className={styles.modalActions}>
                           <button 
                             type="button" 
                             onClick={() => setViewingSubmission(null)}
-                            style={{
-                              flex: 1,
-                              padding: '1rem',
-                              background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '12px',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              fontSize: '1rem',
-                              boxShadow: '0 4px 12px rgba(220, 0, 0, 0.2)'
-                            }}
+                            className={styles.modalPrimaryButton}
                           >
                             Close
                           </button>
@@ -2568,7 +2907,7 @@ export default function AdminForms() {
         }}>
           <div className={styles.fieldEditorContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.fieldEditorHeader}>
-              <h3>✏️ Edit Field: {editingField.label}</h3>
+              <h3>Edit Field: {editingField.label}</h3>
               <button
                 className={styles.closeButton}
                 onClick={() => {

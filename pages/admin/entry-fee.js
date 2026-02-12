@@ -15,22 +15,41 @@ export default function EntryFee() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    // Load from localStorage
-    const savedFee = localStorage.getItem('leagueEntryBaseFee');
-    if (savedFee) {
-      setBaseFee(parseFloat(savedFee));
-    }
-    const savedItems = localStorage.getItem('leagueEntryIncludedItems');
-    if (savedItems) {
-      setIncludedItems(JSON.parse(savedItems));
-    }
+    const loadEntryFeeSettings = async () => {
+      try {
+        const res = await fetch('/api/entry-fee-settings');
+        const data = await res.json();
+        if (data?.success) {
+          if (data.baseFee !== undefined) {
+            setBaseFee(parseFloat(data.baseFee) || 0);
+          }
+          if (Array.isArray(data.includedItems)) {
+            setIncludedItems(data.includedItems);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading entry fee settings:', error);
+      }
+    };
+
+    loadEntryFeeSettings();
   }, []);
 
-  const handleSave = () => {
-    localStorage.setItem('leagueEntryBaseFee', baseFee.toString());
-    localStorage.setItem('leagueEntryIncludedItems', JSON.stringify(includedItems));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  const handleSave = async () => {
+    try {
+      const res = await fetch('/api/entry-fee-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baseFee, includedItems })
+      });
+      const data = await res.json();
+      if (data?.success) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      }
+    } catch (error) {
+      console.error('Error saving entry fee settings:', error);
+    }
   };
 
   const addItem = () => {

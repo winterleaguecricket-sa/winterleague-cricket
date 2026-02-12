@@ -30,8 +30,6 @@ export function CartProvider({ children }) {
       );
 
       if (existingItemIndex > -1) {
-        // Basic kit is managed by the form effect — never increment its quantity
-        if (product.id === 'basic-kit') return prevCart;
         // Item exists, increase quantity
         const newCart = [...prevCart];
         newCart[existingItemIndex].quantity += 1;
@@ -100,7 +98,6 @@ export function CartProvider({ children }) {
   return (
     <CartContext.Provider value={{
       cart,
-      setCart,
       addToCart,
       removeFromCart,
       updateQuantity,

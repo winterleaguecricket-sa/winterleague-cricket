@@ -545,8 +545,42 @@
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
+  .header {
+    padding: 1rem;
+  }
+
+  .headerContent {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .logo {
+    font-size: 1.3rem;
+  }
+
+  .nav {
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .main {
+    padding: 1rem;
+  }
+
   .statsGrid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .statCard {
+    padding: 1rem;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .statValue {
+    font-size: 1.5rem;
   }
 
   .filterButtons {
@@ -559,6 +593,7 @@
 
   .ordersTable {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .ordersTable table {
@@ -567,10 +602,23 @@
 
   .modalContainer {
     width: 95%;
+    max-height: 85vh;
+  }
+
+  .modalHeader {
+    padding: 1rem 1.25rem;
+  }
+
+  .modalHeader h2 {
+    font-size: 1.2rem;
   }
 
   .modalBody {
     padding: 1rem;
+  }
+
+  .infoGrid {
+    grid-template-columns: 1fr;
   }
 
   .statusButtons {
@@ -587,5 +635,21 @@
 
   .input {
     width: 100%;
+  }
+
+  .itemsTable {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 480px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .statIcon {
+    font-size: 2rem;
   }
 }

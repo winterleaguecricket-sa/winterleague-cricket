@@ -2,18 +2,14 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../../styles/adminProducts.module.css';
-import {
-  getSupporterProducts,
-  addSupporterProduct,
-  updateSupporterProduct,
-  deleteSupporterProduct,
-  toggleSupporterProductStatus
-} from '../../data/supporterProducts';
 
 export default function AdminSupporterProducts() {
   const [products, setProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -27,8 +23,22 @@ export default function AdminSupporterProducts() {
     loadProducts();
   }, []);
 
-  const loadProducts = () => {
-    setProducts(getSupporterProducts());
+  const loadProducts = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/supporter-products');
+      const data = await res.json();
+      if (data.success) {
+        setProducts(data.products || []);
+      } else {
+        setProducts([]);
+      }
+    } catch (error) {
+      console.error('Error loading supporter products:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -39,19 +49,41 @@ export default function AdminSupporterProducts() {
     }));
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setFormData(prev => ({
-        ...prev,
-        imageUrl: url
-      }));
+      try {
+        setUploadingImage(true);
+        const formDataUpload = new FormData();
+        formDataUpload.append('file', file);
+
+        const response = await fetch('/api/upload-site-asset?type=supporter', {
+          method: 'POST',
+          body: formDataUpload,
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+          alert('Upload failed: ' + (data.error || 'Unknown error'));
+          return;
+        }
+
+        setFormData(prev => ({
+          ...prev,
+          imageUrl: data.url
+        }));
+      } catch (error) {
+        console.error('Upload error:', error);
+        alert('Failed to upload file. Please try again.');
+      } finally {
+        setUploadingImage(false);
+      }
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
     
     const productData = {
       ...formData,
@@ -61,14 +93,37 @@ export default function AdminSupporterProducts() {
         .filter(s => s.length > 0)
     };
 
-    if (editingProduct) {
-      updateSupporterProduct(editingProduct.id, productData);
-    } else {
-      addSupporterProduct(productData);
-    }
+    try {
+      if (editingProduct) {
+        const res = await fetch('/api/supporter-products', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingProduct.id, updates: productData })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to update product');
+        }
+      } else {
+        const res = await fetch('/api/supporter-products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(productData)
+        });
+        const data = await res.json();
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to add product');
+        }
+      }
 
-    resetForm();
-    loadProducts();
+      resetForm();
+      await loadProducts();
+    } catch (error) {
+      console.error('Error saving supporter product:', error);
+      alert('Failed to save product. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEdit = (product) => {
@@ -84,16 +139,44 @@ export default function AdminSupporterProducts() {
     setShowModal(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (confirm('Are you sure you want to delete this product?')) {
-      deleteSupporterProduct(id);
-      loadProducts();
+      try {
+        const res = await fetch('/api/supporter-products', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to delete product');
+        }
+        await loadProducts();
+      } catch (error) {
+        console.error('Error deleting supporter product:', error);
+        alert('Failed to delete product. Please try again.');
+      }
     }
   };
 
-  const handleToggleStatus = (id) => {
-    toggleSupporterProductStatus(id);
-    loadProducts();
+  const handleToggleStatus = async (id) => {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    try {
+      const res = await fetch('/api/supporter-products', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, updates: { active: !product.active } })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to update product');
+      }
+      await loadProducts();
+    } catch (error) {
+      console.error('Error toggling supporter product:', error);
+      alert('Failed to update product. Please try again.');
+    }
   };
 
   const resetForm = () => {
@@ -203,6 +286,7 @@ export default function AdminSupporterProducts() {
                     accept="image/*"
                     onChange={handleFileUpload}
                     className={styles.fileInput}
+                    disabled={uploadingImage}
                   />
                   {formData.imageUrl && (
                     <div className={styles.imagePreview}>

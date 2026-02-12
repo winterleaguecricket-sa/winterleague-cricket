@@ -27,14 +27,47 @@ export function getTeamByName(teamName) {
 
 // Create team profile (from form submission)
 export function createTeamProfile(submissionData, formSubmissionId) {
+  // Handle both direct field access and form field ID access
+  // Form field IDs: 1=Team Name, 2=Manager Name, 3=Email, 35=Manager Phone, 5=Suburb
+  // 22=Team Logo, 23=Shirt Design, 30=Sponsor Logo, 32=Number of Teams, 33=Age Group Teams
+  
+  const teamName = submissionData.teamName || submissionData['1'] || submissionData[1] || submissionData['team-name'] || '';
+  const managerName = submissionData.managerName || submissionData['2'] || submissionData[2] || submissionData['team-manager-name'] || submissionData.coachName || '';
+  const managerPhone = submissionData.managerPhone || submissionData['35'] || submissionData[35] || submissionData['manager-phone'] || '';
+  const email = submissionData.email || submissionData['3'] || submissionData[3] || submissionData['coach-email'] || '';
+  const suburb = submissionData.suburb || submissionData['5'] || submissionData[5] || '';
+  const teamLogo = submissionData.teamLogo || submissionData['22'] || submissionData[22] || '';
+  const shirtDesign = submissionData.shirtDesign || submissionData['23'] || submissionData[23] || '';
+  const primaryColor = submissionData.primaryColor || submissionData['23_primaryColor'] || '';
+  const secondaryColor = submissionData.secondaryColor || submissionData['23_secondaryColor'] || '';
+  const sponsorLogo = submissionData.sponsorLogo || submissionData['30'] || submissionData[30] || '';
+  const numberOfTeams = submissionData.numberOfTeams || submissionData['32'] || submissionData[32] || 1;
+  const ageGroupTeams = submissionData.ageGroupTeams || submissionData['33'] || submissionData[33] || [];
+  const kitPricing = submissionData.kitPricing || {
+    basePrice: submissionData['29_basePrice'] || 150,
+    markup: submissionData['29_markup'] || 0
+  };
+  const entryFee = submissionData.entryFee || {
+    baseFee: submissionData['31_baseFee'] || 500
+  };
+  
   const newTeam = {
     id: teamIdCounter++,
     formSubmissionId,
-    teamName: submissionData.teamName || submissionData['team-name'] || '',
-    managerName: submissionData.managerName || submissionData['team-manager-name'] || submissionData.coachName || '',
-    managerPhone: submissionData.managerPhone || submissionData['manager-phone'] || '',
-    email: submissionData.email || submissionData['coach-email'] || '',
-    phone: submissionData.phone || submissionData['coach-phone'] || '',
+    teamName,
+    managerName,
+    managerPhone,
+    email,
+    suburb,
+    teamLogo,
+    shirtDesign,
+    primaryColor,
+    secondaryColor,
+    sponsorLogo,
+    numberOfTeams: parseInt(numberOfTeams) || 1,
+    ageGroupTeams,
+    kitPricing,
+    entryFee,
     password: generateTemporaryPassword(),
     submissionData, // Store all original form data
     status: 'pending', // pending, approved, active, suspended
@@ -42,6 +75,7 @@ export function createTeamProfile(submissionData, formSubmissionId) {
     updatedAt: new Date().toISOString(),
     lastLogin: null,
     players: [], // Can add players later
+    subTeams: ageGroupTeams || [], // Store sub-teams from registration
     documents: [], // Store team documents
     messages: [], // Admin messages to team
     fixtures: [], // Assigned fixtures

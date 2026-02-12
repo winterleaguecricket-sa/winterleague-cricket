@@ -1,12 +1,41 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function ImageGalleryModal({ design, onSelect, onClose }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [origin, setOrigin] = useState({ x: 50, y: 50 });
+  const [pointerState, setPointerState] = useState({
+    pointers: new Map(),
+    initialDistance: null,
+    initialZoom: 1
+  });
+  const mainImageRef = useRef(null);
+  const thumbnailStripRef = useRef(null);
+  const modalContentRef = useRef(null);
 
   if (!design) return null;
 
   const images = design.images || (design.imageUrl ? [design.imageUrl] : []);
   const currentImage = images[selectedIndex];
+
+  useEffect(() => {
+    setZoom(1);
+    setOrigin({ x: 50, y: 50 });
+  }, [selectedIndex, design?.id]);
+
+  useEffect(() => {
+    const nextIndex = images.length > 1 ? 1 : 0;
+    setSelectedIndex(nextIndex);
+    requestAnimationFrame(() => {
+      if (thumbnailStripRef.current) {
+        thumbnailStripRef.current.scrollLeft = 0;
+      }
+      if (modalContentRef.current && mainImageRef.current) {
+        const targetTop = Math.max(0, mainImageRef.current.offsetTop - 12);
+        modalContentRef.current.scrollTo({ top: targetTop, behavior: 'smooth' });
+      }
+    });
+  }, [design?.id, images.length]);
 
   return (
     <div 
@@ -33,26 +62,27 @@ export default function ImageGalleryModal({ design, onSelect, onClose }) {
           maxWidth: '900px',
           width: '100%',
           maxHeight: '90vh',
-          overflow: 'hidden',
+          overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
         }}
+        ref={modalContentRef}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div style={{
-          padding: '1.5rem',
+          padding: '0.9rem 1.2rem',
           borderBottom: '2px solid #e5e7eb',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', color: '#111827' }}>
+            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800', color: '#111827' }}>
               {design.name}
             </h3>
-            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.9rem', color: '#6b7280' }}>
+            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#6b7280' }}>
               {images.length} {images.length === 1 ? 'image' : 'images'}
             </p>
           </div>
@@ -81,22 +111,178 @@ export default function ImageGalleryModal({ design, onSelect, onClose }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '2rem',
+          padding: '0.5rem',
           background: '#f9fafb',
           position: 'relative',
-          minHeight: '400px'
+          minHeight: '70vh'
         }}>
-          <img 
-            src={currentImage}
-            alt={`${design.name} - Image ${selectedIndex + 1}`}
+          <div
             style={{
-              maxWidth: '100%',
-              maxHeight: '500px',
-              objectFit: 'contain',
-              borderRadius: '8px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              borderRadius: '12px',
+              touchAction: 'none'
             }}
-          />
+            onClick={() => {
+              setZoom((prev) => (prev > 1 ? 1 : 2));
+            }}
+            onMouseMove={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const x = ((e.clientX - rect.left) / rect.width) * 100;
+              const y = ((e.clientY - rect.top) / rect.height) * 100;
+              setOrigin({ x, y });
+            }}
+            onMouseLeave={() => setOrigin({ x: 50, y: 50 })}
+            onWheel={(e) => {
+              setZoom((prev) => {
+                const next = prev + (e.deltaY < 0 ? 0.2 : -0.2);
+                return Math.min(3, Math.max(1, parseFloat(next.toFixed(2))));
+              });
+            }}
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              setPointerState((prev) => {
+                const next = new Map(prev.pointers);
+                next.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                let initialDistance = prev.initialDistance;
+                let initialZoom = prev.initialZoom;
+                if (next.size === 2) {
+                  const points = Array.from(next.values());
+                  const dx = points[0].x - points[1].x;
+                  const dy = points[0].y - points[1].y;
+                  initialDistance = Math.hypot(dx, dy);
+                  initialZoom = zoom;
+                }
+                return { pointers: next, initialDistance, initialZoom };
+              });
+            }}
+            onPointerMove={(e) => {
+              setPointerState((prev) => {
+                if (!prev.pointers.has(e.pointerId)) return prev;
+                const next = new Map(prev.pointers);
+                next.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                if (next.size === 2 && prev.initialDistance) {
+                  const points = Array.from(next.values());
+                  const dx = points[0].x - points[1].x;
+                  const dy = points[0].y - points[1].y;
+                  const distance = Math.hypot(dx, dy);
+                  const scale = distance / prev.initialDistance;
+                  const newZoom = Math.min(3, Math.max(1, parseFloat((prev.initialZoom * scale).toFixed(2))));
+                  setZoom(newZoom);
+                }
+                return { ...prev, pointers: next };
+              });
+            }}
+            onPointerUp={(e) => {
+              setPointerState((prev) => {
+                const next = new Map(prev.pointers);
+                next.delete(e.pointerId);
+                return {
+                  pointers: next,
+                  initialDistance: next.size === 2 ? prev.initialDistance : null,
+                  initialZoom: next.size === 2 ? prev.initialZoom : zoom
+                };
+              });
+            }}
+          >
+            <img 
+              ref={mainImageRef}
+              src={currentImage}
+              alt={`${design.name} - Image ${selectedIndex + 1}`}
+              style={{
+                width: '100%',
+                height: '100%',
+                maxWidth: '100%',
+                maxHeight: '100%',
+                objectFit: 'contain',
+                borderRadius: '12px',
+                boxShadow: '0 12px 30px rgba(0,0,0,0.18)',
+                transform: `scale(${zoom})`,
+                transformOrigin: `${origin.x}% ${origin.y}%`,
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '0 18px 40px rgba(220, 0, 0, 0.25)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.18)';
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onSelect) onSelect(design);
+                if (onClose) onClose();
+              }}
+            />
+          </div>
+
+          <div style={{
+            position: 'absolute',
+            bottom: '1.5rem',
+            right: '1.5rem',
+            display: 'flex',
+            gap: '0.5rem',
+            background: 'rgba(15, 23, 42, 0.75)',
+            padding: '0.5rem',
+            borderRadius: '999px',
+            border: '1px solid rgba(148, 163, 184, 0.3)',
+            backdropFilter: 'blur(8px)'
+          }}>
+            <button
+              type="button"
+              onClick={() => setZoom((prev) => Math.min(3, parseFloat((prev + 0.2).toFixed(2))))}
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                border: 'none',
+                background: 'rgba(255,255,255,0.9)',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                fontWeight: '700'
+              }}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoom((prev) => Math.max(1, parseFloat((prev - 0.2).toFixed(2))))}
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                border: 'none',
+                background: 'rgba(255,255,255,0.9)',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                fontWeight: '700'
+              }}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoom(1)}
+              style={{
+                padding: '0 0.75rem',
+                height: '36px',
+                borderRadius: '18px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: '700',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase'
+              }}
+            >
+              Reset
+            </button>
+          </div>
 
           {/* Navigation Arrows */}
           {images.length > 1 && (
@@ -189,7 +375,7 @@ export default function ImageGalleryModal({ design, onSelect, onClose }) {
               gap: '0.75rem',
               overflowX: 'auto',
               padding: '0.5rem 0'
-            }}>
+            }} ref={thumbnailStripRef}>
               {images.map((img, index) => (
                 <div
                   key={index}
@@ -204,6 +390,14 @@ export default function ImageGalleryModal({ design, onSelect, onClose }) {
                     overflow: 'hidden',
                     transition: 'all 0.2s',
                     opacity: selectedIndex === index ? 1 : 0.6
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-3px) scale(1.05)';
+                    e.currentTarget.style.boxShadow = '0 8px 18px rgba(220, 0, 0, 0.25)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
                   <img 
@@ -256,7 +450,11 @@ export default function ImageGalleryModal({ design, onSelect, onClose }) {
           </button>
           {onSelect && (
             <button
-              onClick={() => onSelect(design)}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onSelect) onSelect(design);
+                if (onClose) onClose();
+              }}
               style={{
                 padding: '0.75rem 2rem',
                 background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',

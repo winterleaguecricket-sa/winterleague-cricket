@@ -6,8 +6,10 @@ export const products = [
     name: "Elite Pro Cricket Bat",
     category: "premium",
     price: 299.99,
+    cost: 0,
     description: "Professional grade English willow cricket bat",
     image: "/images/bat-pro.jpg",
+    images: ["/images/bat-pro.jpg"],
     stock: 15,
     featured: true,
     sizes: ["Short Handle", "Long Handle", "Harrow", "Full Size"]
@@ -17,8 +19,10 @@ export const products = [
     name: "Premium Leather Cricket Ball (Set of 6)",
     category: "premium",
     price: 89.99,
+    cost: 0,
     description: "Tournament quality leather cricket balls",
     image: "/images/ball-premium.jpg",
+    images: ["/images/ball-premium.jpg"],
     stock: 30,
     featured: false
   },
@@ -27,8 +31,10 @@ export const products = [
     name: "Professional Batting Gloves",
     category: "premium",
     price: 79.99,
+    cost: 0,
     description: "High-quality leather gloves with superior protection",
     image: "/images/gloves-pro.jpg",
+    images: ["/images/gloves-pro.jpg"],
     stock: 25,
     featured: true,
     sizes: ["Youth", "Small", "Medium", "Large", "XL"]
@@ -38,8 +44,10 @@ export const products = [
     name: "Elite Wicket Keeping Set",
     category: "premium",
     price: 249.99,
+    cost: 0,
     description: "Complete wicket keeper gloves and leg guards",
     image: "/images/keeper-elite.jpg",
+    images: ["/images/keeper-elite.jpg"],
     stock: 10,
     featured: false,
     sizes: ["Youth", "Small", "Medium", "Large"]
@@ -51,8 +59,10 @@ export const products = [
     name: "Training Cricket Bat - Kashmir Willow",
     category: "training",
     price: 79.99,
+    cost: 0,
     description: "Durable bat perfect for practice sessions",
     image: "/images/bat-training.jpg",
+    images: ["/images/bat-training.jpg"],
     stock: 40,
     featured: true,
     sizes: ["Short Handle", "Long Handle", "Full Size"]
@@ -62,8 +72,10 @@ export const products = [
     name: "Practice Tennis Balls (Set of 12)",
     category: "training",
     price: 24.99,
+    cost: 0,
     description: "Soft tennis balls ideal for training",
     image: "/images/ball-training.jpg",
+    images: ["/images/ball-training.jpg"],
     stock: 100,
     featured: false
   },
@@ -72,8 +84,10 @@ export const products = [
     name: "Bowling Machine Portable",
     category: "training",
     price: 499.99,
+    cost: 0,
     description: "Adjustable speed bowling machine for practice",
     image: "/images/bowling-machine.jpg",
+    images: ["/images/bowling-machine.jpg"],
     stock: 5,
     featured: true
   },
@@ -82,8 +96,10 @@ export const products = [
     name: "Training Stumps Set",
     category: "training",
     price: 49.99,
+    cost: 0,
     description: "Lightweight portable stumps for training",
     image: "/images/stumps-training.jpg",
+    images: ["/images/stumps-training.jpg"],
     stock: 35,
     featured: false
   },
@@ -92,8 +108,10 @@ export const products = [
     name: "Batting Practice Net",
     category: "training",
     price: 149.99,
+    cost: 0,
     description: "Professional grade practice net system",
     image: "/images/practice-net.jpg",
+    images: ["/images/practice-net.jpg"],
     stock: 12,
     featured: false
   },
@@ -102,8 +120,10 @@ export const products = [
     name: "Coaching Kit Bundle",
     category: "training",
     price: 199.99,
+    cost: 0,
     description: "Complete coaching essentials kit",
     image: "/images/coaching-kit.jpg",
+    images: ["/images/coaching-kit.jpg"],
     stock: 20,
     featured: true
   }
@@ -120,6 +140,7 @@ export let siteConfig = {
   secondaryColor: "#dc0000",
   accentColor: "#ff3333",
   logoUrl: "",
+  faviconUrl: "",
   fontFamily: "Inter",
   heroMediaType: "image", // 'image' or 'video'
   heroMediaUrl: "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=1600&h=900&fit=crop", // Default hero image

@@ -1,9 +1,41 @@
 // Admin settings and email template storage
+import fs from 'fs';
+import path from 'path';
 
-let adminSettings = {
+const ADMIN_SETTINGS_FILE = path.join(process.cwd(), 'data', 'adminSettings.json');
+
+// Load settings from file if it exists
+function loadSettings() {
+  try {
+    if (fs.existsSync(ADMIN_SETTINGS_FILE)) {
+      const data = fs.readFileSync(ADMIN_SETTINGS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error loading admin settings:', error);
+  }
+  return null;
+}
+
+// Save settings to file
+function saveSettings(settings) {
+  try {
+    fs.writeFileSync(ADMIN_SETTINGS_FILE, JSON.stringify(settings, null, 2));
+  } catch (error) {
+    console.error('Error saving admin settings:', error);
+  }
+}
+
+const defaultSettings = {
   email: 'admin@cricketleague.com',
   password: '', // In production, this should be hashed
   supplierEmail: 'supplier@example.com', // Email address to forward product orders
+  teamPortalTemplate: {
+    title: 'WL Team Portal',
+    subtitle: 'Manage your team, players, fixtures, and revenue',
+    headerStart: '#000000',
+    headerEnd: '#dc0000'
+  },
   emailTemplates: {
     pending: {
       subject: 'Registration Received - {teamName}',
@@ -124,46 +156,80 @@ Admin Panel Link: {adminLink}/admin/payouts`
   }
 };
 
+function mergeSettings(loaded) {
+  const merged = {
+    ...defaultSettings,
+    ...(loaded || {}),
+    teamPortalTemplate: {
+      ...defaultSettings.teamPortalTemplate,
+      ...(loaded?.teamPortalTemplate || {})
+    },
+    emailTemplates: {
+      ...defaultSettings.emailTemplates,
+      ...(loaded?.emailTemplates || {})
+    }
+  };
+
+  return merged;
+}
+
+// Initialize adminSettings from file or use defaults
+let adminSettings = mergeSettings(loadSettings());
+
 // Admin Settings Functions
 export function getAdminSettings() {
+  // Reload from file to get latest
+  const loaded = loadSettings();
+  if (loaded) {
+    adminSettings = mergeSettings(loaded);
+  }
   return adminSettings;
 }
 
 export function updateAdminEmail(email) {
   adminSettings.email = email;
+  saveSettings(mergeSettings(adminSettings));
   return adminSettings;
 }
 
 export function updateAdminPassword(password) {
   // In production, hash the password before storing
   adminSettings.password = password;
+  saveSettings(mergeSettings(adminSettings));
   return adminSettings;
 }
 
 export function updateSupplierEmail(email) {
   adminSettings.supplierEmail = email;
+  saveSettings(mergeSettings(adminSettings));
   return adminSettings;
 }
 
 export function getEmailTemplate(status) {
-  return adminSettings.emailTemplates[status] || null;
+  const settings = getAdminSettings();
+  return settings?.emailTemplates?.[status] || null;
 }
 
 export function updateEmailTemplate(status, template) {
+  if (!adminSettings.emailTemplates) {
+    adminSettings.emailTemplates = { ...defaultSettings.emailTemplates };
+  }
   if (adminSettings.emailTemplates[status]) {
     adminSettings.emailTemplates[status] = {
       ...adminSettings.emailTemplates[status],
       ...template
     };
+    saveSettings(mergeSettings(adminSettings));
     return adminSettings.emailTemplates[status];
   }
   return null;
 }
 
 export function updateAllAdminSettings(settings) {
-  adminSettings = {
+  adminSettings = mergeSettings({
     ...adminSettings,
     ...settings
-  };
+  });
+  saveSettings(adminSettings);
   return adminSettings;
 }

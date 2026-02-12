@@ -1,58 +1,111 @@
 import { useState, useEffect } from 'react';
+import Head from 'next/head';
+import Link from 'next/link';
 import styles from '../../styles/adminSettings.module.css';
-import { getFormTemplates, updateFormTemplate } from '../../data/forms';
 
 export default function TeamRegistrationBanner() {
   const [imageUrl, setImageUrl] = useState('');
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
-  const [uploadType, setUploadType] = useState('url');
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    const forms = getFormTemplates();
-    const teamRegForm = forms.find(f => f.id === 1);
-    if (teamRegForm?.welcomeBanner) {
-      setImageUrl(teamRegForm.welcomeBanner.imageUrl || '');
-      setTitle(teamRegForm.welcomeBanner.title || '');
-      setSubtitle(teamRegForm.welcomeBanner.subtitle || '');
-    }
+    const loadBanner = async () => {
+      try {
+        const res = await fetch('/api/team-registration-banner');
+        const data = await res.json();
+        if (data.success && data.banner) {
+          setImageUrl(data.banner.imageUrl || '');
+          setTitle(data.banner.title || '');
+          setSubtitle(data.banner.subtitle || '');
+        }
+      } catch (error) {
+        console.error('Error loading banner:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadBanner();
   }, []);
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result);
+      try {
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/upload-site-asset?type=team-banner', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+          alert('Upload failed: ' + (data.error || 'Unknown error'));
+          return;
+        }
+
+        setImageUrl(data.url);
         setUploadedFile(file.name);
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Upload error:', error);
+        alert('Failed to upload file. Please try again.');
+      } finally {
+        setUploading(false);
+      }
     }
   };
 
-  const handleSave = () => {
-    const forms = getFormTemplates();
-    const teamRegForm = forms.find(f => f.id === 1);
-    
-    if (teamRegForm) {
-      teamRegForm.welcomeBanner = {
-        imageUrl,
-        title,
-        subtitle,
-        showOnPage: 1
-      };
-      
-      updateFormTemplate(1, teamRegForm);
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const res = await fetch('/api/team-registration-banner', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          banner: {
+            imageUrl,
+            title,
+            subtitle,
+            showOnPage: 1
+          }
+        })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to save banner');
+      }
       alert('Team registration banner updated successfully!');
+    } catch (error) {
+      console.error('Error saving banner:', error);
+      alert('Failed to save banner. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
     <div className={styles.container}>
+      <Head>
+        <title>Team Registration Banner - Admin</title>
+      </Head>
+
       <div className={styles.header}>
-        <h1>🎨 Team Registration Banner</h1>
-        <p>Customize the welcome banner for the team registration form</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div>
+            <h1>🎨 Team Registration Banner</h1>
+            <p>Upload a banner image and update the welcome text</p>
+          </div>
+          <Link href="/admin/settings" style={{ color: '#ffffff', textDecoration: 'none', fontWeight: 600 }}>
+            ← Back to Settings
+          </Link>
+        </div>
       </div>
 
       <div className={styles.content}>
@@ -60,52 +113,20 @@ export default function TeamRegistrationBanner() {
         <div className={styles.section}>
           <h2>Banner Image</h2>
           
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ marginRight: '20px' }}>
-              <input
-                type="radio"
-                value="url"
-                checked={uploadType === 'url'}
-                onChange={(e) => setUploadType(e.target.value)}
-              />
-              <span style={{ marginLeft: '8px' }}>Image URL</span>
-            </label>
-            <label>
-              <input
-                type="radio"
-                value="file"
-                checked={uploadType === 'file'}
-                onChange={(e) => setUploadType(e.target.value)}
-              />
-              <span style={{ marginLeft: '8px' }}>Upload File</span>
-            </label>
+          <div className={styles.formGroup}>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className={styles.input}
+              disabled={uploading}
+            />
+            {uploadedFile && (
+              <p style={{ marginTop: '10px', color: '#10b981', fontSize: '0.9rem' }}>
+                ✓ Uploaded: {uploadedFile}
+              </p>
+            )}
           </div>
-
-          {uploadType === 'url' ? (
-            <div className={styles.formGroup}>
-              <input
-                type="text"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://example.com/banner-image.jpg"
-                className={styles.input}
-              />
-            </div>
-          ) : (
-            <div className={styles.formGroup}>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className={styles.input}
-              />
-              {uploadedFile && (
-                <p style={{ marginTop: '10px', color: '#10b981', fontSize: '0.9rem' }}>
-                  ✓ Uploaded: {uploadedFile}
-                </p>
-              )}
-            </div>
-          )}
 
           <div style={{
             background: '#eff6ff',
@@ -204,8 +225,8 @@ export default function TeamRegistrationBanner() {
 
         {/* Save Button */}
         <div className={styles.actions}>
-          <button onClick={handleSave} className={styles.saveButton}>
-            💾 Save Banner
+          <button onClick={handleSave} className={styles.saveButton} disabled={saving || loading}>
+            {saving ? 'Saving...' : '💾 Save Banner'}
           </button>
         </div>
       </div>

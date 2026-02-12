@@ -14,21 +14,23 @@ export default function PaymentSettings() {
   });
   const [saveStatus, setSaveStatus] = useState('');
   const [loading, setLoading] = useState(true);
+  const [siteOrigin, setSiteOrigin] = useState('');
 
   useEffect(() => {
     // Load current config from database via API
     const loadConfig = async () => {
       try {
-        const res = await fetch('/api/payfast/config');
+        // Request full credentials for admin form pre-population
+        const res = await fetch('/api/payfast/config?admin=true');
         const data = await res.json();
         if (data.success && data.config) {
-          setPaymentConfig(prev => ({
-            ...prev,
-            testMode: data.config.testMode,
-            // Show masked merchant ID if configured
-            _isConfigured: data.config.isConfigured,
-            _maskedId: data.config.merchantId
-          }));
+          setPaymentConfig({
+            merchantId: data.config.merchantId || '',
+            merchantKey: data.config.merchantKey || '',
+            passphrase: data.config.passphrase || '',
+            testMode: data.config.testMode !== undefined ? data.config.testMode : true,
+            _isConfigured: data.config.isConfigured
+          });
         }
       } catch (error) {
         console.error('Error loading PayFast config:', error);
@@ -37,6 +39,7 @@ export default function PaymentSettings() {
       }
     };
     loadConfig();
+    setSiteOrigin(window.location.origin);
   }, []);
 
   const handleChange = (e) => {
@@ -67,7 +70,15 @@ export default function PaymentSettings() {
       const data = await res.json();
       if (data.success) {
         setSaveStatus('PayFast configuration saved to database successfully!');
-        setTimeout(() => setSaveStatus(''), 3000);
+        // Re-fetch to confirm it persisted in the database
+        const verifyRes = await fetch('/api/payfast/config?admin=true');
+        const verifyData = await verifyRes.json();
+        if (verifyData.success && verifyData.config && verifyData.config.merchantId) {
+          setSaveStatus('✅ PayFast configuration saved AND verified in database!');
+        } else {
+          setSaveStatus('⚠️ Saved but could not verify — credentials may not have persisted. Check database connection.');
+        }
+        setTimeout(() => setSaveStatus(''), 5000);
       } else {
         setSaveStatus(`Error: ${data.error || 'Failed to save'}`);
       }
@@ -310,19 +321,19 @@ export default function PaymentSettings() {
               <div style={{ marginBottom: '0.45rem' }}>
                 <strong style={{ color: '#374151' }}>Return URL:</strong>
                 <div style={{ padding: '0.35rem', background: '#f9fafb', borderRadius: '4px', marginTop: '0.2rem', wordBreak: 'break-all', fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                  {typeof window !== 'undefined' ? window.location.origin : ''}/checkout/success
+                  {siteOrigin}/checkout/success
                 </div>
               </div>
               <div style={{ marginBottom: '0.45rem' }}>
                 <strong style={{ color: '#374151' }}>Cancel URL:</strong>
                 <div style={{ padding: '0.35rem', background: '#f9fafb', borderRadius: '4px', marginTop: '0.2rem', wordBreak: 'break-all', fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                  {typeof window !== 'undefined' ? window.location.origin : ''}/checkout
+                  {siteOrigin}/checkout
                 </div>
               </div>
               <div>
                 <strong style={{ color: '#374151' }}>Notify URL (ITN):</strong>
                 <div style={{ padding: '0.35rem', background: '#f9fafb', borderRadius: '4px', marginTop: '0.2rem', wordBreak: 'break-all', fontFamily: 'monospace', fontSize: '0.7rem' }}>
-                  {typeof window !== 'undefined' ? window.location.origin : ''}/api/payfast/notify
+                  {siteOrigin}/api/payfast/notify
                 </div>
               </div>
             </div>

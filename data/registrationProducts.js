@@ -10,46 +10,6 @@ let registrationProducts = [
     active: true,
     colorInheritFromTeam: true,
     imageUrl: ''
-  },
-  {
-    id: 'training-shirt',
-    name: 'Training Shirt',
-    description: 'Moisture-wicking training jersey',
-    price: 45.00,
-    sizeOptions: ['Small', 'Medium', 'Large', 'X-Large', '2X-Large'],
-    required: false,
-    active: true,
-    imageUrl: ''
-  },
-  {
-    id: 'playing-socks',
-    name: 'Playing Socks (Pair)',
-    description: 'Official team playing socks',
-    price: 20.00,
-    sizeOptions: ['Small', 'Medium', 'Large'],
-    required: false,
-    active: true,
-    imageUrl: ''
-  },
-  {
-    id: 'kit-bag',
-    name: 'Kit Bag',
-    description: 'Durable cricket kit bag with team logo',
-    price: 75.00,
-    sizeOptions: [],
-    required: false,
-    active: true,
-    imageUrl: ''
-  },
-  {
-    id: 'water-bottle',
-    name: 'Water Bottle',
-    description: 'Insulated water bottle with team branding',
-    price: 25.00,
-    sizeOptions: [],
-    required: false,
-    active: true,
-    imageUrl: ''
   }
 ];
 

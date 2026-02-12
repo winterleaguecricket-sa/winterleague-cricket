@@ -1,29 +1,66 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../../styles/adminOrders.module.css';
-import { getAllOrders, getProductOrders, getPlayerRegistrationOrders, getTeamRegistrationOrders, updateOrderStatus, addTrackingInfo, getOrderStats, getProductOrderStats, getPlayerRegistrationStats, getTeamRegistrationStats } from '../../data/orders';
 
 export default function OrderManagement() {
-  const [orders, setOrders] = useState(getAllOrders());
-  const [stats, setStats] = useState(getOrderStats());
+  const [orders, setOrders] = useState([]);
+  const [stats, setStats] = useState({ total: 0, pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0, totalRevenue: 0 });
   const [filterStatus, setFilterStatus] = useState('all');
-  const [orderType, setOrderType] = useState('all'); // all, products, player-registration, team-registration
+  const [orderType, setOrderType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [trackingCourier, setTrackingCourier] = useState('');
   const [statusNotes, setStatusNotes] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [tabCounts, setTabCounts] = useState({ product: 0, 'player-registration': 0, 'team-registration': 0, all: 0 });
 
-  // Get current stats based on order type
-  const getCurrentStats = () => {
-    if (orderType === 'products') return getProductOrderStats();
-    if (orderType === 'player-registration') return getPlayerRegistrationStats();
-    if (orderType === 'team-registration') return getTeamRegistrationStats();
-    return getOrderStats();
+  // Load orders and stats from API
+  const loadOrders = async (type = orderType) => {
+    try {
+      const [ordersRes, statsRes] = await Promise.all([
+        fetch(`/api/orders?type=${type}`),
+        fetch(`/api/orders?stats=true&type=${type}`)
+      ]);
+      const ordersData = await ordersRes.json();
+      const statsData = await statsRes.json();
+      setOrders(ordersData.orders || []);
+      setStats(statsData.stats || { total: 0, pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0, totalRevenue: 0 });
+    } catch (err) {
+      console.error('Error loading orders:', err);
+    }
+    setIsLoading(false);
   };
 
-  const currentStats = getCurrentStats();
+  // Load tab counts once on mount
+  const loadTabCounts = async () => {
+    try {
+      const res = await fetch('/api/orders?type=all');
+      const data = await res.json();
+      const allOrders = data.orders || [];
+      setTabCounts({
+        product: allOrders.filter(o => o.orderType === 'product').length,
+        'player-registration': allOrders.filter(o => o.orderType === 'player-registration').length,
+        'team-registration': allOrders.filter(o => o.orderType === 'team-registration').length,
+        all: allOrders.length
+      });
+    } catch (err) {
+      console.error('Error loading tab counts:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+    loadTabCounts();
+  }, []);
+
+  // Reload when order type changes
+  useEffect(() => {
+    loadOrders(orderType);
+  }, [orderType]);
+
+  const currentStats = stats;
 
   const statusOptions = [
     { value: 'pending', label: 'Pending', color: '#f59e0b' },
@@ -48,24 +85,41 @@ export default function OrderManagement() {
     return matchesType && matchesStatus && matchesSearch;
   });
 
-  const handleStatusChange = (orderId, newStatus) => {
-    updateOrderStatus(orderId, newStatus, statusNotes);
-    setOrders(getAllOrders());
-    setStats(getOrderStats());
-    setStatusNotes('');
-    if (selectedOrder && selectedOrder.id === orderId) {
-      setSelectedOrder(orders.find(o => o.id === orderId));
+  const handleStatusChange = async (orderId, newStatus) => {
+    try {
+      await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update-status', orderId, status: newStatus, notes: statusNotes })
+      });
+      await loadOrders();
+      setStatusNotes('');
+      if (selectedOrder && selectedOrder.id === orderId) {
+        const updated = orders.find(o => o.id === orderId);
+        if (updated) setSelectedOrder(updated);
+      }
+    } catch (err) {
+      console.error('Error updating status:', err);
     }
   };
 
-  const handleAddTracking = (orderId) => {
+  const handleAddTracking = async (orderId) => {
     if (trackingNumber && trackingCourier) {
-      addTrackingInfo(orderId, trackingNumber, trackingCourier);
-      setOrders(getAllOrders());
-      setTrackingNumber('');
-      setTrackingCourier('');
-      if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder(orders.find(o => o.id === orderId));
+      try {
+        await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'add-tracking', orderId, trackingNumber, courier: trackingCourier })
+        });
+        await loadOrders();
+        setTrackingNumber('');
+        setTrackingCourier('');
+        if (selectedOrder && selectedOrder.id === orderId) {
+          const updated = orders.find(o => o.id === orderId);
+          if (updated) setSelectedOrder(updated);
+        }
+      } catch (err) {
+        console.error('Error adding tracking:', err);
       }
     }
   };
@@ -150,7 +204,7 @@ export default function OrderManagement() {
               transition: 'all 0.2s'
             }}
           >
-            🛍️ Product Orders ({getProductOrders().length})
+            🛍️ Product Orders ({tabCounts.product})
           </button>
           <button
             onClick={() => setOrderType('player-registration')}
@@ -168,7 +222,7 @@ export default function OrderManagement() {
               transition: 'all 0.2s'
             }}
           >
-            🏏 Player Registrations ({getPlayerRegistrationOrders().length})
+            🏏 Player Registrations ({tabCounts['player-registration']})
           </button>
           <button
             onClick={() => setOrderType('team-registration')}
@@ -186,7 +240,7 @@ export default function OrderManagement() {
               transition: 'all 0.2s'
             }}
           >
-            👥 Team Registrations ({getTeamRegistrationOrders().length})
+            👥 Team Registrations ({tabCounts['team-registration']})
           </button>
         </div>
         {/* Statistics Cards */}

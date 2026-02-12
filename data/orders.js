@@ -1,5 +1,5 @@
 // Orders data management
-import { getAdminSettings, getEmailTemplate } from './adminSettings';
+// Note: adminSettings uses Node.js fs module - fetch via API instead
 
 let orders = [];
 let orderIdCounter = 1000;
@@ -53,11 +53,18 @@ async function sendOrderEmails(order) {
       return;
     }
 
-    const settings = getAdminSettings();
-    const customerTemplate = getEmailTemplate('orderConfirmation');
-    const supplierTemplate = getEmailTemplate('supplierForward');
+    // Fetch admin settings via API (adminSettings uses Node.js fs, can't run client-side)
+    const [settingsRes, customerTemplateRes, supplierTemplateRes] = await Promise.all([
+      fetch('/api/admin-settings'),
+      fetch('/api/admin-settings?template=orderConfirmation'),
+      fetch('/api/admin-settings?template=supplierForward')
+    ]);
+    
+    const settings = await settingsRes.json();
+    const customerTemplate = await customerTemplateRes.json();
+    const supplierTemplate = await supplierTemplateRes.json();
 
-    if (!customerTemplate || !supplierTemplate) {
+    if (!customerTemplate?.subject || !supplierTemplate?.subject) {
       console.error('Order email templates not found');
       return;
     }

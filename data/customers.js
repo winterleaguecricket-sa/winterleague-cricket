@@ -1,5 +1,5 @@
 // Customer profiles data
-import { getAdminSettings, getEmailTemplate } from './adminSettings';
+// Note: adminSettings uses Node.js fs module - fetch via API instead
 
 let customerProfiles = [
   {
@@ -228,11 +228,23 @@ async function sendOrderEmailsForProfile(order, profile) {
       return;
     }
 
-    const settings = getAdminSettings();
-    const customerTemplate = getEmailTemplate('orderConfirmation');
-    const supplierTemplate = getEmailTemplate('supplierForward');
+    // Fetch admin settings via API (adminSettings uses Node.js fs, can't run client-side)
+    const [settingsRes, customerTemplateRes, supplierTemplateRes] = await Promise.all([
+      fetch('/api/admin-settings'),
+      fetch('/api/admin-settings?template=orderConfirmation'),
+      fetch('/api/admin-settings?template=supplierForward')
+    ]);
 
-    if (!customerTemplate || !supplierTemplate) {
+    if (!settingsRes.ok || !customerTemplateRes.ok || !supplierTemplateRes.ok) {
+      console.error('Order email templates/settings not available');
+      return;
+    }
+    
+    const settings = await settingsRes.json();
+    const customerTemplate = await customerTemplateRes.json();
+    const supplierTemplate = await supplierTemplateRes.json();
+
+    if (!customerTemplate?.subject || !supplierTemplate?.subject) {
       console.error('Order email templates not found');
       return;
     }
@@ -242,11 +254,17 @@ async function sendOrderEmailsForProfile(order, profile) {
       `- ${item.name || item.productName} x${item.quantity}${item.size ? ` (${item.size})` : ''} - R${(item.price * item.quantity).toFixed(2)}`
     ).join('\n');
 
-    // Format shipping address
-    const shippingAddress = order.shippingAddress || profile.shippingAddress;
-    const shippingAddressText = `${shippingAddress.address}
-${shippingAddress.city}, ${shippingAddress.province}
-${shippingAddress.postalCode}`;
+    // Format shipping address (optional - not all orders have shipping)
+    const rawShippingAddress = (order && typeof order.shippingAddress === 'object' && order.shippingAddress)
+      || (profile && typeof profile.shippingAddress === 'object' && profile.shippingAddress)
+      || null;
+    const addressLine = rawShippingAddress?.address || rawShippingAddress?.street || '';
+    let shippingAddressText = 'N/A';
+    if (addressLine) {
+      shippingAddressText = `${addressLine}
+${rawShippingAddress?.city || ''}, ${rawShippingAddress?.province || ''}
+${rawShippingAddress?.postalCode || ''}`.trim();
+    }
 
     // Prepare customer email data
     const customerEmailData = {
@@ -277,6 +295,11 @@ ${shippingAddress.postalCode}`;
     };
 
     // Send emails via API
+    if (!settings?.supplierEmail) {
+      console.error('Supplier email not configured');
+      return;
+    }
+
     await fetch('/api/send-order-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
