@@ -740,7 +740,7 @@ export default function AdminProfile() {
                 <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '1rem' }}>
                   Click below to access the team portal directly from the admin panel. You can view the portal as teams see it and test the functionality.
                 </p>
-                <Link
+                <a
                   href="/team-portal?admin=true"
                   style={{
                     display: 'inline-block',
@@ -758,7 +758,7 @@ export default function AdminProfile() {
                   }}
                 >
                   Open Team Portal (Admin Mode) →
-                </Link>
+                </a>
               </div>
             </div>
 
@@ -854,7 +854,7 @@ export default function AdminProfile() {
                 <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '1rem' }}>
                   View the parent portal as users see it. Use admin preview mode to browse parent profiles.
                 </p>
-                <Link
+                <a
                   href="/parent-portal?admin=true"
                   style={{
                     display: 'inline-block',
@@ -872,7 +872,7 @@ export default function AdminProfile() {
                   }}
                 >
                   Open Parent Portal (Admin Mode) →
-                </Link>
+                </a>
               </div>
             </div>
           </div>
