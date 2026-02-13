@@ -11,6 +11,7 @@ export default function ParentPortal() {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [adminViewTab, setAdminViewTab] = useState('directory');
   const [allCustomers, setAllCustomers] = useState([]);
+  const [allTeams, setAllTeams] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [showDirectory, setShowDirectory] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
@@ -153,11 +154,20 @@ export default function ParentPortal() {
       setAdminViewTab('directory');
       const loadCustomers = async () => {
         try {
-          const res = await fetch('/api/customers');
-          if (!res.ok) return;
-          const data = await res.json();
-          const list = Array.isArray(data.customers) ? data.customers : [];
-          setAllCustomers(list);
+          const [custRes, teamsRes] = await Promise.all([
+            fetch('/api/customers'),
+            fetch('/api/teams?linkedOnly=true')
+          ]);
+          if (custRes.ok) {
+            const data = await custRes.json();
+            const list = Array.isArray(data.customers) ? data.customers : [];
+            setAllCustomers(list);
+          }
+          if (teamsRes.ok) {
+            const teamsData = await teamsRes.json();
+            const list = Array.isArray(teamsData) ? teamsData : (teamsData.teams || []);
+            setAllTeams(list);
+          }
         } catch (err) {
           console.error('Failed to load customers:', err);
         }
@@ -632,7 +642,7 @@ export default function ParentPortal() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
-                    {['Customer', 'Email', 'Phone', 'Member Since', 'Orders'].map((label) => (
+                    {['Customer', 'Email', 'Phone', 'Team', 'Member Since', 'Orders'].map((label) => (
                       <th key={label} style={{
                         background: '#111827',
                         padding: '1.25rem',
@@ -651,7 +661,7 @@ export default function ParentPortal() {
                 <tbody>
                   {allCustomers.length === 0 && (
                     <tr>
-                      <td colSpan={5} style={{ padding: '1.5rem', color: '#9ca3af', textAlign: 'center' }}>
+                      <td colSpan={6} style={{ padding: '1.5rem', color: '#9ca3af', textAlign: 'center' }}>
                         No customers found.
                       </td>
                     </tr>
@@ -672,6 +682,27 @@ export default function ParentPortal() {
                       </td>
                       <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#9ca3af' }}>
                         {customer.phone || '\u2014'}
+                      </td>
+                      <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                        {(() => {
+                          if (!customer.teamId) return <span style={{ color: '#6b7280' }}>\u2014</span>;
+                          const t = allTeams.find(t => t.id === customer.teamId);
+                          return t ? (
+                            <span style={{
+                              display: 'inline-block',
+                              background: 'rgba(239,68,68,0.12)',
+                              color: '#f87171',
+                              padding: '0.25rem 0.65rem',
+                              borderRadius: '6px',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              border: '1px solid rgba(239,68,68,0.25)',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {t.teamName || t.team_name || 'Team #' + customer.teamId}
+                            </span>
+                          ) : <span style={{ color: '#6b7280' }}>Team #{customer.teamId}</span>;
+                        })()}
                       </td>
                       <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#9ca3af' }}>
                         {customer.createdAt ? formatDate(customer.createdAt) : '\u2014'}
