@@ -3062,12 +3062,12 @@ export default function TeamPortal() {
               {/* Team Details Sub-Tab */}
               {profileTab === 'details' && (
                 <div style={{
-                  background: 'white',
+                  background: '#111827',
                   padding: '1.5rem',
                   borderRadius: '12px',
-                  border: '1px solid #e5e7eb'
+                  border: '1px solid rgba(255,255,255,0.08)'
                 }}>
-                  <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#111827' }}>
+                  <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#f9fafb' }}>
                     Team Information
                   </h3>
                   <div
@@ -3075,67 +3075,67 @@ export default function TeamPortal() {
                     style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}
                   >
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#6b7280', marginBottom: '0.25rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.25rem' }}>
                         Team Name
                       </label>
                       <div style={{
                         padding: '0.65rem',
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         borderRadius: '6px',
                         fontSize: '0.9rem',
-                        background: '#f9fafb',
-                        color: '#111827'
+                        background: 'rgba(255,255,255,0.05)',
+                        color: '#f9fafb'
                       }}>
                         {team.teamName}
                       </div>
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#6b7280', marginBottom: '0.25rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.25rem' }}>
                         Team Manager
                       </label>
                       <div style={{
                         padding: '0.65rem',
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         borderRadius: '6px',
                         fontSize: '0.9rem',
-                        background: '#f9fafb',
-                        color: '#111827'
+                        background: 'rgba(255,255,255,0.05)',
+                        color: '#f9fafb'
                       }}>
                         {team.managerName}
                       </div>
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#6b7280', marginBottom: '0.25rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.25rem' }}>
                         Manager Contact
                       </label>
                       <div style={{
                         padding: '0.65rem',
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         borderRadius: '6px',
                         fontSize: '0.9rem',
-                        background: '#f9fafb',
-                        color: '#111827'
+                        background: 'rgba(255,255,255,0.05)',
+                        color: '#f9fafb'
                       }}>
                         {team.managerPhone}
                       </div>
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#6b7280', marginBottom: '0.25rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.25rem' }}>
                         Email
                       </label>
                       <div style={{
                         padding: '0.65rem',
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         borderRadius: '6px',
                         fontSize: '0.9rem',
-                        background: '#f9fafb',
-                        color: '#111827'
+                        background: 'rgba(255,255,255,0.05)',
+                        color: '#f9fafb'
                       }}>
                         {team.email}
                       </div>
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#6b7280', marginBottom: '0.25rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.25rem' }}>
                         Sponsor Logo
                       </label>
                       <div
@@ -3146,10 +3146,10 @@ export default function TeamPortal() {
                           handleSponsorLogoUpload(file);
                         }}
                         style={{
-                          border: '2px dashed #e5e7eb',
+                          border: '2px dashed rgba(255,255,255,0.15)',
                           borderRadius: '10px',
                           padding: '1rem',
-                          background: '#f9fafb',
+                          background: 'rgba(255,255,255,0.05)',
                           textAlign: 'center',
                           cursor: 'pointer'
                         }}
@@ -3165,7 +3165,7 @@ export default function TeamPortal() {
                             style={{ maxWidth: '100%', maxHeight: '140px', objectFit: 'contain' }}
                           />
                         ) : (
-                          <div style={{ color: '#6b7280', fontSize: '0.85rem' }}>
+                          <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
                             Drag & drop sponsor logo here, or click to upload
                           </div>
                         )}
@@ -3178,39 +3178,39 @@ export default function TeamPortal() {
                         onChange={(e) => handleSponsorLogoUpload(e.target.files?.[0])}
                       />
                       {sponsorLogoUploading && (
-                        <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>Uploading...</div>
+                        <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#94a3b8' }}>Uploading...</div>
                       )}
                       {sponsorLogoMessage && (
-                        <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#0f172a' }}>{sponsorLogoMessage}</div>
+                        <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#f9fafb' }}>{sponsorLogoMessage}</div>
                       )}
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#6b7280', marginBottom: '0.25rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.25rem' }}>
                         Status
                       </label>
                       <div style={{
                         padding: '0.65rem',
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         borderRadius: '6px',
                         fontSize: '0.9rem',
-                        background: '#f9fafb',
-                        color: '#111827',
+                        background: 'rgba(255,255,255,0.05)',
+                        color: '#f9fafb',
                         textTransform: 'capitalize'
                       }}>
                         {team.status}
                       </div>
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#6b7280', marginBottom: '0.25rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.25rem' }}>
                         Registered
                       </label>
                       <div style={{
                         padding: '0.65rem',
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         borderRadius: '6px',
                         fontSize: '0.9rem',
-                        background: '#f9fafb',
-                        color: '#111827'
+                        background: 'rgba(255,255,255,0.05)',
+                        color: '#f9fafb'
                       }}>
                         {new Date(team.createdAt).toLocaleDateString()}
                       </div>
@@ -3219,18 +3219,18 @@ export default function TeamPortal() {
                   <div style={{
                     marginTop: '1.5rem',
                     padding: '1rem',
-                    background: '#dbeafe',
-                    border: '1px solid #93c5fd',
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
                     borderRadius: '8px',
                     fontSize: '0.85rem',
-                    color: '#1e40af'
+                    color: '#93c5fd'
                   }}>
                     <strong>📝 Note:</strong> To update team name, manager name, or contact number, please contact the league administrator.
                   </div>
 
                   {/* Sub-Teams Section */}
                   <div style={{ marginTop: '2rem' }}>
-                    <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#111827', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#f9fafb', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <span>🏆</span> Age Group Teams ({(team.submissionData?.[33] || team.ageGroupTeams || []).length})
                     </h3>
 
@@ -3242,9 +3242,9 @@ export default function TeamPortal() {
                         borderRadius: '8px',
                         fontSize: '0.85rem',
                         fontWeight: '600',
-                        background: ageGroupMessage.includes('Failed') ? '#fef2f2' : '#f0fdf4',
-                        border: ageGroupMessage.includes('Failed') ? '1px solid #fca5a5' : '1px solid #86efac',
-                        color: ageGroupMessage.includes('Failed') ? '#991b1b' : '#166534'
+                        background: ageGroupMessage.includes('Failed') ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                        border: ageGroupMessage.includes('Failed') ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
+                        color: ageGroupMessage.includes('Failed') ? '#fca5a5' : '#6ee7b7'
                       }}>
                         {ageGroupMessage}
                       </div>
@@ -3375,19 +3375,23 @@ export default function TeamPortal() {
                           marginTop: '1rem',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '0.4rem',
-                          padding: '0.5rem 1rem',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(239, 68, 68, 0.4)',
-                          background: 'rgba(239, 68, 68, 0.08)',
-                          color: '#dc2626',
-                          fontSize: '0.85rem',
-                          fontWeight: '600',
+                          gap: '0.5rem',
+                          padding: '0.75rem 1.5rem',
+                          borderRadius: '16px',
+                          border: 'none',
+                          background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                          backgroundSize: '200% 100%',
+                          color: 'white',
+                          fontSize: '0.95rem',
+                          fontWeight: '800',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.8px',
                           cursor: 'pointer',
-                          transition: 'all 0.2s'
+                          transition: 'all 0.3s ease',
+                          boxShadow: '0 6px 18px rgba(220, 0, 0, 0.25)'
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.18)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundPosition = '100% 50%'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(239, 68, 68, 0.4), 0 22px 40px rgba(220, 0, 0, 0.55)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundPosition = '0% 50%'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(220, 0, 0, 0.25)'; }}
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
                         Add Age Group Team
@@ -3469,16 +3473,20 @@ export default function TeamPortal() {
                               onClick={handleAddAgeGroup}
                               disabled={ageGroupSaving}
                               style={{
-                                padding: '0.5rem 1rem',
-                                borderRadius: '8px',
+                                padding: '0.6rem 1.25rem',
+                                borderRadius: '16px',
                                 border: 'none',
-                                background: '#dc2626',
+                                background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                                backgroundSize: '200% 100%',
                                 color: 'white',
                                 fontSize: '0.85rem',
-                                fontWeight: '600',
+                                fontWeight: '800',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px',
                                 cursor: ageGroupSaving ? 'not-allowed' : 'pointer',
                                 opacity: ageGroupSaving ? 0.6 : 1,
-                                transition: 'all 0.2s'
+                                transition: 'all 0.3s ease',
+                                boxShadow: '0 4px 12px rgba(220, 0, 0, 0.25)'
                               }}
                             >
                               {ageGroupSaving ? 'Saving...' : 'Add Team'}
@@ -3508,11 +3516,11 @@ export default function TeamPortal() {
                     <div style={{
                       marginTop: '1rem',
                       padding: '0.75rem',
-                      background: '#f0fdf4',
-                      border: '1px solid #86efac',
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
                       borderRadius: '8px',
                       fontSize: '0.8rem',
-                      color: '#166534'
+                      color: '#6ee7b7'
                     }}>
                       <strong>💡 Tip:</strong> All revenue from player registrations and product sales will be aggregated under your main team name: <strong>{team.teamName}</strong>
                     </div>
@@ -3608,12 +3616,12 @@ export default function TeamPortal() {
               {/* Kit Design Sub-Tab */}
               {profileTab === 'kit' && (
                 <div style={{
-                  background: 'white',
+                  background: '#111827',
                   padding: '1.5rem',
                   borderRadius: '12px',
-                  border: '1px solid #e5e7eb'
+                  border: '1px solid rgba(255,255,255,0.08)'
                 }}>
-                  <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#111827' }}>
+                  <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#f9fafb' }}>
                     Team Kit Design
                   </h3>
 
@@ -3667,14 +3675,14 @@ export default function TeamPortal() {
                                 flexDirection: 'column',
                                 gap: '0.5rem',
                                 cursor: kitDesignUploading ? 'not-allowed' : 'pointer',
-                                color: '#111827',
+                                color: '#f9fafb',
                                 fontWeight: '800'
                               }}
                             >
                               <span style={{ fontSize: '1rem' }}>
                                 {kitDesignUploading ? 'Uploading...' : 'Drag & drop the final kit image, or click to upload'}
                               </span>
-                              <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: '600' }}>
+                              <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: '600' }}>
                                 Admin only. Max 5MB. JPG/PNG/GIF/WebP/SVG.
                               </span>
                             </label>
@@ -3719,10 +3727,10 @@ export default function TeamPortal() {
                             maxWidth: '560px'
                           }}>
                             <div style={{
-                              border: '2px solid #e5e7eb',
+                              border: '2px solid rgba(255,255,255,0.1)',
                               borderRadius: '16px',
                               overflow: 'hidden',
-                              background: '#f9fafb'
+                              background: 'rgba(255,255,255,0.03)'
                             }}>
                               {kitPreviewUrl ? (
                                 <img
@@ -3732,7 +3740,7 @@ export default function TeamPortal() {
                                     width: '100%',
                                     height: '460px',
                                     objectFit: 'contain',
-                                    background: '#f9fafb'
+                                    background: 'rgba(255,255,255,0.03)'
                                   }}
                                 />
                               ) : (
@@ -3752,7 +3760,7 @@ export default function TeamPortal() {
                             <div style={{
                               marginTop: '0.75rem',
                               fontSize: '0.85rem',
-                              color: '#6b7280',
+                              color: '#94a3b8',
                               fontWeight: '600',
                               textAlign: 'center'
                             }}>
@@ -3763,11 +3771,11 @@ export default function TeamPortal() {
 
                         <div style={{
                           padding: '1rem',
-                          background: '#dbeafe',
-                          border: '1px solid #93c5fd',
+                          background: 'rgba(59, 130, 246, 0.1)',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
                           borderRadius: '8px',
                           fontSize: '0.85rem',
-                          color: '#1e40af'
+                          color: '#93c5fd'
                         }}>
                           <strong>📝 Note:</strong> This is the kit design you selected during team registration. To change your kit design, please contact the league administrator.
                         </div>
@@ -3782,18 +3790,18 @@ export default function TeamPortal() {
                 <div>
                   {/* Email Update */}
                   <div style={{
-                    background: 'white',
+                    background: '#111827',
                     padding: '1.5rem',
                     borderRadius: '12px',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid rgba(255,255,255,0.08)',
                     marginBottom: '1.5rem'
                   }}>
-                    <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#111827' }}>
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#f9fafb' }}>
                       Email Address
                     </h3>
                     <form onSubmit={handleUpdateEmail}>
                       <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#374151', marginBottom: '0.4rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.4rem' }}>
                           Email
                         </label>
                         <input
@@ -3804,9 +3812,11 @@ export default function TeamPortal() {
                           style={{
                             width: '100%',
                             padding: '0.65rem',
-                            border: '1px solid #d1d5db',
+                            border: '1px solid rgba(255,255,255,0.15)',
                             borderRadius: '6px',
-                            fontSize: '0.9rem'
+                            fontSize: '0.9rem',
+                            background: '#1f2937',
+                            color: '#f9fafb'
                           }}
                         />
                       </div>
@@ -3830,12 +3840,12 @@ export default function TeamPortal() {
 
                   {/* Password Update */}
                   <div style={{
-                    background: 'white',
+                    background: '#111827',
                     padding: '1.5rem',
                     borderRadius: '12px',
-                    border: '1px solid #e5e7eb'
+                    border: '1px solid rgba(255,255,255,0.08)'
                   }}>
-                    <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#111827' }}>
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#f9fafb' }}>
                       Change Password
                     </h3>
 
@@ -3858,7 +3868,7 @@ export default function TeamPortal() {
                     ) : (
                       <form onSubmit={handleChangePassword}>
                         <div style={{ marginBottom: '1rem' }}>
-                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#374151', marginBottom: '0.4rem' }}>
+                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.4rem' }}>
                             New Password
                           </label>
                           <input
@@ -3871,14 +3881,16 @@ export default function TeamPortal() {
                             style={{
                               width: '100%',
                               padding: '0.65rem',
-                              border: '1px solid #d1d5db',
+                              border: '1px solid rgba(255,255,255,0.15)',
                               borderRadius: '6px',
-                              fontSize: '0.9rem'
+                              fontSize: '0.9rem',
+                              background: '#1f2937',
+                              color: '#f9fafb'
                             }}
                           />
                         </div>
                         <div style={{ marginBottom: '1rem' }}>
-                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#374151', marginBottom: '0.4rem' }}>
+                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.4rem' }}>
                             Confirm Password
                           </label>
                           <input
@@ -3891,9 +3903,11 @@ export default function TeamPortal() {
                             style={{
                               width: '100%',
                               padding: '0.65rem',
-                              border: '1px solid #d1d5db',
+                              border: '1px solid rgba(255,255,255,0.15)',
                               borderRadius: '6px',
-                              fontSize: '0.9rem'
+                              fontSize: '0.9rem',
+                              background: '#1f2937',
+                              color: '#f9fafb'
                             }}
                           />
                         </div>
@@ -3923,9 +3937,9 @@ export default function TeamPortal() {
                             }}
                             style={{
                               padding: '0.65rem 1.5rem',
-                              background: '#f3f4f6',
-                              color: '#374151',
-                              border: 'none',
+                              background: 'rgba(255,255,255,0.08)',
+                              color: '#94a3b8',
+                              border: '1px solid rgba(255,255,255,0.15)',
                               borderRadius: '8px',
                               fontSize: '0.9rem',
                               fontWeight: '700',
@@ -3943,10 +3957,10 @@ export default function TeamPortal() {
                     <div style={{
                       marginTop: '1rem',
                       padding: '0.75rem 1rem',
-                      background: passwordMessage.includes('success') ? '#d1fae5' : '#fee2e2',
-                      border: passwordMessage.includes('success') ? '1px solid #86efac' : '1px solid #fca5a5',
+                      background: passwordMessage.includes('success') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                      border: passwordMessage.includes('success') ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
                       borderRadius: '6px',
-                      color: passwordMessage.includes('success') ? '#065f46' : '#991b1b',
+                      color: passwordMessage.includes('success') ? '#6ee7b7' : '#fca5a5',
                       fontSize: '0.85rem'
                     }}>
                       {passwordMessage}
@@ -3958,16 +3972,16 @@ export default function TeamPortal() {
               {/* Banking Details Sub-Tab */}
               {profileTab === 'banking' && (
                 <div style={{
-                  background: 'white',
+                  background: '#111827',
                   padding: '1.5rem',
                   borderRadius: '12px',
-                  border: '1px solid #e5e7eb'
+                  border: '1px solid rgba(255,255,255,0.08)'
                 }}>
                   <div style={{ marginBottom: '1.5rem' }}>
-                    <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: '#111827' }}>
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: '#f9fafb' }}>
                       Banking Information
                     </h3>
-                    <p style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                    <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
                       These details will be used for payout transfers. Please ensure all information is accurate.
                     </p>
                   </div>
@@ -3978,7 +3992,7 @@ export default function TeamPortal() {
                       style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}
                     >
                       <div style={{ gridColumn: '1 / -1' }}>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#374151', marginBottom: '0.4rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.4rem' }}>
                           Account Holder Name *
                         </label>
                         <input
@@ -3990,14 +4004,16 @@ export default function TeamPortal() {
                           style={{
                             width: '100%',
                             padding: '0.65rem',
-                            border: '1px solid #d1d5db',
+                            border: '1px solid rgba(255,255,255,0.15)',
                             borderRadius: '6px',
-                            fontSize: '0.9rem'
+                            fontSize: '0.9rem',
+                            background: '#1f2937',
+                            color: '#f9fafb'
                           }}
                         />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#374151', marginBottom: '0.4rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.4rem' }}>
                           Bank Name *
                         </label>
                         <select
@@ -4007,9 +4023,11 @@ export default function TeamPortal() {
                           style={{
                             width: '100%',
                             padding: '0.65rem',
-                            border: '1px solid #d1d5db',
+                            border: '1px solid rgba(255,255,255,0.15)',
                             borderRadius: '6px',
-                            fontSize: '0.9rem'
+                            fontSize: '0.9rem',
+                            background: '#1f2937',
+                            color: '#f9fafb'
                           }}
                         >
                           <option value="">Select Bank</option>
@@ -4032,7 +4050,7 @@ export default function TeamPortal() {
                       </div>
                       {bankingDetails.bankName === 'Other' && (
                         <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#374151', marginBottom: '0.4rem' }}>
+                          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.4rem' }}>
                             Bank Name (Please specify) *
                           </label>
                           <input
@@ -4044,15 +4062,17 @@ export default function TeamPortal() {
                             style={{
                               width: '100%',
                               padding: '0.65rem',
-                              border: '1px solid #d1d5db',
+                              border: '1px solid rgba(255,255,255,0.15)',
                               borderRadius: '6px',
-                              fontSize: '0.9rem'
+                              fontSize: '0.9rem',
+                              background: '#1f2937',
+                              color: '#f9fafb'
                             }}
                           />
                         </div>
                       )}
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#374151', marginBottom: '0.4rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.4rem' }}>
                           Account Type *
                         </label>
                         <select
@@ -4062,9 +4082,11 @@ export default function TeamPortal() {
                           style={{
                             width: '100%',
                             padding: '0.65rem',
-                            border: '1px solid #d1d5db',
+                            border: '1px solid rgba(255,255,255,0.15)',
                             borderRadius: '6px',
-                            fontSize: '0.9rem'
+                            fontSize: '0.9rem',
+                            background: '#1f2937',
+                            color: '#f9fafb'
                           }}
                         >
                           <option value="Cheque">Cheque Account</option>
@@ -4073,7 +4095,7 @@ export default function TeamPortal() {
                         </select>
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#374151', marginBottom: '0.4rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.4rem' }}>
                           Account Number *
                         </label>
                         <input
@@ -4087,14 +4109,16 @@ export default function TeamPortal() {
                           style={{
                             width: '100%',
                             padding: '0.65rem',
-                            border: '1px solid #d1d5db',
+                            border: '1px solid rgba(255,255,255,0.15)',
                             borderRadius: '6px',
-                            fontSize: '0.9rem'
+                            fontSize: '0.9rem',
+                            background: '#1f2937',
+                            color: '#f9fafb'
                           }}
                         />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#374151', marginBottom: '0.4rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.4rem' }}>
                           Branch Code
                         </label>
                         <input
@@ -4107,9 +4131,11 @@ export default function TeamPortal() {
                           style={{
                             width: '100%',
                             padding: '0.65rem',
-                            border: '1px solid #d1d5db',
+                            border: '1px solid rgba(255,255,255,0.15)',
                             borderRadius: '6px',
-                            fontSize: '0.9rem'
+                            fontSize: '0.9rem',
+                            background: '#1f2937',
+                            color: '#f9fafb'
                           }}
                         />
                       </div>
@@ -4137,10 +4163,10 @@ export default function TeamPortal() {
                     <div style={{
                       marginTop: '1rem',
                       padding: '0.75rem 1rem',
-                      background: '#d1fae5',
-                      border: '1px solid #86efac',
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
                       borderRadius: '6px',
-                      color: '#065f46',
+                      color: '#6ee7b7',
                       fontSize: '0.85rem'
                     }}>
                       {bankingMessage}
@@ -4151,11 +4177,11 @@ export default function TeamPortal() {
                     <div style={{
                       marginTop: '1.5rem',
                       padding: '1rem',
-                      background: '#f0fdf4',
-                      border: '1px solid #86efac',
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
                       borderRadius: '8px',
                       fontSize: '0.85rem',
-                      color: '#166534'
+                      color: '#6ee7b7'
                     }}>
                       <strong>✓ Banking details saved</strong> - Last updated: {new Date(team.bankingDetails.updatedAt).toLocaleDateString()}
                     </div>
@@ -4164,11 +4190,11 @@ export default function TeamPortal() {
                   <div style={{
                     marginTop: '1.5rem',
                     padding: '1rem',
-                    background: '#fef3c7',
-                    border: '1px solid #fbbf24',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
                     borderRadius: '8px',
                     fontSize: '0.85rem',
-                    color: '#92400e'
+                    color: '#fcd34d'
                   }}>
                     <strong>⚠️ Important:</strong> Your banking details must be saved before requesting a payout. The admin will use these details to process your payment transfer.
                   </div>
