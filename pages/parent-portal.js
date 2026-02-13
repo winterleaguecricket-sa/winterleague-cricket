@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import styles from '../styles/channel.module.css';
 
 export default function ParentPortal() {
   const [email, setEmail] = useState('');
@@ -23,10 +22,11 @@ export default function ParentPortal() {
   const [verificationCode, setVerificationCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [resetStep, setResetStep] = useState('email'); // email, verification, or newPassword
+  const [resetStep, setResetStep] = useState('email');
   const [resetMessage, setResetMessage] = useState('');
   const [resetError, setResetError] = useState('');
-  const [generatedCode, setGeneratedCode] = useState(''); // For demo purposes only
+  const [generatedCode, setGeneratedCode] = useState('');
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   const statusColors = {
     pending: '#f59e0b',
@@ -34,6 +34,56 @@ export default function ParentPortal() {
     shipped: '#8b5cf6',
     delivered: '#10b981',
     cancelled: '#ef4444'
+  };
+
+  const statusColorsOnDark = {
+    pending: { bg: 'rgba(245,158,11,0.18)', text: '#fcd34d' },
+    processing: { bg: 'rgba(59,130,246,0.15)', text: '#93c5fd' },
+    shipped: { bg: 'rgba(139,92,246,0.15)', text: '#c4b5fd' },
+    delivered: { bg: 'rgba(16,185,129,0.15)', text: '#6ee7b7' },
+    cancelled: { bg: 'rgba(239,68,68,0.2)', text: '#fca5a5' }
+  };
+
+  // Portal icons (matching team-portal SVG style)
+  const portalIcons = {
+    profile: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px' }}>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M5 20a7 7 0 0 1 14 0" />
+      </svg>
+    ),
+    orders: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px' }}>
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <path d="M9 8h6M9 12h6M9 16h4" />
+      </svg>
+    ),
+    tracking: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px' }}>
+        <rect x="1" y="6" width="22" height="12" rx="2" />
+        <path d="M1 10h22M8 6v12" />
+      </svg>
+    )
+  };
+
+  // Dashboard card hover effect (matching team-portal)
+  const applyDashboardCardHover = (e) => {
+    e.currentTarget.style.transform = 'translateY(-4px)';
+    e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.7)';
+    e.currentTarget.style.boxShadow = '0 14px 32px rgba(220,0,0,0.35), 0 0 22px rgba(255,255,255,0.25)';
+    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(15,23,42,0.95) 0%, rgba(3,7,18,0.98) 55%, rgba(220,0,0,0.35) 100%)';
+    e.currentTarget.style.filter = 'saturate(1.15) brightness(1.08)';
+    const shine = e.currentTarget.querySelector('[data-card-shine]');
+    if (shine) shine.style.left = '140%';
+  };
+  const removeDashboardCardHover = (e) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
+    e.currentTarget.style.background = '#111827';
+    e.currentTarget.style.filter = 'none';
+    const shine = e.currentTarget.querySelector('[data-card-shine]');
+    if (shine) shine.style.left = '-120%';
   };
 
   const handleLogin = async (e) => {
@@ -49,10 +99,10 @@ export default function ParentPortal() {
       const result = await res.json();
       if (result.authenticated) {
         setProfile(result.profile);
-        // Load orders via API
         const ordersRes = await fetch(`/api/orders?email=${encodeURIComponent(email)}`);
         const ordersData = await ordersRes.json();
         setOrders(ordersData.orders || []);
+        setActiveTab('dashboard');
       } else {
         setError(result.error || 'Invalid email or password');
       }
@@ -90,7 +140,6 @@ export default function ParentPortal() {
     setIsPreviewMode(false);
     setSelectedCustomerId(customer.id);
     setProfile(customer);
-    // Load orders via API
     try {
       const ordersRes = await fetch(`/api/orders?email=${encodeURIComponent(customer.email)}`);
       const ordersData = await ordersRes.json();
@@ -101,6 +150,7 @@ export default function ParentPortal() {
     }
     setShowDirectory(false);
     setAdminViewTab('profile');
+    setActiveTab('dashboard');
   };
 
   const previewProfile = {
@@ -140,12 +190,14 @@ export default function ParentPortal() {
     if (tab === 'preview') {
       enterPreviewMode();
       setShowDirectory(false);
+      setActiveTab('dashboard');
     } else if (tab === 'directory') {
       exitPreviewMode();
       setShowDirectory(true);
     } else {
       exitPreviewMode();
       setShowDirectory(false);
+      setActiveTab('dashboard');
     }
   };
 
@@ -183,12 +235,10 @@ export default function ParentPortal() {
         setResetError('Passwords do not match.');
         return;
       }
-      
       if (newPassword.length < 6) {
         setResetError('Password must be at least 6 characters long.');
         return;
       }
-      
       try {
         const res = await fetch('/api/customers', {
           method: 'POST',
@@ -245,409 +295,428 @@ export default function ParentPortal() {
     return `R ${amount.toFixed(2)}`;
   };
 
+  // Shine Effect Component (matching team-portal)
+  const ShineEffect = () => (
+    <span data-card-shine="true" style={{
+      position: 'absolute',
+      top: 0,
+      left: '-120%',
+      width: '60%',
+      height: '100%',
+      background: 'linear-gradient(120deg, transparent, rgba(255,255,255,0.45), transparent)',
+      transform: 'skewX(-20deg)',
+      transition: 'left 0.5s ease',
+      pointerEvents: 'none',
+      zIndex: 1
+    }} />
+  );
+
+  // ========================================
+  // LOGIN SCREEN (not logged in, not admin)
+  // ========================================
   if (!profile && !isAdminMode) {
     return (
-      <div className={styles.container}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #dc0000 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
         <Head>
-          <title>My Profile - Winter League Cricket</title>
+          <title>Parent Portal - Winter League Cricket</title>
         </Head>
 
-        <header className={styles.header}>
-          <div className={styles.headerContent}>
-            <Link href="/" className={styles.logoLink}>
-              <h1 className={styles.logo}>Winter League Cricket</h1>
-            </Link>
-            <nav className={styles.nav}>
-              <Link href="/" className={styles.navLink}>Home</Link>
-              <Link href="/premium" className={styles.navLink}>Shop</Link>
-            </nav>
-          </div>
-        </header>
-
-        <main className={styles.main}>
-          <div style={{ 
-            maxWidth: '900px', 
-            margin: '4rem auto', 
-            padding: '0 1rem'
+        <div style={{
+          background: 'white',
+          padding: '2.5rem',
+          borderRadius: '16px',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+          maxWidth: '450px',
+          width: '100%'
+        }}>
+          <h2 style={{
+            marginTop: 0,
+            fontSize: '2rem',
+            fontWeight: 900,
+            marginBottom: '0.25rem',
+            background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
           }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-              gap: '2rem',
-              alignItems: 'start'
-            }}>
-              {/* Parent Login */}
-              <div style={{ 
-                padding: '2rem',
-                background: 'white',
-                borderRadius: '16px',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
-              }}>
-                <h2 style={{ 
-                  marginTop: 0, 
-                  color: '#000', 
-                  fontWeight: 900,
-                  fontSize: '1.75rem',
-                  marginBottom: '0.5rem'
-                }}>
-                  Parent Login
-                </h2>
-                <p style={{ color: '#6b7280', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-                  View your orders and tracking information.
-                </p>
-                
-                <form onSubmit={handleLogin}>
-                  <div style={{ marginBottom: '1.25rem' }}>
-                    <label style={{ 
-                      display: 'block', 
-                      marginBottom: '0.5rem',
-                      fontWeight: 700,
-                      color: '#1f2937',
-                      fontSize: '0.9rem'
-                    }}>
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      placeholder="your.email@example.com"
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '2px solid #e5e7eb',
-                        borderRadius: '8px',
-                        fontSize: '1rem',
-                        fontFamily: 'inherit'
-                      }}
-                    />
-                  </div>
+            WL Parent Portal
+          </h2>
+          <p style={{ color: '#6b7280', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+            Access your profile and order history
+          </p>
 
-                  <div style={{ marginBottom: '1.25rem' }}>
-                    <label style={{ 
-                      display: 'block', 
-                      marginBottom: '0.5rem',
-                      fontWeight: 700,
-                      color: '#1f2937',
-                      fontSize: '0.9rem'
-                    }}>
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      placeholder="Enter your password"
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '2px solid #e5e7eb',
-                        borderRadius: '8px',
-                        fontSize: '1rem',
-                        fontFamily: 'inherit'
-                      }}
-                    />
-                  </div>
-
-                  {error && (
-                    <div style={{
-                      padding: '1rem',
-                      background: '#fee',
-                      color: '#dc0000',
-                      borderRadius: '8px',
-                      marginBottom: '1rem',
-                      border: '2px solid #dc0000',
-                      fontWeight: 600
-                    }}>
-                      {error}
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    style={{
-                      width: '100%',
-                      padding: '1rem',
-                      background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '12px',
-                      fontSize: '1rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}
-                  >
-                    Login
-                  </button>
-                </form>
-
-                <button
-                  onClick={() => setShowForgotPassword(true)}
-                  style={{
-                    width: '100%',
-                    marginTop: '1rem',
-                    padding: '0.75rem',
-                    background: 'transparent',
-                    color: '#dc0000',
-                    border: '2px solid #dc0000',
-                    borderRadius: '8px',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Forgot Password?
-                </button>
-
-                <p style={{ 
-                  marginTop: '1.5rem', 
-                  textAlign: 'center',
-                  color: '#6b7280',
-                  fontSize: '0.8rem'
-                }}>
-                  Your account is created automatically when you place your first order.
-                </p>
-              </div>
-
-              {/* Team Portal */}
-              <div style={{ 
-                padding: '2rem',
-                background: 'white',
-                borderRadius: '16px',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
-                borderTop: '4px solid #059669'
-              }}>
-                <h2 style={{ 
-                  marginTop: 0, 
-                  color: '#000', 
-                  fontWeight: 900,
-                  fontSize: '1.75rem',
-                  marginBottom: '0.5rem'
-                }}>
-                  Team Portal
-                </h2>
-                <p style={{ color: '#6b7280', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-                  For registered teams only. Access your dashboard, fixtures, and squad management.
-                </p>
-
-                <Link 
-                  href="/team-portal"
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '1rem',
-                    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '12px',
-                    fontSize: '1rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    textAlign: 'center',
-                    textDecoration: 'none'
-                  }}
-                >
-                  Go to Team Portal
-                </Link>
-
-                <p style={{ 
-                  marginTop: '1.5rem', 
-                  textAlign: 'center',
-                  color: '#6b7280',
-                  fontSize: '0.8rem'
-                }}>
-                  Login with your team name or email and password provided during registration.
-                </p>
-              </div>
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700, color: '#374151', fontSize: '0.9rem' }}>
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="your.email@example.com"
+                onFocus={(e) => e.target.style.borderColor = '#dc0000'}
+                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: '0.95rem',
+                  fontFamily: 'inherit',
+                  transition: 'border-color 0.2s',
+                  boxSizing: 'border-box'
+                }}
+              />
             </div>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700, color: '#374151', fontSize: '0.9rem' }}>
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="Enter your password"
+                onFocus={(e) => e.target.style.borderColor = '#dc0000'}
+                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: '0.95rem',
+                  fontFamily: 'inherit',
+                  transition: 'border-color 0.2s',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            {error && (
+              <div style={{
+                padding: '1rem',
+                background: '#fee2e2',
+                color: '#991b1b',
+                borderRadius: '6px',
+                marginBottom: '1rem',
+                border: '1px solid #fca5a5',
+                fontWeight: 600,
+                fontSize: '0.9rem'
+              }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'transform 0.2s'
+              }}
+            >
+              Login
+            </button>
+          </form>
+
+          <button
+            onClick={() => setShowForgotPassword(true)}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            style={{
+              width: '100%',
+              marginTop: '1rem',
+              padding: '0.75rem',
+              background: 'transparent',
+              color: '#dc0000',
+              border: '2px solid #dc0000',
+              borderRadius: '8px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'transform 0.2s'
+            }}
+          >
+            Forgot Password?
+          </button>
+
+          <div style={{
+            marginTop: '1.5rem',
+            padding: '1rem',
+            background: '#f3f4f6',
+            borderRadius: '8px',
+            textAlign: 'center'
+          }}>
+            <p style={{ margin: '0 0 0.5rem 0', color: '#6b7280', fontSize: '0.8rem' }}>
+              Your account is created automatically when you register a player.
+            </p>
+            <a
+              href="/team-portal"
+              style={{
+                display: 'inline-block',
+                marginTop: '0.5rem',
+                color: '#059669',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                textDecoration: 'none'
+              }}
+            >
+              Looking for the Team Portal? →
+            </a>
           </div>
-        </main>
+        </div>
+
+        {showForgotPassword && renderForgotPasswordModal()}
+
+        <style jsx global>{`
+          body { margin: 0; }
+        `}</style>
       </div>
     );
   }
 
+  // ========================================
+  // ADMIN DIRECTORY VIEW
+  // ========================================
   if (isAdminMode && adminViewTab === 'directory') {
     return (
-      <div className={styles.container}>
+      <div style={{ minHeight: '100vh', background: '#0b0b0b' }}>
         <Head>
           <title>Parent Portal - Admin Preview</title>
         </Head>
 
-        <header className={styles.header}>
-          <div className={styles.headerContent}>
-            <Link href="/" className={styles.logoLink}>
-              <h1 className={styles.logo}>Winter League Cricket</h1>
-            </Link>
-            <nav className={styles.nav}>
-              <Link href="/admin/profile" className={styles.navLink}>Back to Admin</Link>
-            </nav>
+        <div className="parentPortalHeader" style={{
+          background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+          color: 'white',
+          padding: '1rem 2rem',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.4)'
+        }}>
+          <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900 }}>WL Parent Portal</h1>
+              <p style={{ margin: '0.25rem 0 0 0', opacity: 0.9, fontSize: '0.85rem' }}>
+                Admin Mode
+                <span style={{ background: 'rgba(255,255,255,0.3)', padding: '0.15rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700, marginLeft: '0.75rem' }}>ADMIN</span>
+              </p>
+            </div>
+            <a
+              href="/admin/profile"
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                color: 'white',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 600,
+                textDecoration: 'none',
+                fontSize: '0.9rem'
+              }}
+            >
+              ← Back to Admin
+            </a>
           </div>
-        </header>
+        </div>
 
-        <main className={styles.main}>
-          <div style={{ maxWidth: '1200px', margin: '2rem auto 1rem' }}>
-            <div style={{
-              background: '#0b0b0b',
-              borderRadius: '16px',
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
-              overflow: 'hidden',
-              border: '1px solid rgba(220, 0, 0, 0.3)',
-              marginBottom: '1.5rem'
-            }}>
-              <div style={{
-                padding: '1rem 1.75rem',
-                background: '#0f0f0f',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
-              }}>
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  {[
-                    { key: 'directory', label: 'Directory' },
-                    { key: 'preview', label: 'Preview' },
-                    { key: 'profile', label: 'Selected Customer' }
-                  ].map((tab) => {
-                    const isDisabled = tab.key === 'profile' && !selectedCustomerId;
-                    return (
-                      <button
-                        key={tab.key}
-                        onClick={() => handleAdminTabChange(tab.key)}
-                        disabled={isDisabled}
-                        style={{
-                          padding: '0.55rem 1.2rem',
-                          background: adminViewTab === tab.key ? 'linear-gradient(135deg, #000000 0%, #dc0000 100%)' : 'rgba(255,255,255,0.08)',
-                          color: adminViewTab === tab.key ? '#ffffff' : '#e5e7eb',
-                          border: 'none',
-                          borderRadius: '999px',
-                          fontSize: '0.85rem',
-                          fontWeight: '700',
-                          cursor: isDisabled ? 'not-allowed' : 'pointer',
-                          opacity: isDisabled ? 0.5 : 1
-                        }}
-                      >
-                        {tab.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem' }}>
+          <div style={{
+            background: '#0f0f0f',
+            borderRadius: '16px',
+            padding: '1rem 1.75rem',
+            border: '1px solid rgba(255,255,255,0.08)',
+            marginBottom: '1.5rem'
+          }}>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {[
+                { key: 'directory', label: 'Directory' },
+                { key: 'preview', label: 'Preview' },
+                { key: 'profile', label: 'Selected Customer' }
+              ].map((tab) => {
+                const isDisabled = tab.key === 'profile' && !selectedCustomerId;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => handleAdminTabChange(tab.key)}
+                    disabled={isDisabled}
+                    style={{
+                      padding: '0.55rem 1.2rem',
+                      background: adminViewTab === tab.key ? 'linear-gradient(135deg, #000000 0%, #dc0000 100%)' : 'rgba(255,255,255,0.08)',
+                      color: adminViewTab === tab.key ? '#ffffff' : '#e5e7eb',
+                      border: 'none',
+                      borderRadius: '999px',
+                      fontSize: '0.85rem',
+                      fontWeight: '700',
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
+                      opacity: isDisabled ? 0.5 : 1
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
-          <div style={{ maxWidth: '1200px', margin: '2rem auto' }}>
+
+          <div style={{
+            background: '#0b0b0b',
+            borderRadius: '16px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+            overflow: 'hidden',
+            border: '1px solid rgba(220,0,0,0.3)'
+          }}>
             <div style={{
-              background: '#0b0b0b',
-              borderRadius: '16px',
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
-              overflow: 'hidden',
-              border: '1px solid rgba(220, 0, 0, 0.3)'
+              padding: '1.5rem 1.75rem',
+              background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+              color: '#ffffff',
+              fontWeight: '900',
+              fontSize: '1.4rem',
+              borderBottom: '1px solid rgba(255,255,255,0.2)'
             }}>
-              <div style={{
-                padding: '1.5rem 1.75rem',
-                background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+              Customer Directory
+              <span style={{
+                fontSize: '0.85rem',
+                fontWeight: '700',
                 color: '#ffffff',
-                fontWeight: '900',
-                fontSize: '1.4rem',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+                marginLeft: '0.75rem',
+                background: 'rgba(0,0,0,0.4)',
+                padding: '0.3rem 0.85rem',
+                borderRadius: '999px'
               }}>
-                Customer Directory
-                <span style={{
-                  fontSize: '0.85rem',
-                  fontWeight: '700',
-                  color: '#ffffff',
-                  marginLeft: '0.75rem',
-                  background: 'rgba(0, 0, 0, 0.4)',
-                  padding: '0.3rem 0.85rem',
-                  borderRadius: '999px'
-                }}>
-                  {allCustomers.length} customers
-                </span>
-              </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      {['Customer', 'Email', 'Phone', 'Member Since', 'Orders'].map((label) => (
-                        <th key={label} style={{
-                          background: '#111827',
-                          padding: '1.25rem',
-                          textAlign: 'left',
-                          fontWeight: '800',
-                          color: '#ffffff',
-                          borderBottom: '1px solid rgba(220, 0, 0, 0.4)',
-                          textTransform: 'uppercase',
-                          fontSize: '0.85rem',
-                          letterSpacing: '0.5px',
-                          whiteSpace: 'nowrap'
-                        }}>{label}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allCustomers.length === 0 && (
-                      <tr>
-                        <td colSpan={5} style={{
-                          padding: '1.5rem',
-                          color: '#9ca3af',
-                          textAlign: 'center'
-                        }}>
-                          No customers found.
-                        </td>
-                      </tr>
-                    )}
-                    {allCustomers.map((customer) => (
-                      <tr
-                        key={customer.id}
-                        onClick={() => handleCustomerSelect(customer)}
-                        style={{ cursor: 'pointer' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(220, 0, 0, 0.12)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#f3f4f6', fontWeight: '700' }}>
-                          {customer.firstName || 'Customer'} {customer.lastName || ''}
-                        </td>
-                        <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#9ca3af' }}>
-                          {customer.email || '—'}
-                        </td>
-                        <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#9ca3af' }}>
-                          {customer.phone || '—'}
-                        </td>
-                        <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#9ca3af' }}>
-                          {customer.createdAt ? formatDate(customer.createdAt) : '—'}
-                        </td>
-                        <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#9ca3af' }}>
-                          {customer.orders ? customer.orders.length : 0}
-                        </td>
-                      </tr>
+                {allCustomers.length} customers
+              </span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {['Customer', 'Email', 'Phone', 'Member Since', 'Orders'].map((label) => (
+                      <th key={label} style={{
+                        background: '#111827',
+                        padding: '1.25rem',
+                        textAlign: 'left',
+                        fontWeight: '800',
+                        color: '#ffffff',
+                        borderBottom: '1px solid rgba(220,0,0,0.4)',
+                        textTransform: 'uppercase',
+                        fontSize: '0.85rem',
+                        letterSpacing: '0.5px',
+                        whiteSpace: 'nowrap'
+                      }}>{label}</th>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allCustomers.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: '1.5rem', color: '#9ca3af', textAlign: 'center' }}>
+                        No customers found.
+                      </td>
+                    </tr>
+                  )}
+                  {allCustomers.map((customer) => (
+                    <tr
+                      key={customer.id}
+                      onClick={() => handleCustomerSelect(customer)}
+                      style={{ cursor: 'pointer' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(220,0,0,0.12)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#f3f4f6', fontWeight: '700' }}>
+                        {customer.firstName || 'Customer'} {customer.lastName || ''}
+                      </td>
+                      <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#9ca3af' }}>
+                        {customer.email || '\u2014'}
+                      </td>
+                      <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#9ca3af' }}>
+                        {customer.phone || '\u2014'}
+                      </td>
+                      <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#9ca3af' }}>
+                        {customer.createdAt ? formatDate(customer.createdAt) : '\u2014'}
+                      </td>
+                      <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#9ca3af' }}>
+                        {customer.orders ? customer.orders.length : 0}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
-        </main>
+        </div>
+
+        {renderResponsiveStyles()}
       </div>
     );
   }
 
+  // ========================================
+  // MAIN PORTAL (logged in OR admin profile)
+  // ========================================
   return (
-    <div className={styles.container}>
+    <div style={{ minHeight: '100vh', background: '#0b0b0b' }}>
       <Head>
-        <title>My Profile - Winter League Cricket</title>
+        <title>{isAdminMode ? 'Parent Portal - Admin' : 'My Profile'} - Winter League Cricket</title>
       </Head>
 
-      <header className={styles.header}>
-        <div className={styles.headerContent}>
-          <Link href="/" className={styles.logoLink}>
-            <h1 className={styles.logo}>Winter League Cricket</h1>
-          </Link>
-          <nav className={styles.nav}>
-            <Link href="/" className={styles.navLink}>Home</Link>
-            <Link href="/premium" className={styles.navLink}>Shop</Link>
-            <button 
+      <div className="parentPortalHeader" style={{
+        background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+        color: 'white',
+        padding: '1rem 2rem',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.4)'
+      }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900 }}>
+              WL Parent Portal {profile ? ('\u00B7 ' + profile.firstName) : ''}
+            </h1>
+            <p style={{ margin: '0.25rem 0 0 0', opacity: 0.9, fontSize: '0.85rem' }}>
+              {profile ? profile.email : ''}
+              {isAdminMode && (
+                <span style={{ background: 'rgba(255,255,255,0.3)', padding: '0.15rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700, marginLeft: '0.75rem' }}>ADMIN</span>
+              )}
+              {isPreviewMode && (
+                <span style={{ background: 'rgba(255,255,255,0.25)', padding: '0.25rem 0.85rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, marginLeft: '0.5rem' }}>PREVIEW</span>
+              )}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {isAdminMode && (
+              <select
+                value={selectedCustomerId || ''}
+                onChange={(e) => {
+                  const cust = allCustomers.find(c => c.id == e.target.value);
+                  if (cust) handleCustomerSelect(cust);
+                }}
+                style={{
+                  background: '#111827',
+                  color: '#f9fafb',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '8px',
+                  padding: '0.5rem 1rem',
+                  fontSize: '0.85rem',
+                  minWidth: '220px'
+                }}
+              >
+                <option value="">Select Customer...</option>
+                {allCustomers.map(c => (
+                  <option key={c.id} value={c.id}>{c.firstName} {c.lastName} — {c.email}</option>
+                ))}
+              </select>
+            )}
+            <button
               onClick={() => {
                 if (isAdminMode) {
                   setShowDirectory(true);
@@ -655,6 +724,7 @@ export default function ParentPortal() {
                   setProfile(null);
                   setOrders([]);
                   setSelectedCustomerId(null);
+                  setActiveTab('dashboard');
                   return;
                 }
                 setProfile(null);
@@ -662,369 +732,534 @@ export default function ParentPortal() {
                 setEmail('');
                 setPassword('');
                 setError('');
+                setActiveTab('dashboard');
               }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
               style={{
                 background: 'rgba(255,255,255,0.2)',
                 border: 'none',
                 color: 'white',
                 padding: '0.5rem 1rem',
-                borderRadius: '8px',
+                borderRadius: '6px',
                 cursor: 'pointer',
-                fontWeight: 600
+                fontWeight: 600,
+                fontSize: '0.9rem'
               }}
             >
-              Logout
+              {isAdminMode ? '\u2190 Directory' : 'Logout'}
             </button>
-          </nav>
+          </div>
         </div>
-      </header>
+      </div>
 
-      <main className={styles.main}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem' }}>
         {isAdminMode && (
-          <div style={{ maxWidth: '1200px', margin: '2rem auto 1rem' }}>
-            <div style={{
-              background: '#0b0b0b',
-              borderRadius: '16px',
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
-              overflow: 'hidden',
-              border: '1px solid rgba(220, 0, 0, 0.3)'
-            }}>
-              <div style={{
-                padding: '1rem 1.75rem',
-                background: '#0f0f0f',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
-              }}>
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  {[
-                    { key: 'directory', label: 'Directory' },
-                    { key: 'preview', label: 'Preview' },
-                    { key: 'profile', label: 'Selected Customer' }
-                  ].map((tab) => {
-                    const isDisabled = tab.key === 'profile' && !selectedCustomerId && !previousProfile;
-                    return (
-                      <button
-                        key={tab.key}
-                        onClick={() => handleAdminTabChange(tab.key)}
-                        disabled={isDisabled}
-                        style={{
-                          padding: '0.55rem 1.2rem',
-                          background: adminViewTab === tab.key ? 'linear-gradient(135deg, #000000 0%, #dc0000 100%)' : 'rgba(255,255,255,0.08)',
-                          color: adminViewTab === tab.key ? '#ffffff' : '#e5e7eb',
-                          border: 'none',
-                          borderRadius: '999px',
-                          fontSize: '0.85rem',
-                          fontWeight: '700',
-                          cursor: isDisabled ? 'not-allowed' : 'pointer',
-                          opacity: isDisabled ? 0.5 : 1
-                        }}
-                      >
-                        {tab.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+          <div style={{
+            background: '#0f0f0f',
+            borderRadius: '16px',
+            padding: '1rem 1.75rem',
+            border: '1px solid rgba(255,255,255,0.08)',
+            marginBottom: '1.5rem'
+          }}>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {[
+                { key: 'directory', label: 'Directory' },
+                { key: 'preview', label: 'Preview' },
+                { key: 'profile', label: 'Selected Customer' }
+              ].map((tab) => {
+                const isDisabled = tab.key === 'profile' && !selectedCustomerId && !previousProfile;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => handleAdminTabChange(tab.key)}
+                    disabled={isDisabled}
+                    style={{
+                      padding: '0.55rem 1.2rem',
+                      background: adminViewTab === tab.key ? 'linear-gradient(135deg, #000000 0%, #dc0000 100%)' : 'rgba(255,255,255,0.08)',
+                      color: adminViewTab === tab.key ? '#ffffff' : '#e5e7eb',
+                      border: 'none',
+                      borderRadius: '999px',
+                      fontSize: '0.85rem',
+                      fontWeight: '700',
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
+                      opacity: isDisabled ? 0.5 : 1
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
-        {/* Profile Header */}
-        <div style={{
-          background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-          color: 'white',
-          padding: '2rem',
-          borderRadius: '16px',
-          marginBottom: '2rem',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
-        }}>
-          <h2 style={{ margin: 0, fontSize: '2rem', fontWeight: 900 }}>
-            Welcome back, {profile.firstName}!
-          </h2>
-          <p style={{ margin: '0.5rem 0 0 0', opacity: 0.9 }}>
-            {profile.email}
-          </p>
-          {isPreviewMode && (
-            <p style={{ margin: '0.5rem 0 0 0', opacity: 0.9, fontSize: '0.85rem' }}>
-              Preview Mode
-            </p>
-          )}
-        </div>
 
-        {/* Profile Info */}
-        <div style={{
-          background: 'white',
-          padding: '2rem',
+        {/* Welcome Banner */}
+        <div className="parentBanner" style={{
+          background: 'linear-gradient(135deg, rgba(17,24,39,0.95) 0%, rgba(3,7,18,0.95) 55%, rgba(220,0,0,0.25) 100%)',
           borderRadius: '16px',
-          marginBottom: '2rem',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+          padding: '2rem',
+          marginBottom: '1.5rem',
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1.5rem'
         }}>
-          <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem', fontWeight: 900 }}>
-            Profile Information
-          </h3>
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '1rem'
+            width: '72px',
+            height: '72px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #dc0000 0%, #b30000 100%)',
+            border: '2px solid rgba(239,68,68,0.6)',
+            boxShadow: '0 6px 18px rgba(239,68,68,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.8rem',
+            flexShrink: 0
           }}>
-            <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px' }}>
-              <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#6b7280', fontSize: '0.9rem' }}>
-                Full Name
-              </strong>
-              <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                {profile.firstName} {profile.lastName}
-              </div>
-            </div>
-            <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px' }}>
-              <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#6b7280', fontSize: '0.9rem' }}>
-                Phone Number
-              </strong>
-              <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                {profile.phone}
-              </div>
-            </div>
-            <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px' }}>
-              <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#6b7280', fontSize: '0.9rem' }}>
-                Member Since
-              </strong>
-              <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                {formatDate(profile.createdAt)}
-              </div>
-            </div>
+            👤
+          </div>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 900, color: '#f9fafb' }}>
+              Welcome back, {profile.firstName}!
+            </h2>
+            <p style={{ margin: '0.25rem 0 0 0', color: '#9ca3af', fontSize: '0.95rem' }}>
+              {profile.email}
+            </p>
+            {isPreviewMode && (
+              <span style={{
+                display: 'inline-block',
+                marginTop: '0.5rem',
+                padding: '0.3rem 0.85rem',
+                background: 'rgba(245,158,11,0.18)',
+                color: '#fcd34d',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                textTransform: 'uppercase'
+              }}>
+                Preview Mode
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Orders Section */}
-        <div style={{
-          background: 'white',
-          padding: '2rem',
-          borderRadius: '16px',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
-        }}>
-          <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1.5rem', fontWeight: 900 }}>
-            My Orders ({orders.length})
-          </h3>
+        {/* Back to Dashboard */}
+        {activeTab !== 'dashboard' && (
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(220,0,0,0.5)'; e.currentTarget.style.background = 'rgba(220,0,0,0.15)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.background = 'transparent'; }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.6rem 1.2rem',
+              background: 'transparent',
+              color: '#f9fafb',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: '10px',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              marginBottom: '1.5rem',
+              transition: 'all 0.2s'
+            }}
+          >
+            ← Back to Dashboard
+          </button>
+        )}
 
-          {orders.length === 0 ? (
-            <div style={{ 
-              textAlign: 'center', 
-              padding: '3rem', 
-              color: '#6b7280' 
-            }}>
-              <p style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>
-                You haven't placed any orders yet.
-              </p>
-              <Link href="/premium" style={{
-                display: 'inline-block',
-                padding: '1rem 2rem',
-                background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-                color: 'white',
-                textDecoration: 'none',
+        {/* DASHBOARD (card navigation) */}
+        {activeTab === 'dashboard' && (
+          <div className="parentDashboardGrid" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '1.5rem'
+          }}>
+            {/* My Profile Card */}
+            <div
+              className="parentDashboardCard"
+              onClick={() => setActiveTab('profile')}
+              onMouseEnter={applyDashboardCardHover}
+              onMouseLeave={removeDashboardCardHover}
+              style={{
+                background: '#111827',
+                padding: '1.5rem',
                 borderRadius: '12px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
+                border: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
+              <ShineEffect />
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'rgba(96,165,250,0.14)',
+                border: '1px solid rgba(96,165,250,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '1rem',
+                color: '#60a5fa'
               }}>
-                Start Shopping
-              </Link>
+                {portalIcons.profile}
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', fontWeight: 800, color: '#f9fafb' }}>
+                My Profile
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#9ca3af', fontWeight: 600 }}>
+                View your personal details and account info
+              </p>
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {orders.map(order => (
-                <div 
-                  key={order.id}
-                  style={{
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '12px',
-                    padding: '1.5rem',
-                    transition: 'all 0.3s'
-                  }}
-                >
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    flexWrap: 'wrap',
-                    gap: '1rem',
-                    marginBottom: '1rem'
-                  }}>
-                    <div>
-                      <h4 style={{ 
-                        margin: '0 0 0.5rem 0', 
-                        fontSize: '1.2rem',
-                        fontWeight: 900 
-                      }}>
-                        Order #{order.orderNumber}
-                      </h4>
-                      <p style={{ 
-                        margin: 0, 
-                        color: '#6b7280',
-                        fontSize: '0.9rem'
-                      }}>
-                        Placed on {formatDate(order.createdAt)}
-                      </p>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{
-                        display: 'inline-block',
-                        padding: '0.5rem 1rem',
-                        background: statusColors[order.status] || '#gray',
-                        color: 'white',
-                        borderRadius: '20px',
-                        fontSize: '0.85rem',
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        marginBottom: '0.5rem'
-                      }}>
-                        {order.status}
-                      </div>
-                      <div style={{ 
-                        fontSize: '1.3rem', 
-                        fontWeight: 900,
-                        color: '#000'
-                      }}>
-                        {formatCurrency(order.total)}
-                      </div>
-                    </div>
+
+            {/* My Orders Card */}
+            <div
+              className="parentDashboardCard"
+              onClick={() => setActiveTab('orders')}
+              onMouseEnter={applyDashboardCardHover}
+              onMouseLeave={removeDashboardCardHover}
+              style={{
+                background: '#111827',
+                padding: '1.5rem',
+                borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+            >
+              <ShineEffect />
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'rgba(248,113,113,0.14)',
+                border: '1px solid rgba(248,113,113,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '1rem',
+                color: '#f87171'
+              }}>
+                {portalIcons.orders}
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', fontWeight: 800, color: '#f9fafb' }}>
+                My Orders
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#9ca3af', fontWeight: 600 }}>
+                View order history, tracking & receipts
+              </p>
+              {orders.length > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '1rem',
+                  right: '1rem',
+                  background: 'rgba(248,113,113,0.2)',
+                  color: '#f87171',
+                  padding: '0.25rem 0.75rem',
+                  borderRadius: '999px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700
+                }}>
+                  {orders.length}
+                </span>
+              )}
+            </div>
+
+            {/* Team Portal Link Card */}
+            <a
+              href="/team-portal"
+              className="parentDashboardCard"
+              onMouseEnter={applyDashboardCardHover}
+              onMouseLeave={removeDashboardCardHover}
+              style={{
+                background: '#111827',
+                padding: '1.5rem',
+                borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                position: 'relative',
+                overflow: 'hidden',
+                textDecoration: 'none'
+              }}
+            >
+              <ShineEffect />
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'rgba(52,211,153,0.14)',
+                border: '1px solid rgba(52,211,153,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '1rem',
+                color: '#34d399'
+              }}>
+                {portalIcons.tracking}
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', fontWeight: 800, color: '#f9fafb' }}>
+                Team Portal
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#9ca3af', fontWeight: 600 }}>
+                Access your team dashboard & management
+              </p>
+            </a>
+          </div>
+        )}
+
+        {/* PROFILE VIEW */}
+        {activeTab === 'profile' && (
+          <div style={{
+            background: '#111827',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            border: '1px solid rgba(255,255,255,0.08)'
+          }}>
+            <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1.4rem', fontWeight: 900, color: '#f9fafb' }}>
+              Profile Information
+            </h3>
+            <div className="parentInfoGrid" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+              gap: '1rem'
+            }}>
+              {[
+                { label: 'Full Name', value: (profile.firstName || '') + ' ' + (profile.lastName || '') },
+                { label: 'Email Address', value: profile.email },
+                { label: 'Phone Number', value: profile.phone || '\u2014' },
+                { label: 'Member Since', value: profile.createdAt ? formatDate(profile.createdAt) : '\u2014' }
+              ].map((item, idx) => (
+                <div key={idx} style={{
+                  padding: '1rem',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '8px'
+                }}>
+                  <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#94a3b8', fontSize: '0.85rem', fontWeight: 700 }}>
+                    {item.label}
+                  </strong>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 600, color: '#f9fafb' }}>
+                    {item.value}
                   </div>
-
-                  {/* Order Items Summary */}
-                  <div style={{
-                    padding: '1rem',
-                    background: '#f9fafb',
-                    borderRadius: '8px',
-                    marginBottom: '1rem'
-                  }}>
-                    <strong style={{ display: 'block', marginBottom: '0.5rem' }}>
-                      Items ({order.items.length})
-                    </strong>
-                    {order.items.map((item, idx) => (
-                      <div key={idx} style={{ 
-                        fontSize: '0.9rem',
-                        color: '#374151',
-                        marginBottom: '0.25rem'
-                      }}>
-                        {item.quantity}x {item.name} {item.size ? `(${item.size})` : ''}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Tracking Information */}
-                  {order.tracking ? (
-                    <div style={{
-                      padding: '1rem',
-                      background: '#f0fdf4',
-                      border: '2px solid #10b981',
-                      borderRadius: '8px',
-                      marginBottom: '1rem'
-                    }}>
-                      <div style={{ 
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        marginBottom: '0.75rem'
-                      }}>
-                        <span style={{ fontSize: '1.5rem' }}>📦</span>
-                        <strong style={{ fontSize: '1.1rem' }}>Tracking Information</strong>
-                      </div>
-                      <div style={{ fontSize: '0.95rem', lineHeight: '1.8' }}>
-                        <div>
-                          <strong>Tracking Number:</strong>{' '}
-                          <span style={{ 
-                            background: 'white',
-                            padding: '0.25rem 0.75rem',
-                            borderRadius: '4px',
-                            fontFamily: 'monospace',
-                            fontWeight: 600
-                          }}>
-                            {order.tracking.number}
-                          </span>
-                        </div>
-                        <div>
-                          <strong>Courier:</strong> {order.tracking.courier}
-                        </div>
-                        <div style={{ fontSize: '0.85rem', color: '#059669', marginTop: '0.5rem' }}>
-                          Added on {formatDate(order.tracking.addedAt)}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    order.status === 'pending' || order.status === 'processing' ? (
-                      <div style={{
-                        padding: '1rem',
-                        background: '#fffbeb',
-                        border: '2px solid #f59e0b',
-                        borderRadius: '8px',
-                        marginBottom: '1rem',
-                        fontSize: '0.9rem',
-                        color: '#92400e'
-                      }}>
-                        📋 Your order is being prepared. Tracking information will be available once shipped.
-                      </div>
-                    ) : null
-                  )}
-
-                  <button
-                    onClick={() => setSelectedOrder(order)}
-                    style={{
-                      padding: '0.75rem 1.5rem',
-                      background: '#3b82f6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      fontSize: '0.9rem'
-                    }}
-                  >
-                    View Full Details
-                  </button>
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      </main>
+          </div>
+        )}
+
+        {/* ORDERS VIEW */}
+        {activeTab === 'orders' && (
+          <div style={{
+            background: '#111827',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            border: '1px solid rgba(255,255,255,0.08)'
+          }}>
+            <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1.4rem', fontWeight: 900, color: '#f9fafb' }}>
+              My Orders ({orders.length})
+            </h3>
+
+            {orders.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: '#9ca3af' }}>
+                <p style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>
+                  You haven't placed any orders yet.
+                </p>
+                <a href="/premium" style={{
+                  display: 'inline-block',
+                  padding: '1rem 2rem',
+                  background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  transition: 'transform 0.2s'
+                }}>
+                  Start Shopping
+                </a>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {orders.map(order => (
+                  <div
+                    key={order.id}
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '12px',
+                      padding: '1.5rem',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(239,68,68,0.4)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(220,0,0,0.15)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none'; }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      flexWrap: 'wrap',
+                      gap: '1rem',
+                      marginBottom: '1rem'
+                    }}>
+                      <div>
+                        <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', fontWeight: 900, color: '#f9fafb' }}>
+                          Order #{order.orderNumber}
+                        </h4>
+                        <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.9rem' }}>
+                          Placed on {formatDate(order.createdAt)}
+                        </p>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{
+                          display: 'inline-block',
+                          padding: '0.4rem 0.85rem',
+                          background: (statusColorsOnDark[order.status] || { bg: 'rgba(255,255,255,0.1)' }).bg,
+                          color: (statusColorsOnDark[order.status] || { text: '#e5e7eb' }).text,
+                          borderRadius: '8px',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          marginBottom: '0.5rem'
+                        }}>
+                          {order.status}
+                        </div>
+                        <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#f87171' }}>
+                          {formatCurrency(order.total)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{
+                      padding: '1rem',
+                      background: 'rgba(255,255,255,0.05)',
+                      borderRadius: '8px',
+                      marginBottom: '1rem',
+                      border: '1px solid rgba(255,255,255,0.06)'
+                    }}>
+                      <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#e5e7eb' }}>
+                        Items ({order.items.length})
+                      </strong>
+                      {order.items.map((item, idx) => (
+                        <div key={idx} style={{ fontSize: '0.9rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
+                          {item.quantity}x {item.name} {item.size ? '(' + item.size + ')' : ''}
+                        </div>
+                      ))}
+                    </div>
+
+                    {order.tracking ? (
+                      <div style={{
+                        padding: '1rem',
+                        background: 'rgba(16,185,129,0.1)',
+                        border: '1px solid rgba(16,185,129,0.3)',
+                        borderRadius: '8px',
+                        marginBottom: '1rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                          <span style={{ fontSize: '1.5rem' }}>📦</span>
+                          <strong style={{ fontSize: '1.1rem', color: '#6ee7b7' }}>Tracking Information</strong>
+                        </div>
+                        <div style={{ fontSize: '0.95rem', lineHeight: '1.8', color: '#d1d5db' }}>
+                          <div>
+                            <strong style={{ color: '#e5e7eb' }}>Tracking Number:</strong>{' '}
+                            <span style={{
+                              background: 'rgba(255,255,255,0.1)',
+                              padding: '0.25rem 0.75rem',
+                              borderRadius: '4px',
+                              fontFamily: 'monospace',
+                              fontWeight: 600,
+                              color: '#6ee7b7'
+                            }}>
+                              {order.tracking.number}
+                            </span>
+                          </div>
+                          <div><strong style={{ color: '#e5e7eb' }}>Courier:</strong> {order.tracking.courier}</div>
+                          <div style={{ fontSize: '0.85rem', color: '#34d399', marginTop: '0.5rem' }}>
+                            Added on {formatDate(order.tracking.addedAt)}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      (order.status === 'pending' || order.status === 'processing') ? (
+                        <div style={{
+                          padding: '1rem',
+                          background: 'rgba(245,158,11,0.1)',
+                          border: '1px solid rgba(245,158,11,0.3)',
+                          borderRadius: '8px',
+                          marginBottom: '1rem',
+                          fontSize: '0.9rem',
+                          color: '#fcd34d'
+                        }}>
+                          Your order is being prepared. Tracking information will be available once shipped.
+                        </div>
+                      ) : null
+                    )}
+
+                    <button
+                      onClick={() => setSelectedOrder(order)}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                      style={{
+                        padding: '0.75rem 1.5rem',
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        transition: 'transform 0.2s'
+                      }}
+                    >
+                      View Full Details
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Order Details Modal */}
       {selectedOrder && (
         <>
-          <div 
+          <div
             onClick={() => setSelectedOrder(null)}
             style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0, 0, 0, 0.7)',
-              zIndex: 999,
-              backdropFilter: 'blur(5px)'
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.8)', zIndex: 999, backdropFilter: 'blur(5px)'
             }}
           />
           <div style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
+            position: 'fixed', top: '50%', left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: '90%',
-            maxWidth: '800px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            zIndex: 1000
+            width: '90%', maxWidth: '800px', maxHeight: '90vh',
+            overflowY: 'auto', zIndex: 1000
           }}>
             <div style={{
-              background: 'white',
-              borderRadius: '20px',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+              background: '#111827',
+              borderRadius: '16px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+              border: '1px solid rgba(255,255,255,0.1)'
             }}>
               <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 padding: '1.5rem 2rem',
-                borderBottom: '2px solid #e5e7eb',
                 background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
                 color: 'white',
-                borderRadius: '20px 20px 0 0'
+                borderRadius: '16px 16px 0 0'
               }}>
                 <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800 }}>
                   Order #{selectedOrder.orderNumber}
@@ -1032,17 +1267,9 @@ export default function ParentPortal() {
                 <button
                   onClick={() => setSelectedOrder(null)}
                   style={{
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    border: 'none',
-                    color: 'white',
-                    fontSize: '1.5rem',
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                    background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white',
+                    fontSize: '1.5rem', width: '36px', height: '36px', borderRadius: '8px',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}
                 >
                   ✕
@@ -1050,160 +1277,158 @@ export default function ParentPortal() {
               </div>
 
               <div style={{ padding: '2rem' }}>
-                {/* Order Items */}
-                <section style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '2px solid #f0f0f0' }}>
-                  <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 900 }}>
+                <section style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                  <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 900, color: '#f9fafb' }}>
                     Order Items
                   </h3>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 700 }}>Product</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 700 }}>Size</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 700 }}>Qty</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700 }}>Price</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700 }}>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedOrder.items.map((item, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                          <td style={{ padding: '0.75rem' }}>{item.name}</td>
-                          <td style={{ padding: '0.75rem' }}>{item.size || '-'}</td>
-                          <td style={{ padding: '0.75rem', textAlign: 'center' }}>{item.quantity}</td>
-                          <td style={{ padding: '0.75rem', textAlign: 'right' }}>{formatCurrency(item.price)}</td>
-                          <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600 }}>
-                            {formatCurrency(item.price * item.quantity)}
-                          </td>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          {['Product', 'Size', 'Qty', 'Price', 'Total'].map((h, i) => (
+                            <th key={h} style={{
+                              padding: '0.75rem',
+                              textAlign: i >= 2 ? (i === 2 ? 'center' : 'right') : 'left',
+                              fontWeight: 700,
+                              color: '#94a3b8',
+                              borderBottom: '1px solid rgba(255,255,255,0.1)',
+                              fontSize: '0.85rem',
+                              textTransform: 'uppercase'
+                            }}>{h}</th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr style={{ borderTop: '2px solid #e5e7eb' }}>
-                        <td colSpan="4" style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600 }}>Subtotal:</td>
-                        <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600 }}>
-                          {formatCurrency(selectedOrder.subtotal)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td colSpan="4" style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600 }}>Shipping:</td>
-                        <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600 }}>
-                          {formatCurrency(selectedOrder.shipping)}
-                        </td>
-                      </tr>
-                      <tr style={{ background: '#f9fafb' }}>
-                        <td colSpan="4" style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, fontSize: '1.1rem' }}>
-                          Total:
-                        </td>
-                        <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 900, fontSize: '1.1rem', color: '#dc0000' }}>
-                          {formatCurrency(selectedOrder.total)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {selectedOrder.items.map((item, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <td style={{ padding: '0.75rem', color: '#f9fafb' }}>{item.name}</td>
+                            <td style={{ padding: '0.75rem', color: '#9ca3af' }}>{item.size || '-'}</td>
+                            <td style={{ padding: '0.75rem', textAlign: 'center', color: '#9ca3af' }}>{item.quantity}</td>
+                            <td style={{ padding: '0.75rem', textAlign: 'right', color: '#9ca3af' }}>{formatCurrency(item.price)}</td>
+                            <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#f9fafb' }}>
+                              {formatCurrency(item.price * item.quantity)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                          <td colSpan="4" style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#94a3b8' }}>Subtotal:</td>
+                          <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#f9fafb' }}>{formatCurrency(selectedOrder.subtotal)}</td>
+                        </tr>
+                        <tr>
+                          <td colSpan="4" style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#94a3b8' }}>Shipping:</td>
+                          <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#f9fafb' }}>{formatCurrency(selectedOrder.shipping)}</td>
+                        </tr>
+                        <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
+                          <td colSpan="4" style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, fontSize: '1.1rem', color: '#f9fafb' }}>Total:</td>
+                          <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 900, fontSize: '1.1rem', color: '#f87171' }}>{formatCurrency(selectedOrder.total)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </section>
 
-                {/* Shipping Address */}
-                <section style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '2px solid #f0f0f0' }}>
-                  <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 900 }}>
+                <section style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                  <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 900, color: '#f9fafb' }}>
                     Shipping Address
                   </h3>
-                  <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px', lineHeight: '1.6' }}>
+                  <div style={{
+                    padding: '1rem',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    lineHeight: '1.6',
+                    color: '#d1d5db'
+                  }}>
                     {selectedOrder.shippingAddress.street}<br />
                     {selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.province}<br />
                     {selectedOrder.shippingAddress.postalCode}
                   </div>
                 </section>
 
-                {/* Tracking Info */}
                 {selectedOrder.tracking && (
-                  <section style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '2px solid #f0f0f0' }}>
-                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 900 }}>
-                      📦 Tracking Information
+                  <section style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 900, color: '#f9fafb' }}>
+                      Tracking Information
                     </h3>
                     <div style={{
                       padding: '1.5rem',
-                      background: '#f0fdf4',
-                      border: '2px solid #10b981',
+                      background: 'rgba(16,185,129,0.1)',
+                      border: '1px solid rgba(16,185,129,0.3)',
                       borderRadius: '8px'
                     }}>
-                      <div style={{ marginBottom: '1rem' }}>
-                        <strong>Tracking Number:</strong>{' '}
-                        <span style={{ 
-                          background: 'white',
+                      <div style={{ marginBottom: '1rem', color: '#d1d5db' }}>
+                        <strong style={{ color: '#e5e7eb' }}>Tracking Number:</strong>{' '}
+                        <span style={{
+                          background: 'rgba(255,255,255,0.1)',
                           padding: '0.5rem 1rem',
                           borderRadius: '6px',
                           fontFamily: 'monospace',
                           fontSize: '1.1rem',
                           fontWeight: 700,
                           display: 'inline-block',
-                          marginTop: '0.5rem'
+                          marginTop: '0.5rem',
+                          color: '#6ee7b7'
                         }}>
                           {selectedOrder.tracking.number}
                         </span>
                       </div>
-                      <div style={{ marginBottom: '0.5rem' }}>
-                        <strong>Courier:</strong> {selectedOrder.tracking.courier}
+                      <div style={{ marginBottom: '0.5rem', color: '#d1d5db' }}>
+                        <strong style={{ color: '#e5e7eb' }}>Courier:</strong> {selectedOrder.tracking.courier}
                       </div>
-                      <div style={{ fontSize: '0.9rem', color: '#059669' }}>
+                      <div style={{ fontSize: '0.9rem', color: '#34d399' }}>
                         Tracking added on {formatDate(selectedOrder.tracking.addedAt)}
                       </div>
                     </div>
                   </section>
                 )}
 
-                {/* Status History */}
                 {selectedOrder.statusHistory && selectedOrder.statusHistory.length > 0 && (
                   <section>
-                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 900 }}>
+                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 900, color: '#f9fafb' }}>
                       Order Status History
                     </h3>
                     <div style={{ position: 'relative', paddingLeft: '2rem' }}>
                       <div style={{
-                        position: 'absolute',
-                        left: '8px',
-                        top: 0,
-                        bottom: 0,
-                        width: '2px',
-                        background: '#e5e7eb'
+                        position: 'absolute', left: '8px', top: 0, bottom: 0,
+                        width: '2px', background: 'rgba(255,255,255,0.1)'
                       }} />
                       {selectedOrder.statusHistory.map((history, idx) => (
                         <div key={idx} style={{ position: 'relative', marginBottom: '1.5rem' }}>
                           <div style={{
-                            position: 'absolute',
-                            left: '-2rem',
-                            top: '4px',
-                            width: '20px',
-                            height: '20px',
+                            position: 'absolute', left: '-2rem', top: '4px',
+                            width: '20px', height: '20px',
                             background: statusColors[history.status],
-                            border: '3px solid white',
+                            border: '3px solid #111827',
                             borderRadius: '50%',
-                            boxShadow: '0 0 0 3px #e5e7eb'
+                            boxShadow: '0 0 0 3px rgba(255,255,255,0.1)'
                           }} />
                           <div style={{
-                            background: '#f9fafb',
+                            background: 'rgba(255,255,255,0.05)',
                             padding: '1rem',
-                            borderRadius: '8px'
+                            borderRadius: '8px',
+                            border: '1px solid rgba(255,255,255,0.06)'
                           }}>
                             <div style={{ marginBottom: '0.5rem' }}>
                               <span style={{
                                 display: 'inline-block',
                                 padding: '0.3rem 0.75rem',
-                                background: statusColors[history.status],
-                                color: 'white',
-                                borderRadius: '12px',
-                                fontSize: '0.85rem',
+                                background: (statusColorsOnDark[history.status] || { bg: 'rgba(255,255,255,0.1)' }).bg,
+                                color: (statusColorsOnDark[history.status] || { text: '#e5e7eb' }).text,
+                                borderRadius: '8px',
+                                fontSize: '0.8rem',
                                 fontWeight: 700,
                                 textTransform: 'uppercase'
                               }}>
                                 {history.status}
                               </span>
                             </div>
-                            <div style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                            <div style={{ fontSize: '0.85rem', color: '#9ca3af', marginBottom: '0.5rem' }}>
                               {formatDate(history.timestamp)}
                             </div>
                             {history.notes && (
-                              <div style={{ fontSize: '0.9rem', color: '#374151', fontStyle: 'italic' }}>
+                              <div style={{ fontSize: '0.9rem', color: '#d1d5db', fontStyle: 'italic' }}>
                                 {history.notes}
                               </div>
                             )}
@@ -1219,437 +1444,228 @@ export default function ParentPortal() {
         </>
       )}
 
-      {/* Forgot Password Modal */}
-      {showForgotPassword && (
-        <>
-          <div 
-            onClick={cancelForgotPassword}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0, 0, 0, 0.7)',
-              zIndex: 999,
-              backdropFilter: 'blur(5px)'
-            }}
-          />
-          <div style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '90%',
-            maxWidth: '500px',
-            zIndex: 1000
-          }}>
-            <div style={{
-              background: 'white',
-              borderRadius: '20px',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '1.5rem 2rem',
-                background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-                color: 'white'
-              }}>
-                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800 }}>
-                  Reset Password
-                </h2>
-                <button
-                  onClick={cancelForgotPassword}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    border: 'none',
-                    color: 'white',
-                    fontSize: '1.5rem',
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
+      {showForgotPassword && renderForgotPasswordModal()}
 
-              <div style={{ padding: '2rem' }}>
-                {resetMessage ? (
-                  <div style={{
-                    padding: '1.5rem',
-                    background: '#f0fdf4',
-                    border: '2px solid #10b981',
-                    borderRadius: '8px',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
-                    <p style={{ 
-                      margin: 0, 
-                      color: '#059669', 
-                      fontWeight: 700,
-                      fontSize: '1.1rem' 
-                    }}>
-                      {resetMessage}
-                    </p>
-                  </div>
-                ) : (
-                  <form onSubmit={handleForgotPasswordSubmit}>
-                    {resetStep === 'email' ? (
-                      <>
-                        <p style={{ 
-                          marginTop: 0, 
-                          marginBottom: '1.5rem',
-                          color: '#6b7280' 
-                        }}>
-                          Enter your email address and we'll help you reset your password.
-                        </p>
-
-                        {resetError && (
-                          <div style={{
-                            padding: '1rem',
-                            background: '#fee',
-                            color: '#dc0000',
-                            borderRadius: '8px',
-                            marginBottom: '1rem',
-                            border: '2px solid #dc0000',
-                            fontWeight: 600
-                          }}>
-                            {resetError}
-                          </div>
-                        )}
-
-                        <div style={{ marginBottom: '1.5rem' }}>
-                          <label style={{ 
-                            display: 'block', 
-                            marginBottom: '0.5rem',
-                            fontWeight: 700,
-                            color: '#1f2937'
-                          }}>
-                            Email Address
-                          </label>
-                          <input
-                            type="email"
-                            value={resetEmail}
-                            onChange={(e) => setResetEmail(e.target.value)}
-                            required
-                            placeholder="your.email@example.com"
-                            style={{
-                              width: '100%',
-                              padding: '0.75rem',
-                              border: '2px solid #e5e7eb',
-                              borderRadius: '8px',
-                              fontSize: '1rem',
-                              fontFamily: 'inherit'
-                            }}
-                          />
-                        </div>
-
-                        <button
-                          type="submit"
-                          style={{
-                            width: '100%',
-                            padding: '1rem',
-                            background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '12px',
-                            fontSize: '1rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
-                          }}
-                        >
-                          Continue
-                        </button>
-                      </>
-                    ) : resetStep === 'verification' ? (
-                      <>
-                        <p style={{ 
-                          marginTop: 0, 
-                          marginBottom: '1rem',
-                          color: '#6b7280' 
-                        }}>
-                          Enter the verification code sent to <strong>{resetEmail}</strong>
-                        </p>
-
-                        {generatedCode && (
-                          <div style={{
-                            padding: '1rem',
-                            background: '#f0f9ff',
-                            border: '2px solid #3b82f6',
-                            borderRadius: '8px',
-                            marginBottom: '1rem',
-                            textAlign: 'center'
-                          }}>
-                            <div style={{ 
-                              fontSize: '0.85rem', 
-                              color: '#1e40af',
-                              fontWeight: 600,
-                              marginBottom: '0.5rem'
-                            }}>
-                              🔐 DEMO MODE - Your verification code:
-                            </div>
-                            <div style={{ 
-                              fontSize: '2rem', 
-                              fontWeight: 700,
-                              color: '#1e3a8a',
-                              letterSpacing: '0.3rem'
-                            }}>
-                              {generatedCode}
-                            </div>
-                            <div style={{ 
-                              fontSize: '0.75rem', 
-                              color: '#3b82f6',
-                              marginTop: '0.5rem',
-                              fontStyle: 'italic'
-                            }}>
-                              Valid for 15 minutes
-                            </div>
-                          </div>
-                        )}
-
-                        {resetError && (
-                          <div style={{
-                            padding: '1rem',
-                            background: '#fee',
-                            color: '#dc0000',
-                            borderRadius: '8px',
-                            marginBottom: '1rem',
-                            border: '2px solid #dc0000',
-                            fontWeight: 600
-                          }}>
-                            {resetError}
-                          </div>
-                        )}
-
-                        <div style={{ marginBottom: '1.5rem' }}>
-                          <label style={{ 
-                            display: 'block', 
-                            marginBottom: '0.5rem',
-                            fontWeight: 700,
-                            color: '#1f2937'
-                          }}>
-                            Verification Code
-                          </label>
-                          <input
-                            type="text"
-                            value={verificationCode}
-                            onChange={(e) => setVerificationCode(e.target.value)}
-                            required
-                            placeholder="Enter 6-digit code"
-                            maxLength="6"
-                            pattern="[0-9]{6}"
-                            style={{
-                              width: '100%',
-                              padding: '0.75rem',
-                              border: '2px solid #e5e7eb',
-                              borderRadius: '8px',
-                              fontSize: '1.5rem',
-                              fontFamily: 'monospace',
-                              textAlign: 'center',
-                              letterSpacing: '0.5rem'
-                            }}
-                          />
-                        </div>
-
-                        <button
-                          type="submit"
-                          style={{
-                            width: '100%',
-                            padding: '1rem',
-                            background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '12px',
-                            fontSize: '1rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            marginBottom: '0.75rem'
-                          }}
-                        >
-                          Verify Code
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setResetStep('email');
-                            setVerificationCode('');
-                            setGeneratedCode('');
-                            setResetError('');
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            background: 'transparent',
-                            color: '#6b7280',
-                            border: '2px solid #e5e7eb',
-                            borderRadius: '8px',
-                            fontSize: '0.9rem',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          ← Back to Email
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <p style={{ 
-                          marginTop: 0, 
-                          marginBottom: '1.5rem',
-                          color: '#6b7280' 
-                        }}>
-                          Create a new password for <strong>{resetEmail}</strong>
-                        </p>
-
-                        {resetError && (
-                          <div style={{
-                            padding: '1rem',
-                            background: '#fee',
-                            color: '#dc0000',
-                            borderRadius: '8px',
-                            marginBottom: '1rem',
-                            border: '2px solid #dc0000',
-                            fontWeight: 600
-                          }}>
-                            {resetError}
-                          </div>
-                        )}
-
-                        <div style={{ marginBottom: '1.5rem' }}>
-                          <label style={{ 
-                            display: 'block', 
-                            marginBottom: '0.5rem',
-                            fontWeight: 700,
-                            color: '#1f2937'
-                          }}>
-                            New Password
-                          </label>
-                          <input
-                            type="password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            required
-                            placeholder="Enter new password (min. 6 characters)"
-                            style={{
-                              width: '100%',
-                              padding: '0.75rem',
-                              border: '2px solid #e5e7eb',
-                              borderRadius: '8px',
-                              fontSize: '1rem',
-                              fontFamily: 'inherit'
-                            }}
-                          />
-                        </div>
-
-                        <div style={{ marginBottom: '1.5rem' }}>
-                          <label style={{ 
-                            display: 'block', 
-                            marginBottom: '0.5rem',
-                            fontWeight: 700,
-                            color: '#1f2937'
-                          }}>
-                            Confirm New Password
-                          </label>
-                          <input
-                            type="password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                            placeholder="Re-enter new password"
-                            style={{
-                              width: '100%',
-                              padding: '0.75rem',
-                              border: '2px solid #e5e7eb',
-                              borderRadius: '8px',
-                              fontSize: '1rem',
-                              fontFamily: 'inherit'
-                            }}
-                          />
-                        </div>
-
-                        <button
-                          type="submit"
-                          style={{
-                            width: '100%',
-                            padding: '1rem',
-                            background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '12px',
-                            fontSize: '1rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            marginBottom: '0.75rem'
-                          }}
-                        >
-                          Reset Password
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setResetStep('email');
-                            setNewPassword('');
-                            setConfirmPassword('');
-                            setVerificationCode('');
-                            setGeneratedCode('');
-                            setResetError('');
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            background: 'transparent',
-                            color: '#6b7280',
-                            border: '2px solid #e5e7eb',
-                            borderRadius: '8px',
-                            fontSize: '0.9rem',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          ← Back to Email
-                        </button>
-                      </>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={cancelForgotPassword}
-                      style={{
-                        width: '100%',
-                        marginTop: '1rem',
-                        padding: '0.75rem',
-                        background: 'transparent',
-                        color: '#6b7280',
-                        border: 'none',
-                        fontSize: '0.9rem',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </form>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      {renderResponsiveStyles()}
     </div>
   );
+
+  // ========================================
+  // FORGOT PASSWORD MODAL (dark themed)
+  // ========================================
+  function renderForgotPasswordModal() {
+    return (
+      <>
+        <div
+          onClick={cancelForgotPassword}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.8)', zIndex: 999, backdropFilter: 'blur(5px)'
+          }}
+        />
+        <div style={{
+          position: 'fixed', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '90%', maxWidth: '500px', zIndex: 1000
+        }}>
+          <div style={{
+            background: '#111827',
+            borderRadius: '16px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            overflow: 'hidden',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '1.5rem 2rem',
+              background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+              color: 'white'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800 }}>Reset Password</h2>
+              <button
+                onClick={cancelForgotPassword}
+                style={{
+                  background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white',
+                  fontSize: '1.5rem', width: '36px', height: '36px', borderRadius: '8px',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: '2rem' }}>
+              {resetMessage ? (
+                <div style={{
+                  padding: '1.5rem',
+                  background: 'rgba(16,185,129,0.1)',
+                  border: '1px solid rgba(16,185,129,0.3)',
+                  borderRadius: '8px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
+                  <p style={{ margin: 0, color: '#6ee7b7', fontWeight: 700, fontSize: '1.1rem' }}>
+                    {resetMessage}
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleForgotPasswordSubmit}>
+                  {resetStep === 'email' ? (
+                    <>
+                      <p style={{ marginTop: 0, marginBottom: '1.5rem', color: '#9ca3af' }}>
+                        Enter your email address and we'll help you reset your password.
+                      </p>
+                      {resetError && (
+                        <div style={{ padding: '1rem', background: 'rgba(239,68,68,0.15)', color: '#fca5a5', borderRadius: '8px', marginBottom: '1rem', border: '1px solid rgba(239,68,68,0.3)', fontWeight: 600 }}>
+                          {resetError}
+                        </div>
+                      )}
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700, color: '#94a3b8', fontSize: '0.85rem' }}>Email Address</label>
+                        <input
+                          type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} required
+                          placeholder="your.email@example.com"
+                          style={{ width: '100%', padding: '0.75rem', background: '#1f2937', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', fontSize: '1rem', fontFamily: 'inherit', color: '#f9fafb', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <button type="submit" style={{ width: '100%', padding: '1rem', background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 700, cursor: 'pointer' }}>
+                        Continue
+                      </button>
+                    </>
+                  ) : resetStep === 'verification' ? (
+                    <>
+                      <p style={{ marginTop: 0, marginBottom: '1rem', color: '#9ca3af' }}>
+                        Enter the verification code sent to <strong style={{ color: '#f9fafb' }}>{resetEmail}</strong>
+                      </p>
+                      {generatedCode && (
+                        <div style={{ padding: '1rem', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '8px', marginBottom: '1rem', textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.85rem', color: '#93c5fd', fontWeight: 600, marginBottom: '0.5rem' }}>DEMO MODE - Your verification code:</div>
+                          <div style={{ fontSize: '2rem', fontWeight: 700, color: '#60a5fa', letterSpacing: '0.3rem' }}>{generatedCode}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#93c5fd', marginTop: '0.5rem', fontStyle: 'italic' }}>Valid for 15 minutes</div>
+                        </div>
+                      )}
+                      {resetError && (
+                        <div style={{ padding: '1rem', background: 'rgba(239,68,68,0.15)', color: '#fca5a5', borderRadius: '8px', marginBottom: '1rem', border: '1px solid rgba(239,68,68,0.3)', fontWeight: 600 }}>
+                          {resetError}
+                        </div>
+                      )}
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700, color: '#94a3b8', fontSize: '0.85rem' }}>Verification Code</label>
+                        <input
+                          type="text" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} required
+                          placeholder="Enter 6-digit code" maxLength="6" pattern="[0-9]{6}"
+                          style={{ width: '100%', padding: '0.75rem', background: '#1f2937', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', fontSize: '1.5rem', fontFamily: 'monospace', textAlign: 'center', letterSpacing: '0.5rem', color: '#f9fafb', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <button type="submit" style={{ width: '100%', padding: '1rem', background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 700, cursor: 'pointer', marginBottom: '0.75rem' }}>
+                        Verify Code
+                      </button>
+                      <button type="button" onClick={() => { setResetStep('email'); setVerificationCode(''); setGeneratedCode(''); setResetError(''); }}
+                        style={{ width: '100%', padding: '0.75rem', background: 'transparent', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }}>
+                        ← Back to Email
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ marginTop: 0, marginBottom: '1.5rem', color: '#9ca3af' }}>
+                        Create a new password for <strong style={{ color: '#f9fafb' }}>{resetEmail}</strong>
+                      </p>
+                      {resetError && (
+                        <div style={{ padding: '1rem', background: 'rgba(239,68,68,0.15)', color: '#fca5a5', borderRadius: '8px', marginBottom: '1rem', border: '1px solid rgba(239,68,68,0.3)', fontWeight: 600 }}>
+                          {resetError}
+                        </div>
+                      )}
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700, color: '#94a3b8', fontSize: '0.85rem' }}>New Password</label>
+                        <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required placeholder="Enter new password (min. 6 characters)"
+                          style={{ width: '100%', padding: '0.75rem', background: '#1f2937', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', fontSize: '1rem', fontFamily: 'inherit', color: '#f9fafb', boxSizing: 'border-box' }} />
+                      </div>
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700, color: '#94a3b8', fontSize: '0.85rem' }}>Confirm New Password</label>
+                        <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required placeholder="Re-enter new password"
+                          style={{ width: '100%', padding: '0.75rem', background: '#1f2937', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', fontSize: '1rem', fontFamily: 'inherit', color: '#f9fafb', boxSizing: 'border-box' }} />
+                      </div>
+                      <button type="submit" style={{ width: '100%', padding: '1rem', background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 700, cursor: 'pointer', marginBottom: '0.75rem' }}>
+                        Reset Password
+                      </button>
+                      <button type="button" onClick={() => { setResetStep('email'); setNewPassword(''); setConfirmPassword(''); setVerificationCode(''); setGeneratedCode(''); setResetError(''); }}
+                        style={{ width: '100%', padding: '0.75rem', background: 'transparent', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }}>
+                        ← Back to Email
+                      </button>
+                    </>
+                  )}
+                  <button type="button" onClick={cancelForgotPassword}
+                    style={{ width: '100%', marginTop: '1rem', padding: '0.75rem', background: 'transparent', color: '#6b7280', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ========================================
+  // RESPONSIVE STYLES (matching team-portal)
+  // ========================================
+  function renderResponsiveStyles() {
+    return (
+      <style jsx global>{`
+        body { margin: 0; }
+
+        @media (max-width: 900px) {
+          .parentPortalHeader { padding: 1rem !important; }
+        }
+
+        @media (max-width: 768px) {
+          .parentPortalHeader {
+            padding: 1rem !important;
+          }
+          .parentPortalHeader > div {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+          }
+          .parentPortalHeader h1 {
+            font-size: 1.25rem !important;
+          }
+          .parentBanner {
+            flex-direction: column !important;
+            text-align: center !important;
+          }
+          .parentBanner > div:first-child {
+            width: 64px !important;
+            height: 64px !important;
+            font-size: 1.5rem !important;
+          }
+          .parentBanner h2 {
+            font-size: 1.4rem !important;
+          }
+          .parentDashboardGrid {
+            grid-template-columns: 1fr !important;
+          }
+          .parentInfoGrid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
+        @media (max-width: 600px) {
+          .parentDashboardCard {
+            background: linear-gradient(135deg, rgba(15,23,42,0.98) 0%, rgba(3,7,18,0.98) 60%, rgba(220,0,0,0.45) 100%) !important;
+            border: 1px solid rgba(239,68,68,0.55) !important;
+            box-shadow: 0 14px 34px rgba(220,0,0,0.35), 0 0 20px rgba(255,255,255,0.2) !important;
+          }
+          .parentDashboardCard:active {
+            transform: translateY(-2px) scale(0.99) !important;
+          }
+        }
+
+        @keyframes mobileCardGlow {
+          0% { opacity: 0.65; }
+          100% { opacity: 1; }
+        }
+      `}</style>
+    );
+  }
 }
