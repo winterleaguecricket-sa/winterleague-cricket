@@ -129,17 +129,19 @@ export default async function handler(req, res) {
 
         let matchedTeam = null;
         try {
-          if (teamSubmissionId) {
-            const teamResult = await query(
-              `SELECT id, team_name FROM teams WHERE form_submission_id::text = $1 LIMIT 1`,
-              [String(teamSubmissionId)]
-            );
-            matchedTeam = teamResult.rows[0] || null;
-          }
-          if (!matchedTeam && teamName) {
+          // Primary match: by team name (always available before player registration)
+          if (teamName) {
             const teamResult = await query(
               `SELECT id, team_name FROM teams WHERE LOWER(team_name) = LOWER($1) LIMIT 1`,
               [teamName]
+            );
+            matchedTeam = teamResult.rows[0] || null;
+          }
+          // Fallback: by form_submission_uuid if team name didn't match
+          if (!matchedTeam && teamSubmissionId) {
+            const teamResult = await query(
+              `SELECT id, team_name FROM teams WHERE form_submission_uuid::text = $1 LIMIT 1`,
+              [String(teamSubmissionId)]
             );
             matchedTeam = teamResult.rows[0] || null;
           }
@@ -389,27 +391,17 @@ export default async function handler(req, res) {
               'pending'
             ];
 
-            const insertTeam = async (submissionId) => query(
+            const submissionUuid = submission?.id ?? null;
+
+            const teamResult = await query(
               `INSERT INTO teams (
-                form_submission_id, team_name, manager_name, manager_phone, email, suburb,
+                form_submission_uuid, team_name, manager_name, manager_phone, email, suburb,
                 team_logo, shirt_design, primary_color, secondary_color, sponsor_logo,
                 number_of_teams, age_group_teams, kit_pricing, entry_fee, password, submission_data, status
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+              ) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
               RETURNING *`,
-              [submissionId, ...teamInsertValues.slice(1)]
+              [submissionUuid, ...teamInsertValues.slice(1)]
             );
-
-            let teamResult;
-            try {
-              teamResult = await insertTeam(teamInsertValues[0]);
-            } catch (teamInsertError) {
-              const message = String(teamInsertError.message || '').toLowerCase();
-              if (teamInsertError.code === '22P02' && message.includes('form_submission_id')) {
-                teamResult = await insertTeam(null);
-              } else {
-                throw teamInsertError;
-              }
-            }
 
             const newTeam = teamResult.rows[0];
             teamProfile = {

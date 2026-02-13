@@ -160,21 +160,26 @@ export default async function handler(req, res) {
 
       if (status !== undefined) {
         try {
-          const statusUpdate = await query(
-            `UPDATE teams SET status = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE form_submission_id::text = $2`,
-            [status, submission.id]
-          );
+          // Primary match: by team name (always present in team registration submissions)
+          const teamInfo = submission?.data ? extractTeamUpdatesFromSubmission(submission.data) : null;
+          let statusUpdated = false;
 
-          if (statusUpdate.rowCount === 0 && submission?.data) {
-            const fallback = extractTeamUpdatesFromSubmission(submission.data);
-            if (fallback.email || fallback.teamName) {
-              await query(
-                `UPDATE teams SET status = $1, updated_at = CURRENT_TIMESTAMP
-                 WHERE LOWER(email) = LOWER($2) OR LOWER(team_name) = LOWER($3)`,
-                [status, fallback.email || '', fallback.teamName || '']
-              );
-            }
+          if (teamInfo?.teamName) {
+            const statusUpdate = await query(
+              `UPDATE teams SET status = $1, updated_at = CURRENT_TIMESTAMP
+               WHERE LOWER(team_name) = LOWER($2)`,
+              [status, teamInfo.teamName]
+            );
+            statusUpdated = statusUpdate.rowCount > 0;
+          }
+
+          // Fallback: by email if team name didn't match
+          if (!statusUpdated && teamInfo?.email) {
+            await query(
+              `UPDATE teams SET status = $1, updated_at = CURRENT_TIMESTAMP
+               WHERE LOWER(email) = LOWER($2)`,
+              [status, teamInfo.email]
+            );
           }
         } catch (teamUpdateError) {
           console.error('Error updating team status from submission:', teamUpdateError);
@@ -193,6 +198,11 @@ export default async function handler(req, res) {
       if (submission.formId === 1 && data !== undefined) {
         try {
           const teamUpdates = extractTeamUpdatesFromSubmission(data);
+          // Get the ORIGINAL team name from the submission (before edits) to find the right team
+          const originalTeamName = submission?.data?.['1'] || submission?.data?.[1] || '';
+          const lookupName = originalTeamName || teamUpdates.teamName;
+
+          // Primary match: by team name
           const updateResult = await query(
             `UPDATE teams SET
               team_name = $1,
@@ -211,7 +221,7 @@ export default async function handler(req, res) {
               entry_fee = $14,
               submission_data = $15,
               updated_at = CURRENT_TIMESTAMP
-             WHERE form_submission_id::text = $16`,
+             WHERE LOWER(team_name) = LOWER($16)`,
             [
               teamUpdates.teamName,
               teamUpdates.managerName,
@@ -228,11 +238,12 @@ export default async function handler(req, res) {
               JSON.stringify(teamUpdates.kitPricing),
               JSON.stringify(teamUpdates.entryFee),
               JSON.stringify(teamUpdates.submissionData),
-              submission.id
+              lookupName
             ]
           );
 
-          if (updateResult.rowCount === 0 && (teamUpdates.email || teamUpdates.teamName)) {
+          // Fallback: by email if team name didn't match
+          if (updateResult.rowCount === 0 && teamUpdates.email) {
             await query(
               `UPDATE teams SET
                 team_name = $1,
@@ -251,7 +262,7 @@ export default async function handler(req, res) {
                 entry_fee = $14,
                 submission_data = $15,
                 updated_at = CURRENT_TIMESTAMP
-               WHERE LOWER(email) = LOWER($16) OR LOWER(team_name) = LOWER($17)`,
+               WHERE LOWER(email) = LOWER($16)`,
               [
                 teamUpdates.teamName,
                 teamUpdates.managerName,
@@ -268,8 +279,7 @@ export default async function handler(req, res) {
                 JSON.stringify(teamUpdates.kitPricing),
                 JSON.stringify(teamUpdates.entryFee),
                 JSON.stringify(teamUpdates.submissionData),
-                teamUpdates.email || '',
-                teamUpdates.teamName || ''
+                teamUpdates.email || ''
               ]
             );
           }

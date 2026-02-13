@@ -62,8 +62,7 @@ export default async function handler(req, res) {
            FROM teams t
            JOIN form_submissions s
              ON s.form_id::text = '1'
-            AND (t.form_submission_id::text = s.id::text
-                 OR LOWER(t.email) = LOWER(s.customer_email))
+            AND LOWER(TRIM(t.team_name)) = LOWER(TRIM(s.data->>'1'))
            WHERE t.status IS DISTINCT FROM 'archived'
            ORDER BY t.created_at DESC`
         );

@@ -1,29 +1,5 @@
-import fs from 'fs';
-import path from 'path';
 import { query } from '../../lib/db';
 import { createProfile, getProfileByEmail } from '../../data/customers-db';
-
-const DATA_FILE = path.join(process.cwd(), 'data', 'newPlayers.json');
-
-const loadNewPlayers = () => {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const data = fs.readFileSync(DATA_FILE, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Error loading new players:', error);
-  }
-  return [];
-};
-
-const saveNewPlayers = (players) => {
-  try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(players, null, 2));
-  } catch (error) {
-    console.error('Error saving new players:', error);
-  }
-};
 
 const parseJsonSafe = (value) => {
   if (!value) return null;
@@ -111,9 +87,6 @@ export default async function handler(req, res) {
       ['2']
     );
 
-    const existingNewPlayers = loadNewPlayers();
-    const updatedNewPlayers = [...existingNewPlayers];
-
     let submissionsChecked = 0;
     let playersInserted = 0;
     let profilesCreated = 0;
@@ -140,17 +113,17 @@ export default async function handler(req, res) {
 
       let matchedTeam = null;
       try {
-        if (teamSubmissionId) {
-          const teamResult = await query(
-            `SELECT id, team_name FROM teams WHERE form_submission_id::text = $1 LIMIT 1`,
-            [String(teamSubmissionId)]
-          );
-          matchedTeam = teamResult.rows[0] || null;
-        }
-        if (!matchedTeam && teamName) {
+        if (teamName) {
           const teamResult = await query(
             `SELECT id, team_name FROM teams WHERE LOWER(team_name) = LOWER($1) LIMIT 1`,
             [teamName]
+          );
+          matchedTeam = teamResult.rows[0] || null;
+        }
+        if (!matchedTeam && teamSubmissionId) {
+          const teamResult = await query(
+            `SELECT id, team_name FROM teams WHERE form_submission_uuid::text = $1 LIMIT 1`,
+            [String(teamSubmissionId)]
           );
           matchedTeam = teamResult.rows[0] || null;
         }
@@ -226,28 +199,32 @@ export default async function handler(req, res) {
       }
 
       if (!existingProfile || existingProfile === null) {
-        const alreadyRecorded = updatedNewPlayers.some(
-          (player) => String(player.submissionId) === String(submissionId)
-        );
+        if (playerName) {
+          try {
+            const alreadyRecorded = await query(
+              `SELECT id FROM new_players WHERE submission_id = $1 LIMIT 1`,
+              [String(submissionId || '')]
+            );
 
-        if (!alreadyRecorded && playerName) {
-          updatedNewPlayers.push({
-            id: Date.now().toString() + Math.random().toString(16).slice(2),
-            playerName,
-            email: parentEmail || '',
-            team: teamName || '',
-            dob: data[10] || data['10'] || '',
-            submissionId: String(submissionId || ''),
-            registrationDate: new Date().toISOString(),
-            uploadedToCricClubs: false
-          });
-          newPlayersAdded += 1;
+            if (alreadyRecorded.rows.length === 0) {
+              await query(
+                `INSERT INTO new_players (player_name, email, team, dob, submission_id, registration_date)
+                 VALUES ($1, $2, $3, $4, $5, NOW())`,
+                [
+                  playerName,
+                  parentEmail || '',
+                  teamName || '',
+                  data[10] || data['10'] || '',
+                  String(submissionId || '')
+                ]
+              );
+              newPlayersAdded += 1;
+            }
+          } catch (newPlayerError) {
+            console.log('Resync new player insert failed:', newPlayerError.message);
+          }
         }
       }
-    }
-
-    if (newPlayersAdded > 0) {
-      saveNewPlayers(updatedNewPlayers);
     }
 
     return res.status(200).json({
