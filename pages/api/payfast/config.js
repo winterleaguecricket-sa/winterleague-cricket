@@ -1,7 +1,28 @@
 // API endpoint for PayFast configuration - stored in site_settings DB table
+// SECURITY: Credentials are never returned in full via GET. PUT requires admin password.
 import { query } from '../../../lib/db';
+import fs from 'fs';
+import path from 'path';
 
 const SETTINGS_KEY = 'payfast_config';
+
+// Simple admin password check — reuses the same admin auth logic
+function verifyAdminPassword(password) {
+  if (!password) return false;
+  try {
+    const settingsFile = path.join(process.cwd(), 'data', 'adminSettings.json');
+    let storedPassword = '';
+    if (fs.existsSync(settingsFile)) {
+      const data = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
+      storedPassword = data.password || '';
+    }
+    const envPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
+    const validPassword = storedPassword || envPassword || 'admin123';
+    return password === validPassword;
+  } catch {
+    return false;
+  }
+}
 
 async function getPayfastConfig() {
   try {
@@ -51,37 +72,27 @@ async function savePayfastConfig(config) {
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     const config = await getPayfastConfig();
-    // Check if admin wants full credentials (for form pre-population)
-    const showFull = req.query.admin === 'true';
 
-    if (showFull) {
-      // Return full credentials for the admin settings form
-      return res.status(200).json({
-        success: true,
-        config: {
-          merchantId: config.merchantId || '',
-          merchantKey: config.merchantKey || '',
-          passphrase: config.passphrase || '',
-          testMode: config.testMode !== undefined ? config.testMode : true,
-          isConfigured: !!(config.merchantId && config.merchantKey)
-        }
-      });
-    }
-
-    // Public GET — return masked data only
+    // SECURITY: Never return full credentials via API — always mask sensitive fields
     return res.status(200).json({
       success: true,
       config: {
         merchantId: config.merchantId ? `***${config.merchantId.slice(-4)}` : '',
-        testMode: config.testMode,
-        hasPassphrase: !!config.passphrase,
+        merchantKey: config.merchantKey ? `***${config.merchantKey.slice(-4)}` : '',
+        passphrase: config.passphrase ? '••••••••' : '',
+        testMode: config.testMode !== undefined ? config.testMode : true,
         isConfigured: !!(config.merchantId && config.merchantKey)
       }
     });
   }
 
   if (req.method === 'PUT') {
-    const { merchantId, merchantKey, passphrase, testMode } = req.body;
+    const { merchantId, merchantKey, passphrase, testMode, adminPassword } = req.body;
+
+    // SECURITY: Require admin password for config changes
+    if (!verifyAdminPassword(adminPassword)) {
+      return res.status(401).json({ success: false, error: 'Admin authentication required' });
+    }
 
     if (!merchantId || !merchantKey) {
       return res.status(400).json({ success: false, error: 'Merchant ID and Key are required' });

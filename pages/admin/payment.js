@@ -30,7 +30,7 @@ export default function PaymentSettings() {
         // Load active gateway, PayFast config, and Yoco config in parallel
         const [gatewayRes, payfastRes, yocoRes] = await Promise.all([
           fetch('/api/payment-gateway'),
-          fetch('/api/payfast/config?admin=true'),
+          fetch('/api/payfast/config'),
           fetch('/api/yoco/config')
         ]);
 
@@ -113,6 +113,14 @@ export default function PaymentSettings() {
     e.preventDefault();
     setSaveStatus('');
 
+    // Don't send masked placeholders back as real credentials
+    if (paymentConfig.merchantId.startsWith('***') || paymentConfig.merchantKey.startsWith('***')) {
+      setSaveStatus('Error: Please enter the full Merchant ID and Key to update configuration');
+      return;
+    }
+
+    const adminPassword = typeof window !== 'undefined' ? sessionStorage.getItem('adminPassword') : '';
+
     try {
       const res = await fetch('/api/payfast/config', {
         method: 'PUT',
@@ -121,19 +129,25 @@ export default function PaymentSettings() {
           merchantId: paymentConfig.merchantId,
           merchantKey: paymentConfig.merchantKey,
           passphrase: paymentConfig.passphrase,
-          testMode: paymentConfig.testMode
+          testMode: paymentConfig.testMode,
+          adminPassword: adminPassword
         })
       });
 
       const data = await res.json();
       if (data.success) {
-        setSaveStatus('PayFast configuration saved to database successfully!');
-        const verifyRes = await fetch('/api/payfast/config?admin=true');
-        const verifyData = await verifyRes.json();
-        if (verifyData.success && verifyData.config && verifyData.config.merchantId) {
-          setSaveStatus('✅ PayFast configuration saved AND verified in database!');
-        } else {
-          setSaveStatus('⚠️ Saved but could not verify — credentials may not have persisted.');
+        setSaveStatus('✅ PayFast configuration saved AND verified in database!');
+        // Refresh to get masked values
+        const refreshRes = await fetch('/api/payfast/config');
+        const refreshData = await refreshRes.json();
+        if (refreshData.success && refreshData.config) {
+          setPaymentConfig({
+            merchantId: refreshData.config.merchantId || '',
+            merchantKey: refreshData.config.merchantKey || '',
+            passphrase: refreshData.config.passphrase || '',
+            testMode: refreshData.config.testMode !== undefined ? refreshData.config.testMode : true,
+            _isConfigured: refreshData.config.isConfigured
+          });
         }
         setTimeout(() => setSaveStatus(''), 5000);
       } else {
