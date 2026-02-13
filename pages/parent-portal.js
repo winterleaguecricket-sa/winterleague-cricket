@@ -27,6 +27,7 @@ export default function ParentPortal() {
   const [resetError, setResetError] = useState('');
   const [generatedCode, setGeneratedCode] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [team, setTeam] = useState(null);
 
   const statusColors = {
     pending: '#f59e0b',
@@ -111,6 +112,26 @@ export default function ParentPortal() {
       setError('An error occurred during login. Please try again.');
     }
   };
+
+  // Fetch team data when profile.teamId is available
+  useEffect(() => {
+    if (!profile?.teamId) {
+      setTeam(null);
+      return;
+    }
+    const fetchTeam = async () => {
+      try {
+        const res = await fetch(`/api/teams?id=${profile.teamId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setTeam(data.team || null);
+        }
+      } catch (err) {
+        console.error('Failed to fetch team:', err);
+      }
+    };
+    fetchTeam();
+  }, [profile?.teamId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -806,27 +827,47 @@ export default function ParentPortal() {
           alignItems: 'center',
           gap: '1.5rem'
         }}>
-          <div style={{
-            width: '72px',
-            height: '72px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #dc0000 0%, #b30000 100%)',
-            border: '2px solid rgba(239,68,68,0.6)',
-            boxShadow: '0 6px 18px rgba(239,68,68,0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.8rem',
-            flexShrink: 0
-          }}>
-            👤
-          </div>
+          {(() => {
+            const logoUrl = team?.teamLogo || team?.submissionData?.teamLogo || team?.submissionData?.['22'] || team?.submissionData?.[22] || '';
+            return logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={team?.teamName || 'Team logo'}
+                style={{
+                  width: '72px',
+                  height: '72px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '2px solid rgba(239,68,68,0.6)',
+                  boxShadow: '0 6px 18px rgba(239,68,68,0.35)',
+                  flexShrink: 0,
+                  background: '#111827'
+                }}
+              />
+            ) : (
+              <div style={{
+                width: '72px',
+                height: '72px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #dc0000 0%, #b30000 100%)',
+                border: '2px solid rgba(239,68,68,0.6)',
+                boxShadow: '0 6px 18px rgba(239,68,68,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.8rem',
+                flexShrink: 0
+              }}>
+                👤
+              </div>
+            );
+          })()}
           <div>
             <h2 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 900, color: '#f9fafb' }}>
               Welcome back, {profile.firstName}!
             </h2>
             <p style={{ margin: '0.25rem 0 0 0', color: '#9ca3af', fontSize: '0.95rem' }}>
-              {profile.email}
+              {team?.teamName ? `${team.teamName} · ${profile.email}` : profile.email}
             </p>
             {isPreviewMode && (
               <span style={{
