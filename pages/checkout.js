@@ -1,5 +1,5 @@
 import { useCart } from '../context/CartContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../styles/channel.module.css';
@@ -31,6 +31,16 @@ export default function Checkout() {
   });
   const [isReturningCustomer, setIsReturningCustomer] = useState(false);
   const [error, setError] = useState('');
+  const [activeGateway, setActiveGateway] = useState('payfast');
+
+  useEffect(() => {
+    fetch('/api/payment-gateway')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.gateway) setActiveGateway(data.gateway);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleProfileChange = (e) => {
     setProfileFormData({
@@ -115,51 +125,82 @@ export default function Checkout() {
       total: parseFloat(orderTotal),
       shippingAddress: shippingData,
       status: 'pending',
-      paymentMethod: 'payfast'
+      paymentMethod: activeGateway
     });
 
     try {
-      const response = await fetch('/api/payfast/create-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId,
-          amount: orderTotal,
-          itemName: `Order #${orderId}`,
-          itemDescription: `${cart.length} item(s)`,
-          firstName: customerProfile.firstName,
-          lastName: customerProfile.lastName,
-          email: customerProfile.email,
-          phone: customerProfile.phone,
-          customerId: customerProfile.id.toString()
-        })
-      });
+      if (activeGateway === 'yoco') {
+        // ===== YOCO FLOW =====
+        const response = await fetch('/api/yoco/create-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId,
+            amount: orderTotal,
+            itemName: `Order #${orderId}`,
+            itemDescription: `${cart.length} item(s)`,
+            firstName: customerProfile.firstName,
+            lastName: customerProfile.lastName,
+            email: customerProfile.email,
+            phone: customerProfile.phone,
+            customerId: customerProfile.id.toString()
+          })
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!data.success) {
-        setError(data.error || 'Failed to initiate payment. Please try again.');
-        setStep('payment');
-        return;
-      }
-
-      // Create and submit the PayFast form
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = data.payfastUrl;
-
-      for (const key in data.paymentData) {
-        if (data.paymentData.hasOwnProperty(key)) {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = key;
-          input.value = data.paymentData[key];
-          form.appendChild(input);
+        if (!data.success || !data.redirectUrl) {
+          setError(data.error || 'Failed to initiate Yoco payment. Please try again.');
+          setStep('payment');
+          return;
         }
-      }
 
-      document.body.appendChild(form);
-      form.submit();
+        // Redirect to Yoco hosted checkout page
+        window.location.href = data.redirectUrl;
+      } else {
+        // ===== PAYFAST FLOW =====
+        const response = await fetch('/api/payfast/create-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId,
+            amount: orderTotal,
+            itemName: `Order #${orderId}`,
+            itemDescription: `${cart.length} item(s)`,
+            firstName: customerProfile.firstName,
+            lastName: customerProfile.lastName,
+            email: customerProfile.email,
+            phone: customerProfile.phone,
+            customerId: customerProfile.id.toString()
+          })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          setError(data.error || 'Failed to initiate payment. Please try again.');
+          setStep('payment');
+          return;
+        }
+
+        // Create and submit the PayFast form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = data.payfastUrl;
+
+        for (const key in data.paymentData) {
+          if (data.paymentData.hasOwnProperty(key)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = data.paymentData[key];
+            form.appendChild(input);
+          }
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+      }
     } catch (err) {
       console.error('Payment error:', err);
       setError('Failed to connect to payment gateway. Please try again.');
@@ -618,7 +659,7 @@ export default function Checkout() {
                       cursor: 'pointer'
                     }}
                   >
-                    Pay with PayFast
+                    Pay with {activeGateway === 'yoco' ? 'Yoco' : 'PayFast'}
                   </button>
                 </div>
               </>
@@ -630,7 +671,7 @@ export default function Checkout() {
                 <div style={{ textAlign: 'center', padding: '3rem 0' }}>
                   <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⏳</div>
                   <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1rem' }}>Processing Payment</h2>
-                  <p style={{ color: '#6b7280' }}>Redirecting to PayFast secure payment gateway...</p>
+                  <p style={{ color: '#6b7280' }}>Redirecting to {activeGateway === 'yoco' ? 'Yoco' : 'PayFast'} secure payment gateway...</p>
                 </div>
               </>
             )}
