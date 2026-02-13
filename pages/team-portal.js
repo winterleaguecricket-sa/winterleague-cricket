@@ -3194,12 +3194,15 @@ export default function TeamPortal() {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              borderRadius: '12px',
+                              borderRadius: '50%',
                               color: '#f87171',
                               background: 'rgba(239, 68, 68, 0.14)',
-                              border: '1px solid rgba(239, 68, 68, 0.35)'
+                              border: '2px solid rgba(239, 68, 68, 0.45)',
+                              overflow: 'hidden'
                             }}>
-                              {portalIcons.players}
+                              {teamLogoUrl ? (
+                                <img src={teamLogoUrl} alt="Team logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : portalIcons.players}
                             </div>
                             <div style={{
                               fontSize: '1.05rem',
