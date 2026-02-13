@@ -229,7 +229,7 @@ pm2 start npm -- start   # Deploy with PM2 (VPS)
 - **Homepage**: `/`
 - **Admin Panel**: `/admin`
 - **Team Portal**: `/team-portal`
-- **Profile/Login**: `/profile`
+- **Parent Portal**: `/parent-portal`
 - **Checkout**: `/checkout`
 
 ---

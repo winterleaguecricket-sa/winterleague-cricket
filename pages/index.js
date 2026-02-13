@@ -227,7 +227,7 @@ function Home() {
                 </Link>
               );
             })}
-            <Link href="/profile" className={styles.loginButton}>
+            <Link href="/parent-portal" className={styles.loginButton}>
               👤 Login
             </Link>
             <button onClick={toggleCart} className={styles.cartButton}>

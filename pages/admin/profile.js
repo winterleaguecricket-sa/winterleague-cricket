@@ -835,10 +835,10 @@ export default function AdminProfile() {
                   color: '#374151',
                   marginBottom: '0.75rem'
                 }}>
-                  /profile
+                  /parent-portal
                 </div>
                 <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0 }}>
-                  Share this link with registered players so they can access their profile
+                  Share this link with registered parents/players so they can access the parent portal
                 </p>
               </div>
 
@@ -855,7 +855,7 @@ export default function AdminProfile() {
                   View the parent portal as users see it. Use admin preview mode to browse parent profiles.
                 </p>
                 <Link
-                  href="/profile?admin=true"
+                  href="/parent-portal?admin=true"
                   style={{
                     display: 'inline-block',
                     padding: '0.75rem 1.5rem',

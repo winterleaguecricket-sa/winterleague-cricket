@@ -155,7 +155,7 @@ export default function AdminMenu() {
     { label: '📋 Forms', href: '/forms' },
     { label: '🎓 Training', href: '/training' },
     { label: '🏠 Home', href: '/' },
-    { label: '👤 Profile', href: '/profile' },
+    { label: '👤 Parent Portal', href: '/parent-portal' },
   ];
 
   return (
