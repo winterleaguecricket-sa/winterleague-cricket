@@ -75,6 +75,27 @@ export function CartProvider({ children }) {
     setIsOpen(false);
   };
 
+  // Atomically replace all basic-kit items with a new set (used by registration form)
+  // Preserves all non-kit items; skips update if kits already match
+  const syncKitItems = (desiredKits) => {
+    setCart(prevCart => {
+      const nonKitItems = prevCart.filter(item => item.id !== 'basic-kit');
+      const existingKitItems = prevCart.filter(item => item.id === 'basic-kit');
+
+      // Check if anything actually changed to avoid unnecessary re-renders
+      if (existingKitItems.length === desiredKits.length) {
+        const allMatch = desiredKits.every(dk =>
+          existingKitItems.some(ek =>
+            ek.selectedSize === dk.selectedSize && Number(ek.price) === Number(dk.price)
+          )
+        );
+        if (allMatch) return prevCart;
+      }
+
+      return [...nonKitItems, ...desiredKits];
+    });
+  };
+
   const getCartTotal = () => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
@@ -102,6 +123,7 @@ export function CartProvider({ children }) {
       removeFromCart,
       updateQuantity,
       clearCart,
+      syncKitItems,
       getCartTotal,
       getCartCount,
       isOpen,

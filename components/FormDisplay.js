@@ -212,7 +212,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     return String(value);
   };
 
-  const { cart, setCart, addToCart, removeFromCart, openCart, getCartCount, getCartTotal } = useCart();
+  const { cart, syncKitItems, addToCart, removeFromCart, openCart, getCartCount, getCartTotal } = useCart();
   const [entryFeeIncludedItems, setEntryFeeIncludedItems] = useState([]);
 
   // Determine if form is multi-page
@@ -979,23 +979,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
         });
       });
 
-      // Use functional updater to always see the latest cart state
-      setCart(prevCart => {
-        const nonKitItems = prevCart.filter(item => item.id !== 'basic-kit');
-        const existingKitItems = prevCart.filter(item => item.id === 'basic-kit');
-
-        // Check if anything actually changed to avoid unnecessary re-renders
-        if (existingKitItems.length === desiredKits.length) {
-          const allMatch = desiredKits.every(dk => 
-            existingKitItems.some(ek => 
-              ek.selectedSize === dk.selectedSize && Number(ek.price) === Number(dk.price)
-            )
-          );
-          if (allMatch) return prevCart; // No change needed
-        }
-
-        return [...nonKitItems, ...desiredKits];
-      });
+      // Sync kit items via CartContext (atomic replace of all basic-kit entries)
+      syncKitItems(desiredKits);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, form?.id, isMultiPage, formData[45], submissionDropdownData]);
