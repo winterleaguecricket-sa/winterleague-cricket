@@ -4104,6 +4104,18 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                           coachContact: ''
                         }));
                         handleInputChange(field.id, initialEntries);
+                      } else if (formData[field.id].length !== numberOfTeams) {
+                        const current = formData[field.id];
+                        let synced;
+                        if (numberOfTeams < current.length) {
+                          synced = current.slice(0, numberOfTeams);
+                        } else {
+                          synced = [...current];
+                          for (let i = current.length; i < numberOfTeams; i++) {
+                            synced.push({ teamNumber: i + 1, teamName: '', ageGroup: '', gender: '', coachName: '', coachContact: '' });
+                          }
+                        }
+                        handleInputChange(field.id, synced);
                       }
 
                       const teamEntries = formData[field.id] || [];
@@ -5127,6 +5139,18 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                       coachContact: ''
                     }));
                     handleInputChange(field.id, initialEntries);
+                  } else if (formData[field.id].length !== numberOfTeams) {
+                    const current = formData[field.id];
+                    let synced;
+                    if (numberOfTeams < current.length) {
+                      synced = current.slice(0, numberOfTeams);
+                    } else {
+                      synced = [...current];
+                      for (let i = current.length; i < numberOfTeams; i++) {
+                        synced.push({ teamNumber: i + 1, teamName: '', ageGroup: '', gender: '', coachName: '', coachContact: '' });
+                      }
+                    }
+                    handleInputChange(field.id, synced);
                   }
 
                   const teamEntries = formData[field.id] || [];
