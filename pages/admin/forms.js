@@ -824,6 +824,21 @@ export default function AdminForms() {
       return submission.data[`${field.id}_size`] || '';
     }
 
+    if (field.type === 'dynamic-team-entries') {
+      const raw = submission.data[field.id] || submission.data[field.label] || '';
+      const entries = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return []; } })() : raw;
+      if (Array.isArray(entries) && entries.length > 0) {
+        return entries.map(e => {
+          const name = e.teamName || '';
+          const age = e.ageGroup || '';
+          const gender = e.gender || '';
+          const parts = [name, age, gender].filter(Boolean);
+          return parts.join(' - ');
+        }).join(', ');
+      }
+      return '';
+    }
+
     const value = submission.data[field.label] || submission.data[field.id] || '';
     if (Array.isArray(value)) return value.join(', ');
     if (value && typeof value === 'object') return JSON.stringify(value);
@@ -2518,6 +2533,15 @@ export default function AdminForms() {
                           }
 
                           if (['entry-fee-pricing', 'product-bundle', 'upsell-products', 'supporter-apparel', 'checkout-form', 'image-select-library', 'submission-dropdown', 'sub-team-selector', 'dynamic-team-entries'].includes(field.type)) {
+                            let displayValue = value;
+                            if (field.type === 'dynamic-team-entries' && Array.isArray(value) && value.length > 0) {
+                              displayValue = value.map(e => {
+                                const parts = [e.teamName, e.ageGroup, e.gender].filter(Boolean);
+                                return parts.join(' - ');
+                              }).join(', ');
+                            } else if (typeof value === 'object' && value !== null) {
+                              displayValue = JSON.stringify(value);
+                            }
                             return (
                               <div key={field.id} className={styles.formGroup}>
                                 <label style={{ fontWeight: '600', color: '#111827' }}>{field.label}</label>
@@ -2527,7 +2551,7 @@ export default function AdminForms() {
                                   border: '2px solid #e5e7eb',
                                   borderRadius: '8px'
                                 }}>
-                                  {String(value || 'Editing not available for this field type.')}
+                                  {String(displayValue || 'Editing not available for this field type.')}
                                 </div>
                               </div>
                             );
