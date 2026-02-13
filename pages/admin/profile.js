@@ -56,7 +56,7 @@ export default function AdminProfile() {
         <path d="M10 20a6 6 0 0 1 12 0" />
       </svg>
     ),
-    'customer-portal': (
+    'parent-portal': (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="8" r="3" />
         <path d="M5 20a7 7 0 0 1 14 0" />
@@ -337,7 +337,7 @@ export default function AdminProfile() {
             <option value="order-emails">🛒︎ Order Emails</option>
             <option value="submission-data">📊︎ Submission Data</option>
             <option value="team-portal">👥︎ Team Portal</option>
-            <option value="customer-portal">👤︎ Customer Portal</option>
+            <option value="parent-portal">👤︎ Parent Portal</option>
             <option value="email-config">⚙︎ Email Config</option>
           </select>
         </div>
@@ -791,10 +791,10 @@ export default function AdminProfile() {
           </div>
         )}
 
-        {/* Customer Portal Tab */}
-        {activeTab === 'customer-portal' && (
+        {/* Parent Portal Tab */}
+        {activeTab === 'parent-portal' && (
           <div className={styles.card}>
-            <h2 className={styles.cardTitle}>Customer Portal Management</h2>
+            <h2 className={styles.cardTitle}>Parent Portal Management</h2>
 
             <div style={{
               padding: '1.25rem',
@@ -804,10 +804,10 @@ export default function AdminProfile() {
               marginBottom: '1.5rem'
             }}>
               <p style={{ fontSize: '0.95rem', color: '#0c4a6e', marginBottom: '0.75rem', fontWeight: '600' }}>
-                🧾 Customer Portal Overview
+                🧾 Parent Portal Overview
               </p>
               <p style={{ fontSize: '0.85rem', color: '#075985', marginBottom: 0 }}>
-                The Customer Portal lets players view their profile and order history after registration or purchase.
+                The Parent Portal lets parents/players view their profile and order history after registration or purchase.
               </p>
             </div>
 
@@ -849,10 +849,10 @@ export default function AdminProfile() {
                 borderRadius: '10px'
               }}>
                 <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#111827', fontWeight: '700' }}>
-                  🧾 Access Customer Portal
+                  🧾 Access Parent Portal
                 </h3>
                 <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '1rem' }}>
-                  View the customer portal as users see it. Use admin preview mode to browse customer profiles.
+                  View the parent portal as users see it. Use admin preview mode to browse parent profiles.
                 </p>
                 <Link
                   href="/profile?admin=true"
@@ -871,7 +871,7 @@ export default function AdminProfile() {
                     boxShadow: '0 4px 12px rgba(220, 0, 0, 0.2)'
                   }}
                 >
-                  Open Customer Portal (Admin Mode) →
+                  Open Parent Portal (Admin Mode) →
                 </Link>
               </div>
             </div>

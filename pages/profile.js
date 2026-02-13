@@ -3,7 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../styles/channel.module.css';
 
-export default function CustomerProfile() {
+export default function ParentPortal() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [profile, setProfile] = useState(null);
@@ -276,7 +276,7 @@ export default function CustomerProfile() {
               gap: '2rem',
               alignItems: 'start'
             }}>
-              {/* Customer Login */}
+              {/* Parent Login */}
               <div style={{ 
                 padding: '2rem',
                 background: 'white',
@@ -290,7 +290,7 @@ export default function CustomerProfile() {
                   fontSize: '1.75rem',
                   marginBottom: '0.5rem'
                 }}>
-                  Customer Login
+                  Parent Login
                 </h2>
                 <p style={{ color: '#6b7280', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
                   View your orders and tracking information.
@@ -476,7 +476,7 @@ export default function CustomerProfile() {
     return (
       <div className={styles.container}>
         <Head>
-          <title>Customer Portal - Admin Preview</title>
+          <title>Parent Portal - Admin Preview</title>
         </Head>
 
         <header className={styles.header}>

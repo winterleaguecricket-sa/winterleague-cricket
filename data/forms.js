@@ -202,7 +202,7 @@ let formTemplates = [
             placeholder: 'Create a password',
             required: true,
             order: 3,
-            helpText: 'This password will be used to access the parent portal (profile/customer portal).'
+            helpText: 'This password will be used to access the parent portal.'
           },
           {
             id: 40,

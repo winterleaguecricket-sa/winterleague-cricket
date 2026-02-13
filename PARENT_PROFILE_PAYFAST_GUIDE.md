@@ -205,7 +205,7 @@ Passphrase: (leave empty for sandbox)
 ## 📱 Next Steps (Optional Enhancements)
 
 1. **Email Notifications**: Send order confirmations via email
-2. **Customer Portal**: Let customers view their order history
+2. **Parent Portal**: Let parents/players view their order history
 3. **Admin Orders Page**: View and manage all customer orders
 4. **Inventory Management**: Auto-update stock after purchases
 5. **Shipping Integration**: Connect with courier services
