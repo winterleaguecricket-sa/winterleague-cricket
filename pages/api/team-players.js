@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   // GET - Fetch players
   if (req.method === 'GET') {
     try {
-      const { teamId, id } = req.query;
+      const { teamId, id, email } = req.query;
       
       if (id) {
         const result = await query(
@@ -18,6 +18,25 @@ export default async function handler(req, res) {
         }
         
         return res.status(200).json({ player: formatPlayer(result.rows[0]) });
+      }
+
+      // Fetch players by parent email (across all teams)
+      if (email) {
+        const result = await query(
+          `SELECT tp.*, t.team_name, t.age_group_teams
+           FROM team_players tp
+           LEFT JOIN teams t ON t.id = tp.team_id
+           WHERE LOWER(tp.player_email) = LOWER($1)
+           ORDER BY tp.created_at`,
+          [email.trim()]
+        );
+        return res.status(200).json({
+          players: result.rows.map(row => ({
+            ...formatPlayer(row),
+            teamName: row.team_name || null,
+            ageGroupTeams: typeof row.age_group_teams === 'string' ? JSON.parse(row.age_group_teams) : (row.age_group_teams || [])
+          }))
+        });
       }
       
       if (!teamId) {

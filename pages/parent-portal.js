@@ -30,6 +30,8 @@ export default function ParentPortal() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [team, setTeam] = useState(null);
   const [ageGroupTab, setAgeGroupTab] = useState(null);
+  const [parentPlayers, setParentPlayers] = useState([]);
+  const [parentTeams, setParentTeams] = useState({});
 
   const statusColors = {
     pending: '#f59e0b',
@@ -142,6 +144,42 @@ export default function ParentPortal() {
     };
     fetchTeam();
   }, [profile?.teamId]);
+
+  // Fetch parent's players by email (across all teams)
+  useEffect(() => {
+    if (!profile?.email) {
+      setParentPlayers([]);
+      setParentTeams({});
+      return;
+    }
+    const fetchParentPlayers = async () => {
+      try {
+        const res = await fetch(`/api/team-players?email=${encodeURIComponent(profile.email)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const players = data.players || [];
+          setParentPlayers(players);
+
+          // For each unique teamId, fetch the full team (so we get all players in those teams)
+          const uniqueTeamIds = [...new Set(players.map(p => p.teamId).filter(Boolean))];
+          const teamsMap = {};
+          await Promise.all(uniqueTeamIds.map(async (tid) => {
+            try {
+              const tRes = await fetch(`/api/teams?id=${tid}`);
+              if (tRes.ok) {
+                const tData = await tRes.json();
+                teamsMap[tid] = tData.team || null;
+              }
+            } catch (e) { /* skip */ }
+          }));
+          setParentTeams(teamsMap);
+        }
+      } catch (err) {
+        console.error('Failed to fetch parent players:', err);
+      }
+    };
+    fetchParentPlayers();
+  }, [profile?.email]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1058,14 +1096,10 @@ export default function ParentPortal() {
             </div>
 
             {/* Age Group Teams Card */}
-            {team && (() => {
-              const ageGroupTeams = team.ageGroupTeams || team.subTeams || [];
-              const allPlayers = team.players || team.teamPlayers || [];
-              const myPlayers = allPlayers.filter(p => 
-                (p.playerEmail || '').toLowerCase() === (profile?.email || '').toLowerCase()
-              );
+            {(() => {
+              // Use parentPlayers (fetched by email) — works even without customers.team_id
+              const myPlayers = parentPlayers.filter(p => p.teamId && p.subTeam);
               const mySubTeams = [...new Set(myPlayers.map(p => p.subTeam).filter(Boolean))];
-              if (mySubTeams.length === 0 && myPlayers.length > 0) return null;
               if (mySubTeams.length === 0) return null;
               return (
                 <div
@@ -1173,19 +1207,22 @@ export default function ParentPortal() {
         )}
 
         {/* AGE GROUP TEAMS VIEW */}
-        {activeTab === 'ageGroups' && team && (() => {
-          const ageGroupTeams = team.ageGroupTeams || team.subTeams || [];
-          const allPlayers = team.players || team.teamPlayers || [];
-          const myPlayers = allPlayers.filter(p => 
-            (p.playerEmail || '').toLowerCase() === (profile?.email || '').toLowerCase()
-          );
+        {activeTab === 'ageGroups' && (() => {
+          // Use parentPlayers (fetched by email) + parentTeams for full roster data
+          const myPlayers = parentPlayers.filter(p => p.teamId && p.subTeam);
           const mySubTeams = [...new Set(myPlayers.map(p => p.subTeam).filter(Boolean))];
           
-          // Build grouped data: for each sub-team the parent has a player in, show ALL players
+          // Build grouped data: for each sub-team, get all players from that team
           const groups = mySubTeams.map(stName => {
+            // Find the team for this sub-team
+            const playerInSt = myPlayers.find(p => p.subTeam === stName);
+            const teamData = playerInSt ? parentTeams[playerInSt.teamId] : null;
+            const ageGroupTeams = teamData?.ageGroupTeams || teamData?.subTeams || playerInSt?.ageGroupTeams || [];
             const info = ageGroupTeams.find(ag => ag.teamName === stName) || {};
-            const players = allPlayers.filter(p => p.subTeam === stName);
-            return { name: stName, info, players };
+            // All players in this sub-team (from the full team data)
+            const allTeamPlayers = teamData?.players || teamData?.teamPlayers || [];
+            const players = allTeamPlayers.filter(p => p.subTeam === stName);
+            return { name: stName, info, players, teamName: teamData?.teamName || playerInSt?.teamName || '' };
           });
 
           const currentGroup = groups.find(g => g.name === ageGroupTab) || groups[0] || null;
