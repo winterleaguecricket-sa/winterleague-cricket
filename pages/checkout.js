@@ -119,6 +119,7 @@ export default function Checkout() {
     const orderTotal = getCartTotal().toFixed(2);
     const orderId = `ORD${Date.now()}`;
 
+    // Keep in-memory order for backward compatibility
     addOrderToProfile(customerProfile.id, {
       orderId,
       items: cart,
@@ -129,6 +130,44 @@ export default function Checkout() {
     });
 
     try {
+      // ===== CREATE ORDER IN DATABASE =====
+      const orderRes = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          orderData: {
+            orderNumber: orderId,
+            customerEmail: customerProfile.email,
+            customerName: `${customerProfile.firstName} ${customerProfile.lastName}`,
+            customerPhone: customerProfile.phone || '',
+            items: cart,
+            subtotal: parseFloat(orderTotal),
+            shipping: 0,
+            total: parseFloat(orderTotal),
+            status: 'pending',
+            paymentMethod: activeGateway,
+            paymentStatus: 'pending',
+            orderType: 'product',
+            shippingAddress: {
+              address: shippingData.address,
+              city: shippingData.city,
+              province: shippingData.province,
+              postalCode: shippingData.postalCode
+            },
+            notes: ''
+          }
+        })
+      });
+
+      const orderData = await orderRes.json();
+      if (!orderData.order) {
+        console.error('Failed to create order in DB:', orderData);
+        // Continue anyway — payment gateway webhooks may still work
+      } else {
+        console.log('Order saved to database:', orderId);
+      }
+
       if (activeGateway === 'yoco') {
         // ===== YOCO FLOW =====
         const response = await fetch('/api/yoco/create-checkout', {

@@ -9,18 +9,41 @@ import { useCart } from '../../context/CartContext';
 export default function CheckoutSuccess() {
   const router = useRouter();
   const { clearCart } = useCart();
-  const { order } = router.query;
-  const [countdown, setCountdown] = useState(5);
+  const { order, gateway } = router.query;
+  const [countdown, setCountdown] = useState(8);
+  const [verifyStatus, setVerifyStatus] = useState(null); // null = pending, 'verified', 'failed'
 
   useEffect(() => {
     if (order) {
-      // Clear cart on successful order
       clearCart();
+
+      // If Yoco gateway, verify the payment server-side
+      if (gateway === 'yoco') {
+        setVerifyStatus('verifying');
+        fetch('/api/yoco/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: order })
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success && (data.status === 'paid' || data.status === 'completed')) {
+              setVerifyStatus('verified');
+            } else {
+              setVerifyStatus('pending');
+            }
+          })
+          .catch(() => {
+            setVerifyStatus('pending');
+          });
+      } else {
+        // PayFast uses ITN webhook, no client-side verification needed
+        setVerifyStatus('verified');
+      }
     }
-  }, [order]);
+  }, [order, gateway]);
 
   useEffect(() => {
-    // Countdown timer
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
@@ -67,6 +90,13 @@ export default function CheckoutSuccess() {
               <strong>Order Number:</strong> {order}
             </p>
           )}
+
+          {verifyStatus === 'verifying' && (
+            <p style={{ color: '#6366f1', fontSize: '0.9rem', marginBottom: '1rem', fontWeight: 600 }}>
+              ⏳ Verifying payment with {gateway === 'yoco' ? 'Yoco' : 'payment gateway'}...
+            </p>
+          )}
+
           <p style={{ color: '#6b7280', fontSize: '1.1rem', marginBottom: '2rem' }}>
             Thank you for your order! We've received your payment and will process your order shortly.
           </p>

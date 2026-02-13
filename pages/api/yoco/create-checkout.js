@@ -84,6 +84,19 @@ export default async function handler(req, res) {
     console.log('Yoco checkout created:', yocoData.id);
     console.log('Redirect URL:', yocoData.redirectUrl);
 
+    // Store the Yoco checkout ID in the order record for later verification
+    try {
+      const { query: dbQuery } = await import('../../../lib/db');
+      await dbQuery(
+        `UPDATE orders SET gateway_checkout_id = $1, updated_at = NOW() WHERE order_number = $2`,
+        [yocoData.id, orderId]
+      );
+      console.log(`Stored Yoco checkoutId ${yocoData.id} for order ${orderId}`);
+    } catch (dbErr) {
+      console.error('Failed to store Yoco checkoutId in DB:', dbErr.message);
+      // Don't fail the checkout — payment can still proceed
+    }
+
     return res.status(200).json({
       success: true,
       checkoutId: yocoData.id,
