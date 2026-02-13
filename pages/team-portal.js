@@ -272,6 +272,12 @@ export default function TeamPortal() {
   const [kitDesignUploading, setKitDesignUploading] = useState(false);
   const [kitDesignMessage, setKitDesignMessage] = useState('');
   const [kitDesignDragActive, setKitDesignDragActive] = useState(false);
+  // Age group team management
+  const [showAddAgeGroup, setShowAddAgeGroup] = useState(false);
+  const [newAgeGroup, setNewAgeGroup] = useState({ teamName: '', ageGroup: '', gender: '' });
+  const [ageGroupSaving, setAgeGroupSaving] = useState(false);
+  const [ageGroupMessage, setAgeGroupMessage] = useState('');
+  const [deleteAgeGroupConfirm, setDeleteAgeGroupConfirm] = useState(null); // index to delete
 
   useEffect(() => {
     const loadPortalTemplate = async () => {
@@ -556,6 +562,80 @@ export default function TeamPortal() {
     } finally {
       setKitDesignUploading(false);
     }
+  };
+
+  // Age Group Team Management
+  const saveAgeGroupTeams = async (updatedAgeGroups) => {
+    if (!team?.id) return;
+    setAgeGroupSaving(true);
+    try {
+      const nextSubmissionData = { ...(team.submissionData || {}) };
+      nextSubmissionData['33'] = updatedAgeGroups;
+      nextSubmissionData['32'] = updatedAgeGroups.length;
+
+      // Update teams table
+      await fetch('/api/teams', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: team.id,
+          ageGroupTeams: updatedAgeGroups,
+          numberOfTeams: updatedAgeGroups.length,
+          submissionData: nextSubmissionData
+        })
+      });
+
+      // Update form_submissions table
+      if (team.formSubmissionId) {
+        await fetch('/api/submissions', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: team.formSubmissionId, data: nextSubmissionData })
+        });
+      }
+
+      // Refresh team from server
+      const updatedTeam = await apiHelpers.getTeamById(team.id);
+      if (updatedTeam) setTeam(updatedTeam);
+      return true;
+    } catch (error) {
+      console.error('Error saving age group teams:', error);
+      return false;
+    } finally {
+      setAgeGroupSaving(false);
+    }
+  };
+
+  const handleAddAgeGroup = async () => {
+    if (!newAgeGroup.teamName.trim() || !newAgeGroup.ageGroup || !newAgeGroup.gender) {
+      setAgeGroupMessage('Please fill in all fields.');
+      setTimeout(() => setAgeGroupMessage(''), 3000);
+      return;
+    }
+    const currentTeams = team.submissionData?.[33] || team.ageGroupTeams || [];
+    const updated = [...currentTeams, { ...newAgeGroup, teamName: newAgeGroup.teamName.trim() }];
+    const success = await saveAgeGroupTeams(updated);
+    if (success) {
+      setNewAgeGroup({ teamName: '', ageGroup: '', gender: '' });
+      setShowAddAgeGroup(false);
+      setAgeGroupMessage('Age group team added successfully.');
+    } else {
+      setAgeGroupMessage('Failed to add age group team.');
+    }
+    setTimeout(() => setAgeGroupMessage(''), 3000);
+  };
+
+  const handleDeleteAgeGroup = async (index) => {
+    const currentTeams = team.submissionData?.[33] || team.ageGroupTeams || [];
+    const updated = currentTeams.filter((_, i) => i !== index);
+    const success = await saveAgeGroupTeams(updated);
+    if (success) {
+      setAgeGroupMessage('Age group team removed successfully.');
+    } else {
+      setAgeGroupMessage('Failed to remove age group team.');
+    }
+    setDeleteAgeGroupConfirm(null);
+    setTimeout(() => setAgeGroupMessage(''), 3000);
   };
 
   const handleTeamSwitch = async (teamId) => {
@@ -3149,13 +3229,30 @@ export default function TeamPortal() {
                   </div>
 
                   {/* Sub-Teams Section */}
-                  {team.submissionData && team.submissionData[33] && team.submissionData[33].length > 0 && (
-                    <div style={{ marginTop: '2rem' }}>
-                      <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#111827', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span>🏆</span> Age Group Teams ({team.submissionData[33].length})
-                      </h3>
+                  <div style={{ marginTop: '2rem' }}>
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#111827', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>🏆</span> Age Group Teams ({(team.submissionData?.[33] || team.ageGroupTeams || []).length})
+                    </h3>
+
+                    {/* Feedback message */}
+                    {ageGroupMessage && (
+                      <div style={{
+                        marginBottom: '1rem',
+                        padding: '0.6rem 1rem',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        fontWeight: '600',
+                        background: ageGroupMessage.includes('Failed') ? '#fef2f2' : '#f0fdf4',
+                        border: ageGroupMessage.includes('Failed') ? '1px solid #fca5a5' : '1px solid #86efac',
+                        color: ageGroupMessage.includes('Failed') ? '#991b1b' : '#166534'
+                      }}>
+                        {ageGroupMessage}
+                      </div>
+                    )}
+
+                    {(team.submissionData?.[33] || team.ageGroupTeams || []).length > 0 && (
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-                        {team.submissionData[33].map((subTeam, index) => (
+                        {(team.submissionData?.[33] || team.ageGroupTeams || []).map((subTeam, index) => (
                           <div
                             key={index}
                             className="teamDashboardCard"
@@ -3187,6 +3284,37 @@ export default function TeamPortal() {
                                 pointerEvents: 'none'
                               }}
                             />
+                            {/* Delete button */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeleteAgeGroupConfirm(index); }}
+                              disabled={ageGroupSaving}
+                              title="Remove age group team"
+                              style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '50%',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                color: '#f87171',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.75rem',
+                                transition: 'all 0.2s',
+                                zIndex: 2,
+                                opacity: ageGroupSaving ? 0.4 : 0.7
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.35)'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'; }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
+                              </svg>
+                            </button>
                             <div style={{
                               width: '48px',
                               height: '48px',
@@ -3236,16 +3364,241 @@ export default function TeamPortal() {
                           </div>
                         ))}
                       </div>
+                    )}
+
+                    {/* Add Age Group Team */}
+                    {!showAddAgeGroup ? (
+                      <button
+                        onClick={() => setShowAddAgeGroup(true)}
+                        disabled={ageGroupSaving}
+                        style={{
+                          marginTop: '1rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(239, 68, 68, 0.4)',
+                          background: 'rgba(239, 68, 68, 0.08)',
+                          color: '#dc2626',
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.18)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'; }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                        Add Age Group Team
+                      </button>
+                    ) : (
                       <div style={{
                         marginTop: '1rem',
-                        padding: '0.75rem',
-                        background: '#f0fdf4',
-                        border: '1px solid #86efac',
-                        borderRadius: '8px',
-                        fontSize: '0.8rem',
-                        color: '#166534'
+                        padding: '1.25rem',
+                        background: '#111827',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255,255,255,0.08)'
                       }}>
-                        <strong>💡 Tip:</strong> All revenue from player registrations and product sales will be aggregated under your main team name: <strong>{team.teamName}</strong>
+                        <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#f9fafb', marginBottom: '1rem' }}>
+                          New Age Group Team
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          <input
+                            type="text"
+                            placeholder="Team name (e.g. U11 Boys)"
+                            value={newAgeGroup.teamName}
+                            onChange={(e) => setNewAgeGroup(prev => ({ ...prev, teamName: e.target.value }))}
+                            style={{
+                              padding: '0.5rem 0.75rem',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(255,255,255,0.15)',
+                              background: 'rgba(255,255,255,0.05)',
+                              color: '#f9fafb',
+                              fontSize: '0.85rem',
+                              outline: 'none'
+                            }}
+                          />
+                          <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            <select
+                              value={newAgeGroup.ageGroup}
+                              onChange={(e) => setNewAgeGroup(prev => ({ ...prev, ageGroup: e.target.value }))}
+                              style={{
+                                flex: 1,
+                                padding: '0.5rem 0.75rem',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(255,255,255,0.15)',
+                                background: '#1f2937',
+                                color: newAgeGroup.ageGroup ? '#f9fafb' : '#9ca3af',
+                                fontSize: '0.85rem',
+                                outline: 'none'
+                              }}
+                            >
+                              <option value="">Age Group</option>
+                              <option value="U7">U7</option>
+                              <option value="U9">U9</option>
+                              <option value="U11">U11</option>
+                              <option value="U13">U13</option>
+                              <option value="U15">U15</option>
+                              <option value="U17">U17</option>
+                              <option value="U19">U19</option>
+                              <option value="Senior">Senior</option>
+                            </select>
+                            <select
+                              value={newAgeGroup.gender}
+                              onChange={(e) => setNewAgeGroup(prev => ({ ...prev, gender: e.target.value }))}
+                              style={{
+                                flex: 1,
+                                padding: '0.5rem 0.75rem',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(255,255,255,0.15)',
+                                background: '#1f2937',
+                                color: newAgeGroup.gender ? '#f9fafb' : '#9ca3af',
+                                fontSize: '0.85rem',
+                                outline: 'none'
+                              }}
+                            >
+                              <option value="">Gender</option>
+                              <option value="Boys">Boys</option>
+                              <option value="Girls">Girls</option>
+                              <option value="Mixed">Mixed</option>
+                            </select>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                            <button
+                              onClick={handleAddAgeGroup}
+                              disabled={ageGroupSaving}
+                              style={{
+                                padding: '0.5rem 1rem',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: '#dc2626',
+                                color: 'white',
+                                fontSize: '0.85rem',
+                                fontWeight: '600',
+                                cursor: ageGroupSaving ? 'not-allowed' : 'pointer',
+                                opacity: ageGroupSaving ? 0.6 : 1,
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              {ageGroupSaving ? 'Saving...' : 'Add Team'}
+                            </button>
+                            <button
+                              onClick={() => { setShowAddAgeGroup(false); setNewAgeGroup({ teamName: '', ageGroup: '', gender: '' }); }}
+                              disabled={ageGroupSaving}
+                              style={{
+                                padding: '0.5rem 1rem',
+                                borderRadius: '8px',
+                                border: '1px solid #d1d5db',
+                                background: 'transparent',
+                                color: '#9ca3af',
+                                fontSize: '0.85rem',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{
+                      marginTop: '1rem',
+                      padding: '0.75rem',
+                      background: '#f0fdf4',
+                      border: '1px solid #86efac',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      color: '#166534'
+                    }}>
+                      <strong>💡 Tip:</strong> All revenue from player registrations and product sales will be aggregated under your main team name: <strong>{team.teamName}</strong>
+                    </div>
+                  </div>
+
+                  {/* Delete Age Group Confirmation Modal */}
+                  {deleteAgeGroupConfirm !== null && (
+                    <div style={{
+                      position: 'fixed',
+                      top: 0, left: 0, right: 0, bottom: 0,
+                      background: 'rgba(0,0,0,0.6)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 9999
+                    }}
+                      onClick={() => setDeleteAgeGroupConfirm(null)}
+                    >
+                      <div
+                        style={{
+                          background: 'white',
+                          borderRadius: '16px',
+                          padding: '2rem',
+                          maxWidth: '420px',
+                          width: '90%',
+                          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                          textAlign: 'center'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '50%',
+                          background: '#fef2f2',
+                          border: '2px solid #fca5a5',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          margin: '0 auto 1rem'
+                        }}>
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
+                          </svg>
+                        </div>
+                        <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem', color: '#111827' }}>Remove Age Group Team?</h3>
+                        <p style={{ margin: '0 0 1.5rem', fontSize: '0.9rem', color: '#6b7280', lineHeight: '1.5' }}>
+                          Are you sure you want to remove <strong style={{ color: '#111827' }}>
+                            {(team.submissionData?.[33] || team.ageGroupTeams || [])[deleteAgeGroupConfirm]?.teamName}
+                          </strong>? This will update the database and submissions. This action cannot be undone.
+                        </p>
+                        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+                          <button
+                            onClick={() => setDeleteAgeGroupConfirm(null)}
+                            disabled={ageGroupSaving}
+                            style={{
+                              padding: '0.6rem 1.25rem',
+                              borderRadius: '8px',
+                              border: '1px solid #d1d5db',
+                              background: 'white',
+                              color: '#374151',
+                              fontSize: '0.9rem',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAgeGroup(deleteAgeGroupConfirm)}
+                            disabled={ageGroupSaving}
+                            style={{
+                              padding: '0.6rem 1.25rem',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: '#dc2626',
+                              color: 'white',
+                              fontSize: '0.9rem',
+                              fontWeight: '600',
+                              cursor: ageGroupSaving ? 'not-allowed' : 'pointer',
+                              opacity: ageGroupSaving ? 0.6 : 1
+                            }}
+                          >
+                            {ageGroupSaving ? 'Removing...' : 'Yes, Remove'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
