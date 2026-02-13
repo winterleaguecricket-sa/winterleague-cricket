@@ -57,15 +57,6 @@ const apiHelpers = {
     return res.ok;
   },
   
-  async markMessageRead(teamId, messageId) {
-    const res = await fetch('/api/teams', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: teamId, messageRead: messageId })
-    });
-    return res.ok;
-  },
-  
   async getRevenue(teamId) {
     const res = await fetch(`/api/team-finance?teamId=${teamId}&action=revenue`);
     if (!res.ok) return { total: 0, breakdown: {} };
@@ -160,21 +151,6 @@ const portalIcons = {
       <circle cx="16" cy="8" r="3" />
       <path d="M2 20a6 6 0 0 1 12 0" />
       <path d="M10 20a6 6 0 0 1 12 0" />
-    </svg>
-  ),
-  fixtures: (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <path d="M8 2v4" />
-      <path d="M16 2v4" />
-      <path d="M3 10h18" />
-      <path d="M8 14h4" />
-    </svg>
-  ),
-  messages: (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="5" width="18" height="14" rx="2" />
-      <path d="M3 7l9 6 9-6" />
     </svg>
   ),
   revenue: (
@@ -709,42 +685,6 @@ export default function TeamPortal() {
       { id: 405, name: 'Ezra Jacobs', roles: ['Batsman'], shirtNumber: 29, addedAt: '2025-12-10', subTeam: 'U19 Mixed' },
       { id: 406, name: 'Mia Naidoo', roles: ['Bowler'], shirtNumber: 26, addedAt: '2025-12-10', subTeam: 'U19 Mixed' }
     ],
-    fixtures: [
-      {
-        id: 'fx-01',
-        opponent: 'Northside Chargers',
-        venue: 'Newlands Cricket Ground',
-        date: '2026-02-02',
-        time: '09:30'
-      },
-      {
-        id: 'fx-02',
-        opponent: 'Eastern Eagles',
-        venue: 'Riverside Oval',
-        date: '2026-02-09',
-        time: '11:00'
-      }
-    ],
-    messages: [
-      {
-        id: 'msg-01',
-        message: 'Fixtures for February have been confirmed. Please ensure all teams arrive 30 minutes early for warm-up.',
-        read: false,
-        createdAt: '2026-01-23T14:20:00'
-      },
-      {
-        id: 'msg-02',
-        message: 'Reminder: Team kit sizes must be finalised by the end of the week.',
-        read: true,
-        createdAt: '2026-01-20T09:15:00'
-      },
-      {
-        id: 'msg-03',
-        message: 'Please submit your updated team rosters for verification.',
-        read: false,
-        createdAt: '2026-01-18T17:45:00'
-      }
-    ],
     revenue: [
       { id: 'rev-01', type: 'registration', description: 'Player registration markup', amount: 1250, date: '2025-12-15' },
       { id: 'rev-02', type: 'merchandise', description: 'Kit sales commission', amount: 460, date: '2025-12-22' },
@@ -981,12 +921,6 @@ export default function TeamPortal() {
     setTimeout(() => setBankingMessage(''), 3000);
   };
 
-  const handleMarkMessageRead = async (messageId) => {
-    await apiHelpers.markMessageRead(team.id, messageId);
-    const updatedTeam = await apiHelpers.getTeamById(team.id);
-    setTeam(updatedTeam);
-  };
-
   const openRemovalModal = (player) => {
     setRemovalModal(player);
     setRemovalMessage('');
@@ -1031,7 +965,6 @@ export default function TeamPortal() {
     }
   };
 
-  const unreadMessages = team?.messages?.filter(m => !m.read).length || 0;
   const formatCurrency = (value) => new Intl.NumberFormat('en-ZA', {
     style: 'currency',
     currency: 'ZAR'
@@ -2319,152 +2252,6 @@ export default function TeamPortal() {
                       </div>
                     );
                   })()}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Fixtures Tab */}
-          {activeTab === 'fixtures' && (
-            <div>
-              <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', color: '#111827' }}>
-                Match Fixtures
-              </h2>
-
-              {team.fixtures?.length > 0 ? (
-                <div style={{ display: 'grid', gap: '1rem' }}>
-                  {team.fixtures.map((fixture) => (
-                    <div
-                      key={fixture.id}
-                      style={{
-                        background: 'white',
-                        padding: '1.5rem',
-                        borderRadius: '12px',
-                        border: '1px solid #e5e7eb',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
-                        <div>
-                          <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: '#111827', marginBottom: '0.25rem' }}>
-                            {team.teamName} vs {fixture.opponent}
-                          </h3>
-                          <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-                            📍 {fixture.venue}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '2rem', fontSize: '0.9rem', color: '#374151' }}>
-                        <div>
-                          <strong style={{ color: '#6b7280' }}>Date:</strong> {new Date(fixture.date).toLocaleDateString()}
-                        </div>
-                        <div>
-                          <strong style={{ color: '#6b7280' }}>Time:</strong> {fixture.time}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{
-                  background: 'white',
-                  padding: '3rem',
-                  borderRadius: '12px',
-                  border: '1px solid #e5e7eb',
-                  textAlign: 'center',
-                  color: '#6b7280'
-                }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📅</div>
-                  <p style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>
-                    No Fixtures Scheduled
-                  </p>
-                  <p style={{ fontSize: '0.9rem' }}>
-                    Your match schedule will appear here once fixtures are assigned.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Messages Tab */}
-          {activeTab === 'messages' && (
-            <div>
-              <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', color: '#111827' }}>
-                Messages from Admin
-              </h2>
-
-              {team.messages?.length > 0 ? (
-                <div style={{ display: 'grid', gap: '1rem' }}>
-                  {team.messages.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((message) => (
-                    <div
-                      key={message.id}
-                      style={{
-                        background: message.read ? 'white' : '#eff6ff',
-                        padding: '1.25rem',
-                        borderRadius: '12px',
-                        border: message.read ? '1px solid #e5e7eb' : '2px solid #3b82f6',
-                        position: 'relative'
-                      }}
-                    >
-                      {!message.read && (
-                        <span style={{
-                          position: 'absolute',
-                          top: '1rem',
-                          right: '1rem',
-                          background: '#3b82f6',
-                          color: 'white',
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
-                          fontSize: '0.7rem',
-                          fontWeight: '700',
-                          textTransform: 'uppercase'
-                        }}>
-                          New
-                        </span>
-                      )}
-                      <div style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '0.75rem' }}>
-                        {new Date(message.createdAt).toLocaleString()}
-                      </div>
-                      <p style={{ fontSize: '1rem', color: '#111827', lineHeight: '1.6', margin: 0 }}>
-                        {message.message}
-                      </p>
-                      {!message.read && (
-                        <button
-                          onClick={() => handleMarkMessageRead(message.id)}
-                          style={{
-                            marginTop: '0.75rem',
-                            padding: '0.4rem 0.75rem',
-                            background: '#3b82f6',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            fontSize: '0.8rem',
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Mark as Read
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{
-                  background: 'white',
-                  padding: '3rem',
-                  borderRadius: '12px',
-                  border: '1px solid #e5e7eb',
-                  textAlign: 'center',
-                  color: '#6b7280'
-                }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💬</div>
-                  <p style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>
-                    No Messages Yet
-                  </p>
-                  <p style={{ fontSize: '0.9rem' }}>
-                    Messages from the league admin will appear here.
-                  </p>
                 </div>
               )}
             </div>
