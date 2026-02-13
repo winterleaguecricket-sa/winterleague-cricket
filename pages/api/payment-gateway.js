@@ -1,7 +1,27 @@
 // API endpoint to get/set the active payment gateway
 import { query } from '../../lib/db';
+import fs from 'fs';
+import path from 'path';
 
 const SETTINGS_KEY = 'active_gateway';
+
+// Simple admin password check — reuses the same admin auth logic
+function verifyAdminPassword(password) {
+  if (!password) return false;
+  try {
+    const settingsFile = path.join(process.cwd(), 'data', 'adminSettings.json');
+    let storedPassword = '';
+    if (fs.existsSync(settingsFile)) {
+      const data = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
+      storedPassword = data.password || '';
+    }
+    const envPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
+    const validPassword = storedPassword || envPassword || 'admin123';
+    return password === validPassword;
+  } catch {
+    return false;
+  }
+}
 
 export async function getActiveGateway() {
   try {
@@ -25,7 +45,12 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PUT') {
-    const { gateway } = req.body;
+    const { gateway, adminPassword } = req.body;
+
+    // SECURITY: Require admin password for gateway changes
+    if (!verifyAdminPassword(adminPassword)) {
+      return res.status(401).json({ success: false, error: 'Admin authentication required' });
+    }
 
     if (!gateway || !['payfast', 'yoco'].includes(gateway)) {
       return res.status(400).json({ success: false, error: 'Invalid gateway. Must be "payfast" or "yoco".' });

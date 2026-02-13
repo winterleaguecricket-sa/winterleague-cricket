@@ -1,7 +1,28 @@
 // API endpoint for Yoco configuration - stored in site_settings DB table
+// SECURITY: Secret key is never returned in full via GET. PUT requires admin password.
 import { query } from '../../../lib/db';
+import fs from 'fs';
+import path from 'path';
 
 const SETTINGS_KEY = 'yoco_config';
+
+// Simple admin password check — reuses the same admin auth logic
+function verifyAdminPassword(password) {
+  if (!password) return false;
+  try {
+    const settingsFile = path.join(process.cwd(), 'data', 'adminSettings.json');
+    let storedPassword = '';
+    if (fs.existsSync(settingsFile)) {
+      const data = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
+      storedPassword = data.password || '';
+    }
+    const envPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
+    const validPassword = storedPassword || envPassword || 'admin123';
+    return password === validPassword;
+  } catch {
+    return false;
+  }
+}
 
 async function getYocoConfig() {
   try {
@@ -51,33 +72,31 @@ async function saveYocoConfig(config) {
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     const config = await getYocoConfig();
-    const showFull = req.query.admin === 'true';
 
-    if (showFull) {
-      return res.status(200).json({
-        success: true,
-        config: {
-          secretKey: config.secretKey || '',
-          publicKey: config.publicKey || '',
-          testMode: config.testMode !== undefined ? config.testMode : true,
-          isConfigured: !!(config.secretKey)
-        }
-      });
-    }
+    // SECURITY: Never return the full secret key via API
+    // Only return masked version and configuration status
+    const maskedSecret = config.secretKey
+      ? `sk_...${config.secretKey.slice(-4)}`
+      : '';
 
-    // Public — masked
     return res.status(200).json({
       success: true,
       config: {
-        hasSecretKey: !!config.secretKey,
-        testMode: config.testMode,
+        secretKey: maskedSecret,
+        publicKey: config.publicKey || '',
+        testMode: config.testMode !== undefined ? config.testMode : true,
         isConfigured: !!(config.secretKey)
       }
     });
   }
 
   if (req.method === 'PUT') {
-    const { secretKey, publicKey, testMode } = req.body;
+    const { secretKey, publicKey, testMode, adminPassword } = req.body;
+
+    // SECURITY: Require admin password for config changes
+    if (!verifyAdminPassword(adminPassword)) {
+      return res.status(401).json({ success: false, error: 'Admin authentication required' });
+    }
 
     if (!secretKey) {
       return res.status(400).json({ success: false, error: 'Secret Key is required' });

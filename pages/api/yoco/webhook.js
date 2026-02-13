@@ -1,7 +1,6 @@
 // Yoco Webhook handler — receives payment notifications from Yoco
-import crypto from 'crypto';
+// SECURITY: Validates event structure, verifies amounts, prevents double-processing
 import { query } from '../../../lib/db';
-import { getYocoConfig } from './config';
 
 // Yoco sends JSON webhooks
 export const config = {
@@ -22,20 +21,21 @@ export default async function handler(req, res) {
 
     console.log(`Yoco webhook received — type: ${eventType}, id: ${event.id || 'N/A'}`);
 
-    if (!eventType || !payload) {
-      console.error('Yoco webhook: missing type or payload');
+    // Basic event structure validation
+    if (!eventType || typeof eventType !== 'string' || !payload || typeof payload !== 'object') {
+      console.error('Yoco webhook: invalid event structure');
       return res.status(200).json({ received: true });
     }
 
     // Extract order ID from metadata
     const orderId = payload.metadata?.orderId;
 
-    if (!orderId) {
-      console.log('Yoco webhook: no orderId in metadata — skipping order update');
+    if (!orderId || typeof orderId !== 'string' || !/^ORD\d+$/.test(orderId)) {
+      console.log('Yoco webhook: missing or invalid orderId in metadata — skipping order update');
       return res.status(200).json({ received: true });
     }
 
-    // Handle checkout.completed event
+    // Handle payment.succeeded event
     if (eventType === 'payment.succeeded') {
       const yocoPaymentId = payload.paymentId || payload.id || event.id || 'N/A';
       const amountInCents = payload.amount;
@@ -52,11 +52,18 @@ export default async function handler(req, res) {
       if (orderResult.rows.length > 0) {
         const order = orderResult.rows[0];
 
-        // Optional: verify amount
+        // SECURITY: Don't re-process already paid orders (idempotency)
+        if (order.payment_status === 'paid') {
+          console.log(`Yoco webhook: order ${orderId} already paid — skipping duplicate`);
+          return res.status(200).json({ received: true });
+        }
+
+        // SECURITY: Verify amount matches
         if (amountInCents) {
           const expectedCents = Math.round(parseFloat(order.total_amount) * 100);
           if (expectedCents !== amountInCents) {
-            console.warn(`Yoco amount mismatch for ${orderId}: expected ${expectedCents} cents, got ${amountInCents} cents`);
+            console.error(`SECURITY: Yoco amount mismatch for ${orderId}: expected ${expectedCents} cents, got ${amountInCents} cents — NOT marking as paid`);
+            return res.status(200).json({ received: true });
           }
         }
 
@@ -69,7 +76,7 @@ export default async function handler(req, res) {
             status_notes = $1,
             status_history = COALESCE(status_history, '[]'::jsonb) || $2::jsonb,
             updated_at = NOW()
-          WHERE order_number = $3`,
+          WHERE order_number = $3 AND payment_status != 'paid'`,
           [
             `Payment confirmed via Yoco webhook at ${new Date().toISOString()}`,
             JSON.stringify([{
@@ -95,7 +102,7 @@ export default async function handler(req, res) {
           status_notes = $1,
           status_history = COALESCE(status_history, '[]'::jsonb) || $2::jsonb,
           updated_at = NOW()
-        WHERE order_number = $3`,
+        WHERE order_number = $3 AND payment_status != 'paid'`,
         [
           `Payment ${eventType} via Yoco at ${new Date().toISOString()}`,
           JSON.stringify([{

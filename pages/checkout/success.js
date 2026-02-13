@@ -11,7 +11,7 @@ export default function CheckoutSuccess() {
   const { clearCart } = useCart();
   const { order, gateway } = router.query;
   const [countdown, setCountdown] = useState(8);
-  const [verifyStatus, setVerifyStatus] = useState(null); // null = pending, 'verified', 'failed'
+  const [verifyStatus, setVerifyStatus] = useState(null); // null = pending, 'verified', 'pending', 'verifying'
 
   useEffect(() => {
     if (order) {
@@ -20,22 +20,31 @@ export default function CheckoutSuccess() {
       // If Yoco gateway, verify the payment server-side
       if (gateway === 'yoco') {
         setVerifyStatus('verifying');
-        fetch('/api/yoco/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: order })
-        })
-          .then(r => r.json())
-          .then(data => {
-            if (data.success && (data.status === 'paid' || data.status === 'completed')) {
-              setVerifyStatus('verified');
-            } else {
-              setVerifyStatus('pending');
-            }
+
+        // Attempt verification with retry (Yoco may take a moment to update status)
+        const verifyPayment = (attempt = 1) => {
+          fetch('/api/yoco/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: order })
           })
-          .catch(() => {
-            setVerifyStatus('pending');
-          });
+            .then(r => r.json())
+            .then(data => {
+              if (data.success && data.status === 'paid') {
+                setVerifyStatus('verified');
+              } else if (data.success && data.status === 'pending' && attempt < 3) {
+                // Retry after 2 seconds — payment may still be processing
+                setTimeout(() => verifyPayment(attempt + 1), 2000);
+              } else {
+                setVerifyStatus('pending');
+              }
+            })
+            .catch(() => {
+              setVerifyStatus('pending');
+            });
+        };
+
+        verifyPayment();
       } else {
         // PayFast uses ITN webhook, no client-side verification needed
         setVerifyStatus('verified');
@@ -74,9 +83,11 @@ export default function CheckoutSuccess() {
           maxWidth: '600px',
           margin: '0 auto'
         }}>
-          <div style={{ fontSize: '5rem', marginBottom: '1rem' }}>✅</div>
+          <div style={{ fontSize: '5rem', marginBottom: '1rem' }}>
+            {verifyStatus === 'pending' ? '⏳' : '✅'}
+          </div>
           <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem', color: '#000000', fontWeight: 900 }}>
-            Order Confirmed!
+            {verifyStatus === 'pending' ? 'Order Received!' : 'Order Confirmed!'}
           </h1>
           {order && (
             <p style={{ 
@@ -97,8 +108,16 @@ export default function CheckoutSuccess() {
             </p>
           )}
 
+          {verifyStatus === 'pending' && (
+            <p style={{ color: '#f59e0b', fontSize: '0.9rem', marginBottom: '1rem', fontWeight: 600 }}>
+              ⏳ Your payment is being processed. You will receive a confirmation email once verified.
+            </p>
+          )}
+
           <p style={{ color: '#6b7280', fontSize: '1.1rem', marginBottom: '2rem' }}>
-            Thank you for your order! We've received your payment and will process your order shortly.
+            {verifyStatus === 'pending'
+              ? 'Thank you for your order! Payment verification is in progress. This usually takes a few moments.'
+              : 'Thank you for your order! We\'ve received your payment and will process your order shortly.'}
           </p>
           <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
             A confirmation email has been sent to your email address.

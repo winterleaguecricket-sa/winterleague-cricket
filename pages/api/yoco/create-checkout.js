@@ -1,6 +1,8 @@
 // API endpoint to create a Yoco checkout session
 // Uses Yoco Online Payments API: https://developer.yoco.com/online/checkout
+// SECURITY: Amount is read from DB order, not trusted from client
 import { getYocoConfig } from './config';
+import { query } from '../../../lib/db';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -18,14 +20,45 @@ export default async function handler(req, res) {
     }
 
     const {
-      orderId, amount, itemName, itemDescription,
+      orderId, itemName, itemDescription,
       firstName, lastName, email, phone, customerId
     } = req.body;
 
-    if (!orderId || !amount || !email) {
+    if (!orderId || !email) {
       return res.status(400).json({
         success: false,
         error: 'Missing required payment fields'
+      });
+    }
+
+    // SECURITY: Read the order amount from the database — never trust client-sent amount
+    const orderResult = await query(
+      'SELECT total_amount, payment_status FROM orders WHERE order_number = $1',
+      [orderId]
+    );
+
+    if (orderResult.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Order not found. Please try again.'
+      });
+    }
+
+    const dbOrder = orderResult.rows[0];
+
+    // Don't allow checkout for already-paid orders
+    if (dbOrder.payment_status === 'paid') {
+      return res.status(400).json({
+        success: false,
+        error: 'This order has already been paid.'
+      });
+    }
+
+    const serverAmount = parseFloat(dbOrder.total_amount);
+    if (isNaN(serverAmount) || serverAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid order amount'
       });
     }
 
@@ -35,7 +68,7 @@ export default async function handler(req, res) {
     const origin = `${protocol}://${host}`;
 
     // Yoco amounts are in cents (ZAR)
-    const amountInCents = Math.round(parseFloat(amount) * 100);
+    const amountInCents = Math.round(serverAmount * 100);
 
     // Build Yoco checkout payload
     // Docs: https://developer.yoco.com/online/checkout/api
@@ -86,8 +119,7 @@ export default async function handler(req, res) {
 
     // Store the Yoco checkout ID in the order record for later verification
     try {
-      const { query: dbQuery } = await import('../../../lib/db');
-      await dbQuery(
+      await query(
         `UPDATE orders SET gateway_checkout_id = $1, updated_at = NOW() WHERE order_number = $2`,
         [yocoData.id, orderId]
       );

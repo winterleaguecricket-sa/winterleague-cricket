@@ -151,6 +151,7 @@ export default function Admin() {
         setIsAuthenticated(true);
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('adminAuth', 'true');
+          sessionStorage.setItem('adminPassword', password);
         }
       } else {
         alert('Incorrect password');

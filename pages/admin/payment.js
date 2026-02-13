@@ -31,7 +31,7 @@ export default function PaymentSettings() {
         const [gatewayRes, payfastRes, yocoRes] = await Promise.all([
           fetch('/api/payment-gateway'),
           fetch('/api/payfast/config?admin=true'),
-          fetch('/api/yoco/config?admin=true')
+          fetch('/api/yoco/config')
         ]);
 
         const gatewayData = await gatewayRes.json();
@@ -71,11 +71,12 @@ export default function PaymentSettings() {
 
   const handleGatewaySwitch = async (gateway) => {
     setGatewayLoading(true);
+    const adminPassword = typeof window !== 'undefined' ? sessionStorage.getItem('adminPassword') : '';
     try {
       const res = await fetch('/api/payment-gateway', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gateway })
+        body: JSON.stringify({ gateway, adminPassword })
       });
       const data = await res.json();
       if (data.success) {
@@ -148,6 +149,15 @@ export default function PaymentSettings() {
     e.preventDefault();
     setYocoSaveStatus('');
 
+    // Don't send masked placeholder back as the secret key
+    if (yocoConfig.secretKey.startsWith('sk_...')) {
+      setYocoSaveStatus('Error: Please enter the full secret key to update configuration');
+      return;
+    }
+
+    // Get admin password from session for auth
+    const adminPassword = typeof window !== 'undefined' ? sessionStorage.getItem('adminPassword') : '';
+
     try {
       const res = await fetch('/api/yoco/config', {
         method: 'PUT',
@@ -155,13 +165,25 @@ export default function PaymentSettings() {
         body: JSON.stringify({
           secretKey: yocoConfig.secretKey,
           publicKey: yocoConfig.publicKey,
-          testMode: yocoConfig.testMode
+          testMode: yocoConfig.testMode,
+          adminPassword: adminPassword
         })
       });
 
       const data = await res.json();
       if (data.success) {
         setYocoSaveStatus('✅ Yoco configuration saved AND verified in database!');
+        // Refresh to get masked key
+        const refreshRes = await fetch('/api/yoco/config');
+        const refreshData = await refreshRes.json();
+        if (refreshData.success && refreshData.config) {
+          setYocoConfig({
+            secretKey: refreshData.config.secretKey || '',
+            publicKey: refreshData.config.publicKey || '',
+            testMode: refreshData.config.testMode !== undefined ? refreshData.config.testMode : true,
+            _isConfigured: refreshData.config.isConfigured
+          });
+        }
         setTimeout(() => setYocoSaveStatus(''), 5000);
       } else {
         setYocoSaveStatus(`Error: ${data.error || 'Failed to save'}`);
