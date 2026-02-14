@@ -1360,8 +1360,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                       }
                     }}
                   >
-                    {/* Short Sleeve Shirt Kits (IDs 67-86) need contain styling, others use cover */}
-                    {product.id >= 67 && product.id <= 86 ? (
+                    {/* Kit-specific products (have designId or 'kit X' in name) use contain, others use cover */}
+                    {((product.designId ?? product.kitDesignId ?? product.designID) || /kit\s*\d+/i.test(String(product.name || ''))) ? (
                       <div style={{
                         width: '100%',
                         height: '280px',
@@ -2222,7 +2222,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                     e.currentTarget.style.border = inCart ? '2px solid #dc0000' : '1px solid rgba(255, 255, 255, 0.08)';
                   }}
                 >
-                  {product.id >= 67 && product.id <= 86 ? (
+                  {((product.designId ?? product.kitDesignId ?? product.designID) || /kit\s*\d+/i.test(String(product.name || ''))) ? (
                     <div style={{
                       width: '100%',
                       height: '280px',
