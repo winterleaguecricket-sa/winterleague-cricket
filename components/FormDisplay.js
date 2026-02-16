@@ -58,6 +58,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
   // Apparel quantity and multi-size state: { productId: { quantity: 1, sizes: ['S', 'M'] } }
   const [apparelSelections, setApparelSelections] = useState({});
   const [playerEntryErrors, setPlayerEntryErrors] = useState({});
+  const [selectedTeamData, setSelectedTeamData] = useState(null);
 
   // Player lookup state (per player index)
   const [playerLookupState, setPlayerLookupState] = useState({});
@@ -2616,13 +2617,30 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
             if (!jerseyError && teamSelection && subTeamKey) {
               const duplicate = playerRegistrationSubmissions.some((submission) => {
                 const data = submission.data || {};
-                const submissionTeam = data[8] ?? data['8'];
-                const submissionSubTeam = data[34] ?? data['34'];
-                const submissionJersey = data[36] ?? data['36'];
-                if (String(submissionTeam) !== String(teamSelection)) return false;
-                const submissionSubTeamKey = normalizeSubTeamValue(submissionSubTeam);
-                if (submissionSubTeamKey !== subTeamKey) return false;
-                return String(submissionJersey) === jerseyString;
+                const submissionTeam = String(data[8] ?? data['8'] ?? '');
+                if (submissionTeam !== String(teamSelection)) return false;
+
+                // New format: player entries stored in data[45] array
+                const playerEntries = data[45] ?? data['45'];
+                if (Array.isArray(playerEntries) && playerEntries.length > 0) {
+                  return playerEntries.some((p) => {
+                    if (!p) return false;
+                    const pSubTeamKey = normalizeSubTeamValue(p.subTeam);
+                    if (pSubTeamKey !== subTeamKey) return false;
+                    return String(p.shirtNumber ?? '') === jerseyString;
+                  });
+                }
+
+                // Legacy format: single-player fields 34 (sub-team) and 36 (jersey)
+                const legacySubTeam = data[34] ?? data['34'];
+                const legacyJersey = data[36] ?? data['36'];
+                if (legacySubTeam && legacyJersey) {
+                  const legacySubTeamKey = normalizeSubTeamValue(legacySubTeam);
+                  if (legacySubTeamKey !== subTeamKey) return false;
+                  return String(legacyJersey) === jerseyString;
+                }
+
+                return false;
               });
 
               if (duplicate) {
@@ -2777,6 +2795,14 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
         s => String(s.id) === String(submissionId)
       );
       if (selectedSubmission) {
+        // Fetch team data from teams API for kit image access
+        const teamName = selectedSubmission.data?.[1] ?? selectedSubmission.data?.['1'];
+        if (teamName) {
+          fetch(`/api/teams?teamName=${encodeURIComponent(teamName)}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => setSelectedTeamData(d?.team || null))
+            .catch(() => setSelectedTeamData(null));
+        }
         const newPrefilledData = { ...prefilledData };
         const newFormData = { ...formData, [fieldId]: submissionId };
         
@@ -2838,6 +2864,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
 
       setPrefilledData(newPrefilledData);
       setFormData(newFormData);
+      setSelectedTeamData(null);
     }
   };
 
@@ -5767,12 +5794,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                         const teamPricing = basicKitField ? getSelectedTeamKitPricing(basicKitField) : null;
                         const entries = getPlayerEntries();
 
-                        // Get the admin-uploaded final kit image from the team's submission data
-                        const teamDropdownFieldId = field.autofillLinkedDropdownFieldId;
-                        const selectedTeamId = teamDropdownFieldId ? formData[teamDropdownFieldId] : null;
-                        const teamSubmissions = teamDropdownFieldId ? (submissionDropdownData[teamDropdownFieldId]?.submissions || []) : [];
-                        const selectedTeamSubmission = selectedTeamId ? teamSubmissions.find(sub => String(sub.id) === String(selectedTeamId)) : null;
-                        const finalKitImageUrl = selectedTeamSubmission?.data?.kitDesignImageUrl || selectedTeamSubmission?.data?.kitDesignImage || '';
+                        // Get the admin-uploaded final kit image from the teams table (via /api/teams)
+                        const finalKitImageUrl = selectedTeamData?.submissionData?.kitDesignImageUrl || selectedTeamData?.submissionData?.kitDesignImage || '';
 
                         if (!selectedDesign) {
                           return (
