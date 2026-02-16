@@ -1766,10 +1766,8 @@
     padding: 0.75rem 0.9rem;
   }
 
-  .stepItem {
-    min-width: 130px;
-    flex: 1 1 150px;
-  }
+  /* stepItem mobile layout is set in the first 768px media query block above:
+     flex: 1 1 auto; min-width: 0; width: 100%; — do NOT override here */
 
   .stepBadge {
     width: 32px;

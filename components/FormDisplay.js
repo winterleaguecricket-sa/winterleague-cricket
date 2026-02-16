@@ -1673,7 +1673,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
               display: 'flex',
               alignItems: 'flex-start',
               justifyContent: 'center',
-              paddingTop: '80px',
+              paddingTop: 'clamp(20px, 8vh, 80px)',
               paddingLeft: '16px',
               paddingRight: '16px',
               paddingBottom: '20px'
@@ -2394,7 +2394,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
               display: 'flex',
               alignItems: 'flex-start',
               justifyContent: 'center',
-              paddingTop: '80px',
+              paddingTop: 'clamp(20px, 8vh, 80px)',
               paddingLeft: '16px',
               paddingRight: '16px',
               paddingBottom: '20px'
@@ -6775,7 +6775,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
 
               {field.type === 'product-bundle' && form.id !== 2 && (
                 <div>
-                  <div style={{ 
+                  <div className={styles.bundleContainer} style={{ 
                     padding: '2rem', 
                     background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)', 
                     border: '3px solid #22c55e',
@@ -6793,8 +6793,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                       background: 'radial-gradient(circle, rgba(34, 197, 94, 0.1) 0%, transparent 70%)',
                       borderRadius: '50%'
                     }}></div>
-                    <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
-                      <div style={{ 
+                    <div className={styles.bundleRow} style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
+                      <div className={styles.bundleImage} style={{ 
                         width: '220px', 
                         height: '220px', 
                         background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
