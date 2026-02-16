@@ -2118,3 +2118,202 @@
     background-size: 100% 100%;
   }
 }
+
+/* ──────────────────────────────────────────────
+   MOBILE-RESPONSIVE UTILITY CLASSES
+   Only applied via @media — desktop is unaffected.
+   ────────────────────────────────────────────── */
+
+/* Product card image containers — limit height on small screens */
+.productCardImage {
+  /* desktop: keep natural inline height */
+}
+
+/* Product modal image area */
+.modalImage {
+  /* desktop: keep natural inline height */
+}
+
+/* Product bundle flex row */
+.bundleRow {
+  /* desktop: normal flex row */
+}
+
+/* Product bundle 220×220 emoji box */
+.bundleImage {
+  /* desktop: keep inline 220×220 */
+}
+
+/* Checkout name grid */
+.checkoutNameGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* Upsell products grid */
+.upsellGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  max-width: 100%;
+}
+
+/* Image select grid */
+.imageSelectGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Bundle container padding */
+.bundleContainer {
+  /* desktop: keep inline padding */
+}
+
+/* Price row in product bundle */
+.bundlePriceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+}
+
+/* Upsell card image area */
+.upsellCardImage {
+  /* desktop: keep inline height */
+}
+
+/* Success message override */
+.successMessageMobile {
+  /* desktop: keep original */
+}
+
+/* Kit color popover overflow fix */
+.kitColorPopoverMobile {
+  /* desktop: normal */
+}
+
+/* Modal container overflow fix */
+.modalContainer {
+  /* desktop: keep inline maxWidth */
+}
+
+/* Touch-friendly minimum tap target */
+.tapTarget {
+  /* desktop: normal size */
+}
+
+@media (max-width: 768px) {
+  /* Product card images: clamp height so cards aren't too tall */
+  .productCardImage {
+    height: 200px !important;
+  }
+
+  /* Modal image: use viewport-relative height */
+  .modalImage {
+    height: min(320px, 45vw) !important;
+  }
+
+  /* Product bundle: stack vertically on mobile */
+  .bundleRow {
+    flex-wrap: wrap !important;
+    gap: 1rem !important;
+  }
+
+  /* Product bundle image: full-width on mobile */
+  .bundleImage {
+    width: 100% !important;
+    max-width: 220px !important;
+    height: auto !important;
+    aspect-ratio: 1 !important;
+    margin: 0 auto !important;
+    font-size: clamp(3rem, 8vw, 5rem) !important;
+  }
+
+  /* Checkout name grid: stack vertically */
+  .checkoutNameGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Upsell products: reduce minmax for 2-col on larger phones */
+  .upsellGrid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Image select grid: smaller minmax */
+  .imageSelectGrid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+  }
+
+  /* Bundle container: reduce padding */
+  .bundleContainer {
+    padding: clamp(1rem, 4vw, 2rem) !important;
+  }
+
+  /* Bundle price row: stack if narrow */
+  .bundlePriceRow {
+    flex-wrap: wrap !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Upsell card image: shorter on mobile */
+  .upsellCardImage {
+    height: 100px !important;
+    font-size: 2rem !important;
+  }
+
+  /* Success message: less padding */
+  .successMessage {
+    padding: 2rem 1.25rem !important;
+  }
+
+  .successMessage h3 {
+    font-size: 1.5rem !important;
+  }
+
+  .successIcon {
+    width: 72px !important;
+    height: 72px !important;
+    font-size: 2.5rem !important;
+  }
+
+  /* Kit color popover: prevent off-screen overflow */
+  .kitColorPopoverMobile {
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+
+  /* Modal containers: add side margin on mobile */
+  .modalContainer {
+    max-width: calc(100vw - 2rem) !important;
+  }
+
+  /* Minimum 44×44px tap targets (WCAG 2.5.5) */
+  .tapTarget {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .productCardImage {
+    height: 180px !important;
+  }
+
+  .upsellGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .bundleContainer {
+    padding: 0.875rem !important;
+  }
+
+  .upsellCardImage {
+    height: 80px !important;
+    font-size: 1.75rem !important;
+  }
+}

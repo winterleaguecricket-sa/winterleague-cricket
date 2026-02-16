@@ -1384,7 +1384,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                   >
                     {/* Short Sleeve Shirt Kits (IDs 67-86) need contain styling, others use cover */}
                     {product.id >= 67 && product.id <= 86 ? (
-                      <div style={{
+                      <div className={styles.productCardImage} style={{
                         width: '100%',
                         height: '280px',
                         background: '#0b1220',
@@ -1401,7 +1401,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                         />
                       </div>
                     ) : (
-                      <div style={{
+                      <div className={styles.productCardImage} style={{
                         width: '100%',
                         height: '280px',
                         background: '#0b1220',
@@ -1699,7 +1699,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
               `}
             </style>
             <div
-              className="modal-scroll-container"
+              className={`modal-scroll-container ${styles.modalContainer}`}
               style={{
                 background: '#111827',
                 borderRadius: '20px',
@@ -1727,8 +1727,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                   background: 'rgba(0,0,0,0.8)',
                   border: '2px solid rgba(255,255,255,0.3)',
                   color: 'white',
-                  width: '40px',
-                  height: '40px',
+                  width: '44px',
+                  height: '44px',
                   borderRadius: '50%',
                   cursor: 'pointer',
                   fontSize: '1.4rem',
@@ -1743,7 +1743,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
               </button>
 
               {/* Large Image */}
-              <div style={{ 
+              <div className={styles.modalImage} style={{ 
                 width: '100%',
                 height: '320px',
                 background: activeApparelModal.id >= 67 && activeApparelModal.id <= 86 ? '#0a0f1a' : '#0f172a',
@@ -2272,7 +2272,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                   }}
                 >
                   {product.id >= 67 && product.id <= 86 ? (
-                    <div style={{
+                    <div className={styles.productCardImage} style={{
                       width: '100%',
                       height: '280px',
                       background: '#0b1220',
@@ -2289,7 +2289,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                       />
                     </div>
                   ) : (
-                    <div style={{
+                    <div className={styles.productCardImage} style={{
                       width: '100%',
                       height: '280px',
                       background: '#0b1220',
@@ -2420,7 +2420,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
               `}
             </style>
             <div
-              className="supporter-modal-scroll"
+              className={`supporter-modal-scroll ${styles.modalContainer}`}
               style={{
                 background: '#111827',
                 borderRadius: '20px',
@@ -2448,8 +2448,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                   background: 'rgba(0,0,0,0.8)',
                   border: '2px solid rgba(255,255,255,0.3)',
                   color: 'white',
-                  width: '40px',
-                  height: '40px',
+                  width: '44px',
+                  height: '44px',
                   borderRadius: '50%',
                   cursor: 'pointer',
                   fontSize: '1.4rem',
@@ -2464,7 +2464,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
               </button>
 
               {/* Large Image */}
-              <div style={{ 
+              <div className={styles.modalImage} style={{ 
                 width: '100%',
                 height: '320px',
                 background: '#0b1220',
@@ -5677,7 +5677,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
 
               {field.type === 'image-select' && (
                 <div>
-                  <div style={{ 
+                  <div className={styles.imageSelectGrid} style={{ 
                     display: 'grid', 
                     gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', 
                     gap: '1rem',
@@ -6902,12 +6902,12 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                           </select>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1.5rem' }}>
+                        <div className={styles.bundlePriceRow} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1.5rem' }}>
                           <div>
                             <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.85rem', color: '#6b7280', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                               Price
                             </p>
-                            <p style={{ margin: 0, fontSize: '2.25rem', fontWeight: '900', color: '#22c55e', letterSpacing: '-1px' }}>
+                            <p style={{ margin: 0, fontSize: 'clamp(1.5rem, 5vw, 2.25rem)', fontWeight: '900', color: '#22c55e', letterSpacing: '-1px' }}>
                               R{field.basePrice.toFixed(2)}
                             </p>
                           </div>
@@ -6963,7 +6963,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                     )}
                   </div>
 
-                  <div style={{ 
+                  <div className={styles.upsellGrid} style={{ 
                     display: 'grid', 
                     gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', 
                     gap: '1rem',
@@ -6988,7 +6988,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                             height: '100%'
                           }}
                         >
-                          <div style={{ 
+                          <div className={styles.upsellCardImage} style={{ 
                             width: '100%', 
                             height: '140px', 
                             background: '#f9fafb',
@@ -7124,7 +7124,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '5rem',
+                        fontSize: 'clamp(3rem, 8vw, 5rem)',
                         borderBottom: '2px solid #e5e7eb',
                         position: 'relative'
                       }}>
@@ -7194,7 +7194,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                             borderRadius: '8px',
                             border: '2px solid #e5e7eb'
                           }}>
-                            <p className={styles.kitPriceAmount} style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', color: '#111827' }}>
+                            <p className={styles.kitPriceAmount} style={{ margin: 0, fontSize: 'clamp(1.1rem, 3.5vw, 1.5rem)', fontWeight: '800', color: '#111827' }}>
                               R{(formData[`${field.id}_basePrice`] || 150).toFixed(2)}
                             </p>
                           </div>
@@ -7254,7 +7254,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                 padding: '1rem 1rem 1rem 2.5rem',
                                 border: '2px solid #e5e7eb',
                                 borderRadius: '10px',
-                                fontSize: '1.3rem',
+                                fontSize: 'clamp(1rem, 3vw, 1.3rem)',
                                 fontWeight: '700',
                                 fontFamily: 'inherit',
                                 background: 'white',
@@ -7282,7 +7282,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                           <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)', fontWeight: '600' }}>
                             Player Basic Kit Price
                           </p>
-                          <p className={styles.kitTotalAmount} style={{ margin: 0, fontSize: '2.5rem', fontWeight: '900', color: 'white', letterSpacing: '-1px' }}>
+                          <p className={styles.kitTotalAmount} style={{ margin: 0, fontSize: 'clamp(1.75rem, 5vw, 2.5rem)', fontWeight: '900', color: 'white', letterSpacing: '-1px' }}>
                             R{((formData[`${field.id}_basePrice`] || 150) + (formData[`${field.id}_markup`] || 0)).toFixed(2)}
                           </p>
                           <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
@@ -7340,7 +7340,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                       <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)', fontWeight: '600' }}>
                         League Entry Fee
                       </p>
-                      <p className={styles.entryFeeAmount} style={{ margin: 0, fontSize: '2.5rem', fontWeight: '900', color: 'white', letterSpacing: '-1px' }}>
+                      <p className={styles.entryFeeAmount} style={{ margin: 0, fontSize: 'clamp(1.75rem, 5vw, 2.5rem)', fontWeight: '900', color: 'white', letterSpacing: '-1px' }}>
                         R{(formData[`${field.id}_baseFee`] || 500).toFixed(2)}
                       </p>
                       <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
@@ -7485,7 +7485,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                         {validationErrors['checkout_password'] && <div style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem' }}>Password is required.</div>}
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div className={styles.checkoutNameGrid} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         <div>
                           <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.4rem', fontSize: '0.85rem', color: '#374151' }}>
                             First Name *
