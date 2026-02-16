@@ -1257,6 +1257,27 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
           </div>
         </div>
 
+        {/* Important info banner for parents */}
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%)',
+          border: '1px solid rgba(59, 130, 246, 0.3)',
+          borderRadius: '12px',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.25rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>ℹ️</span>
+            <div>
+              <p style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#93c5fd', lineHeight: 1.5 }}>
+                These are examples of the additional clothing items available for your team.
+              </p>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.95rem', color: '#bfdbfe', lineHeight: 1.5 }}>
+                Items that match your playing kit (e.g. training tops, hoodies, tracksuits) will have your <strong style={{ color: '#fbbf24' }}>correct team colours applied</strong> to the final product. Some items are general accessories and are not kit-specific.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {!selectedDesign && (
           <div style={{
             padding: '1rem',
@@ -2105,6 +2126,33 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
               Support your team with official merchandise - same great products for supporters!
             </p>
           </div>
+        </div>
+
+        {/* Important info banner for supporter parents */}
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%)',
+          border: '1px solid rgba(59, 130, 246, 0.3)',
+          borderRadius: '12px',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.25rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>ℹ️</span>
+            <div>
+              <p style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#93c5fd', lineHeight: 1.5 }}>
+                These are examples of the supporter clothing items available for your team.
+              </p>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.95rem', color: '#bfdbfe', lineHeight: 1.5 }}>
+                Items that match your playing kit (e.g. training tops, hoodies, tracksuits) will have your <strong style={{ color: '#fbbf24' }}>correct team colours applied</strong> to the final product. Some items are general accessories and are not kit-specific.
+              </p>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.95rem', fontWeight: 700, color: '#fbbf24', lineHeight: 1.5 }}>
+                🏷️ All matching kit clothing items will be labelled "SUPPORTER" to distinguish them from player kit.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           {getCartCount() > 0 && (
             <button
               type="button"
