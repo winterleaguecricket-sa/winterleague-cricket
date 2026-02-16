@@ -35,18 +35,40 @@ export default function ParentPortal() {
 
   const statusColors = {
     pending: '#f59e0b',
+    confirmed: '#3b82f6',
+    in_production: '#8b5cf6',
+    delivered_to_manager: '#10b981',
+    cancelled: '#ef4444',
+    // Legacy fallbacks
     processing: '#3b82f6',
     shipped: '#8b5cf6',
-    delivered: '#10b981',
-    cancelled: '#ef4444'
+    delivered: '#10b981'
   };
 
   const statusColorsOnDark = {
     pending: { bg: 'rgba(245,158,11,0.18)', text: '#fcd34d' },
+    confirmed: { bg: 'rgba(59,130,246,0.15)', text: '#93c5fd' },
+    in_production: { bg: 'rgba(139,92,246,0.15)', text: '#c4b5fd' },
+    delivered_to_manager: { bg: 'rgba(16,185,129,0.15)', text: '#6ee7b7' },
+    cancelled: { bg: 'rgba(239,68,68,0.2)', text: '#fca5a5' },
+    // Legacy fallbacks
     processing: { bg: 'rgba(59,130,246,0.15)', text: '#93c5fd' },
     shipped: { bg: 'rgba(139,92,246,0.15)', text: '#c4b5fd' },
-    delivered: { bg: 'rgba(16,185,129,0.15)', text: '#6ee7b7' },
-    cancelled: { bg: 'rgba(239,68,68,0.2)', text: '#fca5a5' }
+    delivered: { bg: 'rgba(16,185,129,0.15)', text: '#6ee7b7' }
+  };
+
+  const formatStatusLabel = (status) => {
+    const labels = {
+      pending: 'Pending',
+      confirmed: 'Confirmed',
+      in_production: 'In Production',
+      delivered_to_manager: 'Delivered to Team Manager',
+      cancelled: 'Cancelled',
+      processing: 'Processing',
+      shipped: 'Shipped',
+      delivered: 'Delivered'
+    };
+    return labels[status] || status;
   };
 
   // Portal icons (matching team-portal SVG style)
@@ -1076,7 +1098,7 @@ export default function ParentPortal() {
                 My Orders
               </h3>
               <p style={{ margin: 0, fontSize: '0.9rem', color: '#9ca3af', fontWeight: 600 }}>
-                View order history, tracking & receipts
+                View order history & kit status
               </p>
               {orders.length > 0 && (
                 <span style={{
@@ -1511,9 +1533,32 @@ export default function ParentPortal() {
             padding: '1.5rem',
             border: '1px solid rgba(255,255,255,0.08)'
           }}>
-            <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1.4rem', fontWeight: 900, color: '#f9fafb' }}>
+            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.4rem', fontWeight: 900, color: '#f9fafb' }}>
               My Orders ({orders.length})
             </h3>
+
+            {/* Kit Production Info Banner */}
+            <div style={{
+              padding: '1rem 1.25rem',
+              background: 'rgba(99,102,241,0.1)',
+              border: '1px solid rgba(99,102,241,0.3)',
+              borderRadius: '10px',
+              marginBottom: '1.5rem',
+              fontSize: '0.9rem',
+              lineHeight: '1.6',
+              color: '#a5b4fc'
+            }}>
+              <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#c7d2fe', fontSize: '1rem' }}>
+                ℹ️ How Kit Production Works
+              </strong>
+              <p style={{ margin: '0 0 0.5rem 0' }}>
+                Kits will only go into production once a <strong style={{ color: '#e0e7ff' }}>minimum of 12 players</strong> have registered and paid for your team.
+                Once production begins, kits will be delivered directly to your <strong style={{ color: '#e0e7ff' }}>team manager</strong> for distribution — there is no individual shipping.
+              </p>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#818cf8' }}>
+                You will be notified when your kit goes into production and again when it has been delivered to your team manager.
+              </p>
+            </div>
 
             {orders.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '3rem', color: '#9ca3af' }}>
@@ -1576,7 +1621,7 @@ export default function ParentPortal() {
                           textTransform: 'uppercase',
                           marginBottom: '0.5rem'
                         }}>
-                          {order.status}
+                          {formatStatusLabel(order.status)}
                         </div>
                         <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#f87171' }}>
                           {formatCurrency(order.total)}
@@ -1601,53 +1646,96 @@ export default function ParentPortal() {
                       ))}
                     </div>
 
-                    {order.tracking ? (
-                      <div style={{
-                        padding: '1rem',
-                        background: 'rgba(16,185,129,0.1)',
-                        border: '1px solid rgba(16,185,129,0.3)',
-                        borderRadius: '8px',
-                        marginBottom: '1rem'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                          <span style={{ fontSize: '1.5rem' }}>📦</span>
-                          <strong style={{ fontSize: '1.1rem', color: '#6ee7b7' }}>Tracking Information</strong>
-                        </div>
-                        <div style={{ fontSize: '0.95rem', lineHeight: '1.8', color: '#d1d5db' }}>
-                          <div>
-                            <strong style={{ color: '#e5e7eb' }}>Tracking Number:</strong>{' '}
-                            <span style={{
-                              background: 'rgba(255,255,255,0.1)',
-                              padding: '0.25rem 0.75rem',
-                              borderRadius: '4px',
-                              fontFamily: 'monospace',
-                              fontWeight: 600,
-                              color: '#6ee7b7'
-                            }}>
-                              {order.tracking.number}
-                            </span>
+                    {/* Kit Status Progress */}
+                    {(() => {
+                      const steps = [
+                        { key: 'confirmed', label: 'Payment Confirmed', icon: '✅' },
+                        { key: 'in_production', label: 'In Production', icon: '🏭' },
+                        { key: 'delivered_to_manager', label: 'Delivered to Team Manager', icon: '🤝' }
+                      ];
+                      const statusOrder = ['pending', 'confirmed', 'in_production', 'delivered_to_manager'];
+                      const currentIdx = statusOrder.indexOf(order.status);
+                      
+                      if (order.status === 'cancelled') {
+                        return (
+                          <div style={{
+                            padding: '1rem',
+                            background: 'rgba(239,68,68,0.1)',
+                            border: '1px solid rgba(239,68,68,0.3)',
+                            borderRadius: '8px',
+                            marginBottom: '1rem',
+                            fontSize: '0.9rem',
+                            color: '#fca5a5'
+                          }}>
+                            This order has been cancelled.
                           </div>
-                          <div><strong style={{ color: '#e5e7eb' }}>Courier:</strong> {order.tracking.courier}</div>
-                          <div style={{ fontSize: '0.85rem', color: '#34d399', marginTop: '0.5rem' }}>
-                            Added on {formatDate(order.tracking.addedAt)}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      (order.status === 'pending' || order.status === 'processing') ? (
+                        );
+                      }
+                      
+                      return (
                         <div style={{
                           padding: '1rem',
-                          background: 'rgba(245,158,11,0.1)',
-                          border: '1px solid rgba(245,158,11,0.3)',
+                          background: 'rgba(255,255,255,0.03)',
+                          border: '1px solid rgba(255,255,255,0.08)',
                           borderRadius: '8px',
-                          marginBottom: '1rem',
-                          fontSize: '0.9rem',
-                          color: '#fcd34d'
+                          marginBottom: '1rem'
                         }}>
-                          Your order is being prepared. Tracking information will be available once shipped.
+                          <strong style={{ display: 'block', marginBottom: '0.75rem', color: '#e5e7eb', fontSize: '0.9rem' }}>
+                            Kit Progress
+                          </strong>
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                            {steps.map((step, idx) => {
+                              const stepIdx = statusOrder.indexOf(step.key);
+                              const isComplete = currentIdx >= stepIdx;
+                              const isCurrent = order.status === step.key;
+                              return (
+                                <div key={step.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {idx > 0 && (
+                                    <div style={{
+                                      width: '24px', height: '2px',
+                                      background: isComplete ? '#6ee7b7' : 'rgba(255,255,255,0.1)'
+                                    }} />
+                                  )}
+                                  <div style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                    padding: '0.35rem 0.7rem',
+                                    borderRadius: '6px',
+                                    background: isCurrent ? (statusColorsOnDark[step.key] || {bg:'rgba(255,255,255,0.1)'}).bg : isComplete ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.03)',
+                                    border: `1px solid ${isCurrent ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)'}`,
+                                    opacity: isComplete ? 1 : 0.4
+                                  }}>
+                                    <span style={{ fontSize: '0.85rem' }}>{step.icon}</span>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isComplete ? '#e5e7eb' : '#6b7280' }}>
+                                      {step.label}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {order.status === 'pending' && (
+                            <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: '#fcd34d' }}>
+                              ⏳ Your payment is being verified. Once confirmed, your kit order will be queued for production.
+                            </p>
+                          )}
+                          {order.status === 'confirmed' && (
+                            <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: '#93c5fd' }}>
+                              Your payment has been confirmed. Kits go into production once a minimum of 12 players have registered and paid for your team.
+                            </p>
+                          )}
+                          {order.status === 'in_production' && (
+                            <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: '#c4b5fd' }}>
+                              🏭 Your team's kits are now being manufactured! They will be delivered to your team manager once ready.
+                            </p>
+                          )}
+                          {order.status === 'delivered_to_manager' && (
+                            <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: '#6ee7b7' }}>
+                              🤝 Your kit has been delivered to your team manager for collection. Please contact them to arrange pick-up.
+                            </p>
+                          )}
                         </div>
-                      ) : null
-                    )}
+                      );
+                    })()}
 
                     <button
                       onClick={() => setSelectedOrder(order)}
@@ -1759,10 +1847,7 @@ export default function ParentPortal() {
                           <td colSpan="4" style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#94a3b8' }}>Subtotal:</td>
                           <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#f9fafb' }}>{formatCurrency(selectedOrder.subtotal)}</td>
                         </tr>
-                        <tr>
-                          <td colSpan="4" style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#94a3b8' }}>Shipping:</td>
-                          <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#f9fafb' }}>{formatCurrency(selectedOrder.shipping)}</td>
-                        </tr>
+
                         <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
                           <td colSpan="4" style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, fontSize: '1.1rem', color: '#f9fafb' }}>Total:</td>
                           <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 900, fontSize: '1.1rem', color: '#f87171' }}>{formatCurrency(selectedOrder.total)}</td>
@@ -1772,60 +1857,7 @@ export default function ParentPortal() {
                   </div>
                 </section>
 
-                <section style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                  <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 900, color: '#f9fafb' }}>
-                    Shipping Address
-                  </h3>
-                  <div style={{
-                    padding: '1rem',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '8px',
-                    lineHeight: '1.6',
-                    color: '#d1d5db'
-                  }}>
-                    {selectedOrder.shippingAddress.street}<br />
-                    {selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.province}<br />
-                    {selectedOrder.shippingAddress.postalCode}
-                  </div>
-                </section>
 
-                {selectedOrder.tracking && (
-                  <section style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 900, color: '#f9fafb' }}>
-                      Tracking Information
-                    </h3>
-                    <div style={{
-                      padding: '1.5rem',
-                      background: 'rgba(16,185,129,0.1)',
-                      border: '1px solid rgba(16,185,129,0.3)',
-                      borderRadius: '8px'
-                    }}>
-                      <div style={{ marginBottom: '1rem', color: '#d1d5db' }}>
-                        <strong style={{ color: '#e5e7eb' }}>Tracking Number:</strong>{' '}
-                        <span style={{
-                          background: 'rgba(255,255,255,0.1)',
-                          padding: '0.5rem 1rem',
-                          borderRadius: '6px',
-                          fontFamily: 'monospace',
-                          fontSize: '1.1rem',
-                          fontWeight: 700,
-                          display: 'inline-block',
-                          marginTop: '0.5rem',
-                          color: '#6ee7b7'
-                        }}>
-                          {selectedOrder.tracking.number}
-                        </span>
-                      </div>
-                      <div style={{ marginBottom: '0.5rem', color: '#d1d5db' }}>
-                        <strong style={{ color: '#e5e7eb' }}>Courier:</strong> {selectedOrder.tracking.courier}
-                      </div>
-                      <div style={{ fontSize: '0.9rem', color: '#34d399' }}>
-                        Tracking added on {formatDate(selectedOrder.tracking.addedAt)}
-                      </div>
-                    </div>
-                  </section>
-                )}
 
                 {selectedOrder.statusHistory && selectedOrder.statusHistory.length > 0 && (
                   <section>
@@ -1864,7 +1896,7 @@ export default function ParentPortal() {
                                 fontWeight: 700,
                                 textTransform: 'uppercase'
                               }}>
-                                {history.status}
+                                {formatStatusLabel(history.status)}
                               </span>
                             </div>
                             <div style={{ fontSize: '0.85rem', color: '#9ca3af', marginBottom: '0.5rem' }}>

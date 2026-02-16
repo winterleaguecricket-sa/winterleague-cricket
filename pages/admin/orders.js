@@ -5,13 +5,11 @@ import styles from '../../styles/adminOrders.module.css';
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState([]);
-  const [stats, setStats] = useState({ total: 0, pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0, totalRevenue: 0 });
+  const [stats, setStats] = useState({ total: 0, pending: 0, confirmed: 0, in_production: 0, delivered_to_manager: 0, cancelled: 0, totalRevenue: 0 });
   const [filterStatus, setFilterStatus] = useState('all');
   const [orderType, setOrderType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [trackingNumber, setTrackingNumber] = useState('');
-  const [trackingCourier, setTrackingCourier] = useState('');
   const [statusNotes, setStatusNotes] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [tabCounts, setTabCounts] = useState({ product: 0, 'player-registration': 0, 'team-registration': 0, all: 0 });
@@ -26,7 +24,7 @@ export default function OrderManagement() {
       const ordersData = await ordersRes.json();
       const statsData = await statsRes.json();
       setOrders(ordersData.orders || []);
-      setStats(statsData.stats || { total: 0, pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0, totalRevenue: 0 });
+      setStats(statsData.stats || { total: 0, pending: 0, confirmed: 0, in_production: 0, delivered_to_manager: 0, cancelled: 0, totalRevenue: 0 });
     } catch (err) {
       console.error('Error loading orders:', err);
     }
@@ -64,11 +62,25 @@ export default function OrderManagement() {
 
   const statusOptions = [
     { value: 'pending', label: 'Pending', color: '#f59e0b' },
-    { value: 'processing', label: 'Processing', color: '#3b82f6' },
-    { value: 'shipped', label: 'Shipped', color: '#8b5cf6' },
-    { value: 'delivered', label: 'Delivered', color: '#10b981' },
+    { value: 'confirmed', label: 'Confirmed', color: '#3b82f6' },
+    { value: 'in_production', label: 'In Production', color: '#8b5cf6' },
+    { value: 'delivered_to_manager', label: 'Delivered to Manager', color: '#10b981' },
     { value: 'cancelled', label: 'Cancelled', color: '#ef4444' }
   ];
+
+  const formatStatusLabel = (status) => {
+    const labels = {
+      pending: 'Pending',
+      confirmed: 'Confirmed',
+      in_production: 'In Production',
+      delivered_to_manager: 'Delivered to Manager',
+      cancelled: 'Cancelled',
+      processing: 'Processing',
+      shipped: 'Shipped',
+      delivered: 'Delivered'
+    };
+    return labels[status] || status;
+  };
 
   const filteredOrders = orders.filter(order => {
     // Filter by order type
@@ -103,26 +115,7 @@ export default function OrderManagement() {
     }
   };
 
-  const handleAddTracking = async (orderId) => {
-    if (trackingNumber && trackingCourier) {
-      try {
-        await fetch('/api/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'add-tracking', orderId, trackingNumber, courier: trackingCourier })
-        });
-        await loadOrders();
-        setTrackingNumber('');
-        setTrackingCourier('');
-        if (selectedOrder && selectedOrder.id === orderId) {
-          const updated = orders.find(o => o.id === orderId);
-          if (updated) setSelectedOrder(updated);
-        }
-      } catch (err) {
-        console.error('Error adding tracking:', err);
-      }
-    }
-  };
+
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -289,40 +282,40 @@ export default function OrderManagement() {
             alignItems: 'center',
             gap: '0.75rem'
           }}>
-            <div style={{ fontSize: '2rem' }}>🔄</div>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827' }}>{currentStats.processing}</div>
-              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Processing</div>
-            </div>
-          </div>
-          <div style={{
-            background: 'white',
-            border: '1px solid #e5e7eb',
-            borderRadius: '10px',
-            padding: '0.85rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem'
-          }}>
-            <div style={{ fontSize: '2rem' }}>🚚</div>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827' }}>{currentStats.shipped}</div>
-              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Shipped</div>
-            </div>
-          </div>
-          <div style={{
-            background: 'white',
-            border: '1px solid #e5e7eb',
-            borderRadius: '10px',
-            padding: '0.85rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem'
-          }}>
             <div style={{ fontSize: '2rem' }}>✅</div>
             <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827' }}>{currentStats.delivered}</div>
-              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Delivered</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827' }}>{currentStats.confirmed}</div>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Confirmed</div>
+            </div>
+          </div>
+          <div style={{
+            background: 'white',
+            border: '1px solid #e5e7eb',
+            borderRadius: '10px',
+            padding: '0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem'
+          }}>
+            <div style={{ fontSize: '2rem' }}>🏭</div>
+            <div>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827' }}>{currentStats.in_production}</div>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>In Production</div>
+            </div>
+          </div>
+          <div style={{
+            background: 'white',
+            border: '1px solid #e5e7eb',
+            borderRadius: '10px',
+            padding: '0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem'
+          }}>
+            <div style={{ fontSize: '2rem' }}>🤝</div>
+            <div>
+              <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827' }}>{currentStats.delivered_to_manager}</div>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Delivered to Manager</div>
             </div>
           </div>
           <div style={{
@@ -453,10 +446,9 @@ export default function OrderManagement() {
                       padding: '0.25rem 0.65rem',
                       borderRadius: '6px',
                       fontSize: '0.7rem',
-                      fontWeight: '700',
-                      textTransform: 'capitalize'
+                      fontWeight: '700'
                     }}>
-                      {order.status}
+                      {formatStatusLabel(order.status)}
                     </span>
                   </td>
                   <td style={{ padding: '0.75rem', fontSize: '0.75rem', color: '#6b7280' }}>{formatDate(order.createdAt)}</td>
@@ -512,15 +504,7 @@ export default function OrderManagement() {
                   </div>
                 </section>
 
-                {/* Shipping Address */}
-                <section className={styles.section}>
-                  <h3>Shipping Address</h3>
-                  <div className={styles.address}>
-                    {selectedOrder.shippingAddress.street}<br />
-                    {selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.province}<br />
-                    {selectedOrder.shippingAddress.postalCode}
-                  </div>
-                </section>
+
 
                 {/* Order Items */}
                 <section className={styles.section}>
@@ -551,10 +535,7 @@ export default function OrderManagement() {
                         <td colSpan="4"><strong>Subtotal:</strong></td>
                         <td><strong>{formatCurrency(selectedOrder.subtotal)}</strong></td>
                       </tr>
-                      <tr>
-                        <td colSpan="4"><strong>Shipping:</strong></td>
-                        <td><strong>{formatCurrency(selectedOrder.shipping)}</strong></td>
-                      </tr>
+
                       <tr className={styles.totalRow}>
                         <td colSpan="4"><strong>Total:</strong></td>
                         <td><strong>{formatCurrency(selectedOrder.total)}</strong></td>
@@ -589,39 +570,25 @@ export default function OrderManagement() {
                   </div>
                 </section>
 
-                {/* Tracking Information */}
+                {/* Kit Delivery Info */}
                 <section className={styles.section}>
-                  <h3>Tracking Information</h3>
-                  {selectedOrder.tracking ? (
-                    <div className={styles.trackingInfo}>
-                      <p><strong>Tracking Number:</strong> {selectedOrder.tracking.number}</p>
-                      <p><strong>Courier:</strong> {selectedOrder.tracking.courier}</p>
-                      <p><strong>Added:</strong> {formatDate(selectedOrder.tracking.addedAt)}</p>
-                    </div>
-                  ) : (
-                    <div className={styles.trackingForm}>
-                      <input
-                        type="text"
-                        placeholder="Tracking Number"
-                        value={trackingNumber}
-                        onChange={(e) => setTrackingNumber(e.target.value)}
-                        className={styles.input}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Courier (e.g., PostNet, Courier Guy, etc.)"
-                        value={trackingCourier}
-                        onChange={(e) => setTrackingCourier(e.target.value)}
-                        className={styles.input}
-                      />
-                      <button
-                        onClick={() => handleAddTracking(selectedOrder.id)}
-                        className={styles.addButton}
-                      >
-                        Add Tracking Info
-                      </button>
-                    </div>
-                  )}
+                  <h3>Kit Delivery</h3>
+                  <div style={{
+                    padding: '1rem',
+                    background: '#f0f9ff',
+                    border: '1px solid #bae6fd',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    color: '#1e40af',
+                    lineHeight: '1.6'
+                  }}>
+                    <p style={{ margin: '0 0 0.5rem 0' }}>
+                      <strong>📋 Note:</strong> Kits are manufactured in batches and delivered directly to team managers for distribution.
+                    </p>
+                    <p style={{ margin: 0 }}>
+                      Kits go into production when a minimum of <strong>12 players</strong> have registered and paid for a team.
+                    </p>
+                  </div>
                 </section>
 
                 {/* Status History */}
@@ -640,7 +607,7 @@ export default function OrderManagement() {
                                   background: statusOptions.find(s => s.value === history.status)?.color 
                                 }}
                               >
-                                {history.status}
+                                {formatStatusLabel(history.status)}
                               </span>
                             </div>
                             <div className={styles.timelineDate}>{formatDate(history.timestamp)}</div>

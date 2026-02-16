@@ -233,9 +233,9 @@ function computeStats(ordersList) {
   return {
     total: ordersList.length,
     pending: ordersList.filter(o => o.status === 'pending').length,
-    processing: ordersList.filter(o => o.status === 'processing').length,
-    shipped: ordersList.filter(o => o.status === 'shipped').length,
-    delivered: ordersList.filter(o => o.status === 'delivered').length,
+    confirmed: ordersList.filter(o => o.status === 'confirmed').length,
+    in_production: ordersList.filter(o => o.status === 'in_production').length,
+    delivered_to_manager: ordersList.filter(o => o.status === 'delivered_to_manager').length,
     cancelled: ordersList.filter(o => o.status === 'cancelled').length,
     totalRevenue: ordersList
       .filter(o => o.status !== 'cancelled')
