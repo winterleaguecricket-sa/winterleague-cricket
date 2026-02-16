@@ -2584,89 +2584,29 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     );
   };
 
+  // Fetch team data from teams API whenever team dropdown changes (for kit image on step 3)
   useEffect(() => {
     if (!form || form.id !== 2) return;
-
-    const entries = getPlayerEntries();
-    const teamSelection = formData[8];
-    const seen = new Map();
-
-    setPlayerEntryErrors((prev) => {
-      const next = { ...prev };
-
-      entries.forEach((entry, index) => {
-        const jerseyValue = entry?.shirtNumber;
-        const jerseyString = jerseyValue === undefined || jerseyValue === null ? '' : String(jerseyValue).trim();
-        const subTeamSelection = entry?.subTeam;
-
-        const currentErrors = { ...(next[index] || {}) };
-        let jerseyError = '';
-
-        if (jerseyString) {
-          if (!/^\d{1,2}$/.test(jerseyString)) {
-            jerseyError = 'Only a 1–2 digit shirt number can be used.';
-          } else {
-            const subTeamKey = normalizeSubTeamValue(subTeamSelection);
-            const localKey = `${subTeamKey}|${jerseyString}`;
-            if (subTeamKey && seen.has(localKey)) {
-              jerseyError = 'Two players cannot share the same shirt number in the same age group.';
-            } else if (subTeamKey) {
-              seen.set(localKey, true);
-            }
-
-            if (!jerseyError && teamSelection && subTeamKey) {
-              const duplicate = playerRegistrationSubmissions.some((submission) => {
-                const data = submission.data || {};
-                const submissionTeam = String(data[8] ?? data['8'] ?? '');
-                if (submissionTeam !== String(teamSelection)) return false;
-
-                // New format: player entries stored in data[45] array
-                const playerEntries = data[45] ?? data['45'];
-                if (Array.isArray(playerEntries) && playerEntries.length > 0) {
-                  return playerEntries.some((p) => {
-                    if (!p) return false;
-                    const pSubTeamKey = normalizeSubTeamValue(p.subTeam);
-                    if (pSubTeamKey !== subTeamKey) return false;
-                    return String(p.shirtNumber ?? '') === jerseyString;
-                  });
-                }
-
-                // Legacy format: single-player fields 34 (sub-team) and 36 (jersey)
-                const legacySubTeam = data[34] ?? data['34'];
-                const legacyJersey = data[36] ?? data['36'];
-                if (legacySubTeam && legacyJersey) {
-                  const legacySubTeamKey = normalizeSubTeamValue(legacySubTeam);
-                  if (legacySubTeamKey !== subTeamKey) return false;
-                  return String(legacyJersey) === jerseyString;
-                }
-
-                return false;
-              });
-
-              if (duplicate) {
-                jerseyError = 'This shirt number is already taken for the selected age group team. Please choose another.';
-              }
-            }
-          }
-        }
-
-        if (jerseyError) {
-          currentErrors.shirtNumber = jerseyError;
-        } else {
-          delete currentErrors.shirtNumber;
-        }
-
-        if (Object.keys(currentErrors).length === 0) {
-          delete next[index];
-        } else {
-          next[index] = currentErrors;
-        }
-      });
-
-      return next;
-    });
+    const fieldId = 8; // team dropdown field
+    const submissionId = formData[fieldId];
+    if (!submissionId) {
+      setSelectedTeamData(null);
+      return;
+    }
+    const dropdownInfo = submissionDropdownData[fieldId];
+    if (!dropdownInfo) return;
+    const selectedSubmission = dropdownInfo.submissions?.find(
+      s => String(s.id) === String(submissionId)
+    );
+    if (!selectedSubmission) return;
+    const teamName = (selectedSubmission.data?.[1] ?? selectedSubmission.data?.['1'] ?? '').trim();
+    if (!teamName) return;
+    fetch(`/api/teams?teamName=${encodeURIComponent(teamName)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setSelectedTeamData(d?.team || null))
+      .catch(() => setSelectedTeamData(null));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form?.id, formData[45], formData[8], playerRegistrationSubmissions]);
+  }, [form?.id, formData[8], submissionDropdownData]);
 
   const compressImageDataUrl = (dataUrl, options = {}) => {
     if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
@@ -2795,14 +2735,6 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
         s => String(s.id) === String(submissionId)
       );
       if (selectedSubmission) {
-        // Fetch team data from teams API for kit image access
-        const teamName = selectedSubmission.data?.[1] ?? selectedSubmission.data?.['1'];
-        if (teamName) {
-          fetch(`/api/teams?teamName=${encodeURIComponent(teamName)}`)
-            .then(r => r.ok ? r.json() : null)
-            .then(d => setSelectedTeamData(d?.team || null))
-            .catch(() => setSelectedTeamData(null));
-        }
         const newPrefilledData = { ...prefilledData };
         const newFormData = { ...formData, [fieldId]: submissionId };
         

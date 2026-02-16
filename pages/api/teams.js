@@ -42,7 +42,7 @@ export default async function handler(req, res) {
       // Get team by name
       if (teamName) {
         const result = await query(
-          `SELECT * FROM teams WHERE LOWER(team_name) = LOWER($1)`,
+          `SELECT * FROM teams WHERE LOWER(TRIM(team_name)) = LOWER(TRIM($1))`,
           [teamName]
         );
         
