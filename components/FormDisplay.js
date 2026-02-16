@@ -5766,6 +5766,14 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                         const basicKitField = allFields.find(f => f.type === 'product-bundle');
                         const teamPricing = basicKitField ? getSelectedTeamKitPricing(basicKitField) : null;
                         const entries = getPlayerEntries();
+
+                        // Get the admin-uploaded final kit image from the team's submission data
+                        const teamDropdownFieldId = field.autofillLinkedDropdownFieldId;
+                        const selectedTeamId = teamDropdownFieldId ? formData[teamDropdownFieldId] : null;
+                        const teamSubmissions = teamDropdownFieldId ? (submissionDropdownData[teamDropdownFieldId]?.submissions || []) : [];
+                        const selectedTeamSubmission = selectedTeamId ? teamSubmissions.find(sub => String(sub.id) === String(selectedTeamId)) : null;
+                        const finalKitImageUrl = selectedTeamSubmission?.data?.kitDesignImageUrl || selectedTeamSubmission?.data?.kitDesignImage || '';
+
                         if (!selectedDesign) {
                           return (
                             <div className={styles.kitAutofillNotice}>
@@ -5783,28 +5791,86 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                             <div className={styles.kitPreviewHeader}>
                               <div>
                                 <h4 className={styles.kitPreviewTitle}>{selectedDesign.name}</h4>
-                                <p className={styles.kitPreviewSubtitle}>Preview of the basic kit your team selected.</p>
+                                <p className={styles.kitPreviewSubtitle}>
+                                  {finalKitImageUrl ? 'Your team\'s kit design with team colours applied.' : 'Preview of the basic kit your team selected.'}
+                                </p>
                               </div>
-                              <div className={styles.kitPreviewMeta}>
-                                <span className={styles.kitPreviewMetaLabel}>Gallery</span>
-                                <span className={styles.kitPreviewMetaCount}>{previewImages.length} images</span>
-                              </div>
+                              {!finalKitImageUrl && (
+                                <div className={styles.kitPreviewMeta}>
+                                  <span className={styles.kitPreviewMetaLabel}>Gallery</span>
+                                  <span className={styles.kitPreviewMetaCount}>{previewImages.length} images</span>
+                                </div>
+                              )}
                             </div>
-                            <div className={styles.kitPreviewGrid}>
-                              {previewImages.map((img, index) => (
+
+                            {/* Show admin-uploaded final kit as the primary image if available */}
+                            {finalKitImageUrl ? (
+                              <div style={{ marginBottom: '1rem' }}>
                                 <button
                                   type="button"
-                                  key={`${selectedDesign.id}-${index}`}
-                                  className={styles.kitPreviewThumb}
+                                  style={{
+                                    display: 'block',
+                                    width: '100%',
+                                    background: 'none',
+                                    border: '2px solid rgba(220, 38, 38, 0.3)',
+                                    borderRadius: '12px',
+                                    padding: '0',
+                                    cursor: 'pointer',
+                                    overflow: 'hidden',
+                                    position: 'relative'
+                                  }}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setModalDesign(selectedDesign);
                                   }}
                                 >
-                                  <img src={img} alt={`${selectedDesign.name} preview ${index + 1}`} />
+                                  <img
+                                    src={finalKitImageUrl}
+                                    alt={`${selectedDesign.name} - Final kit with team colours`}
+                                    style={{
+                                      width: '100%',
+                                      maxHeight: '400px',
+                                      objectFit: 'contain',
+                                      display: 'block',
+                                      background: '#0b1220'
+                                    }}
+                                  />
+                                  <div style={{
+                                    position: 'absolute',
+                                    bottom: '0',
+                                    left: '0',
+                                    right: '0',
+                                    background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                                    padding: '2rem 1rem 0.75rem',
+                                    color: 'white',
+                                    textAlign: 'center'
+                                  }}>
+                                    <div style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '0.15rem' }}>
+                                      Your Team&apos;s Kit with Team Colours
+                                    </div>
+                                    <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.7)' }}>
+                                      Tap to view the basic kit design gallery
+                                    </div>
+                                  </div>
                                 </button>
-                              ))}
-                            </div>
+                              </div>
+                            ) : (
+                              <div className={styles.kitPreviewGrid}>
+                                {previewImages.map((img, index) => (
+                                  <button
+                                    type="button"
+                                    key={`${selectedDesign.id}-${index}`}
+                                    className={styles.kitPreviewThumb}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setModalDesign(selectedDesign);
+                                    }}
+                                  >
+                                    <img src={img} alt={`${selectedDesign.name} preview ${index + 1}`} />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
 
                             {form.id === 2 && basicKitField && (
                               <div className={styles.kitSizingCard}>

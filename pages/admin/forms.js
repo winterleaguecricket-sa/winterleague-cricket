@@ -2532,6 +2532,105 @@ export default function AdminForms() {
                             );
                           }
 
+                          if (field.type === 'image-select-library' && !field.autofillFromSubmission) {
+                            // Editable kit design picker for team registration (field 23)
+                            const currentDesignName = value || '';
+                            const currentDesign = shirtDesigns.find(d => d.name === currentDesignName);
+                            const currentPrimary = submissionData[`${field.id}_primaryColor`] || submissionData[`${String(field.id)}_primaryColor`] || '';
+                            const currentSecondary = submissionData[`${field.id}_secondaryColor`] || submissionData[`${String(field.id)}_secondaryColor`] || '';
+                            return (
+                              <div key={field.id} className={styles.formGroup}>
+                                <label style={{ fontWeight: '600', color: '#111827' }}>{field.label}</label>
+                                {currentDesign && (
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '1rem',
+                                    padding: '0.75rem',
+                                    background: '#f0fdf4',
+                                    border: '2px solid #22c55e',
+                                    borderRadius: '8px',
+                                    marginBottom: '0.75rem'
+                                  }}>
+                                    <img
+                                      src={currentDesign.images?.[0] || ''}
+                                      alt={currentDesign.name}
+                                      style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                                    />
+                                    <div>
+                                      <div style={{ fontWeight: '700', color: '#15803d' }}>Currently Selected: {currentDesign.name}</div>
+                                      <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '2px' }}>
+                                        {currentPrimary && <span>Primary: <span style={{ display: 'inline-block', width: '12px', height: '12px', background: currentPrimary, borderRadius: '2px', verticalAlign: 'middle', marginRight: '4px', border: '1px solid #d1d5db' }}></span>{currentPrimary} </span>}
+                                        {currentSecondary && <span>Secondary: <span style={{ display: 'inline-block', width: '12px', height: '12px', background: currentSecondary, borderRadius: '2px', verticalAlign: 'middle', marginRight: '4px', border: '1px solid #d1d5db' }}></span>{currentSecondary}</span>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                <div style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                                  Select a new kit design to change the team&apos;s selection:
+                                </div>
+                                <div style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                                  gap: '0.75rem',
+                                  maxHeight: '320px',
+                                  overflowY: 'auto',
+                                  padding: '0.5rem',
+                                  background: '#f9fafb',
+                                  border: '2px solid #e5e7eb',
+                                  borderRadius: '8px'
+                                }}>
+                                  {shirtDesigns.map((design) => {
+                                    const isSelected = currentDesignName === design.name;
+                                    return (
+                                      <button
+                                        type="button"
+                                        key={design.id}
+                                        onClick={() => {
+                                          handleSubmissionDataChange(key, design.name);
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          flexDirection: 'column',
+                                          alignItems: 'center',
+                                          padding: '0.5rem',
+                                          background: isSelected ? '#dcfce7' : '#ffffff',
+                                          border: isSelected ? '2px solid #22c55e' : '2px solid #e5e7eb',
+                                          borderRadius: '8px',
+                                          cursor: 'pointer',
+                                          transition: 'all 0.15s ease'
+                                        }}
+                                      >
+                                        <img
+                                          src={design.images?.[0] || ''}
+                                          alt={design.name}
+                                          style={{
+                                            width: '100%',
+                                            height: '100px',
+                                            objectFit: 'cover',
+                                            borderRadius: '4px',
+                                            marginBottom: '0.4rem'
+                                          }}
+                                        />
+                                        <span style={{
+                                          fontSize: '0.78rem',
+                                          fontWeight: isSelected ? '700' : '500',
+                                          color: isSelected ? '#15803d' : '#374151',
+                                          textAlign: 'center'
+                                        }}>
+                                          {design.name}
+                                        </span>
+                                        {isSelected && (
+                                          <span style={{ fontSize: '0.7rem', color: '#22c55e', fontWeight: '700', marginTop: '2px' }}>✓ Selected</span>
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          }
+
                           if (['entry-fee-pricing', 'product-bundle', 'upsell-products', 'supporter-apparel', 'checkout-form', 'image-select-library', 'submission-dropdown', 'sub-team-selector', 'dynamic-team-entries'].includes(field.type)) {
                             let displayValue = value;
                             if (field.type === 'dynamic-team-entries' && Array.isArray(value) && value.length > 0) {
