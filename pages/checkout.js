@@ -10,7 +10,7 @@ import { siteConfig } from '../data/products';
 import { getProfileByEmail, createProfile, updateProfile, addOrderToProfile } from '../data/customers';
 
 export default function Checkout() {
-  const { cart, getCartTotal, clearCart } = useCart();
+  const { cart, cartLoaded, getCartTotal, clearCart } = useCart();
   const [step, setStep] = useState('payment'); // payment, processing
   const [customerProfile, setCustomerProfile] = useState(null);
   const [profileFormData, setProfileFormData] = useState({
@@ -370,7 +370,7 @@ export default function Checkout() {
   };
 
   // ===== EMPTY CART =====
-  if (cart.length === 0) {
+  if (cartLoaded && cart.length === 0) {
     return (
       <div className={styles.container} style={{ background: 'transparent' }}>
         <Head>

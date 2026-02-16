@@ -5,6 +5,7 @@ const CartContext = createContext();
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [cartLoaded, setCartLoaded] = useState(false);
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -16,12 +17,14 @@ export function CartProvider({ children }) {
         console.error('Error loading cart:', e);
       }
     }
+    setCartLoaded(true);
   }, []);
 
-  // Save cart to localStorage whenever it changes
+  // Save cart to localStorage whenever it changes (only after initial load)
   useEffect(() => {
+    if (!cartLoaded) return;
     localStorage.setItem('cricket-cart', JSON.stringify(cart));
-  }, [cart]);
+  }, [cart, cartLoaded]);
 
   const addToCart = (product, selectedSize = null, autoOpen = false) => {
     setCart(prevCart => {
@@ -119,6 +122,7 @@ export function CartProvider({ children }) {
   return (
     <CartContext.Provider value={{
       cart,
+      cartLoaded,
       addToCart,
       removeFromCart,
       updateQuantity,
