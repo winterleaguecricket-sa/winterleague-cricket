@@ -3491,16 +3491,19 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
       setSubmittedFormData(submittedData);
 
       setSubmitting(false);
-      if (typeof window !== 'undefined' && form?.id) {
-        window.localStorage.removeItem(getDraftKey(form.id));
-      }
 
       if (form.id === 2 && typeof window !== 'undefined') {
+        // Don't clear formDraft yet — checkout page needs it for customer profile
         if (onSubmitSuccess) {
           onSubmitSuccess(result.submission);
         }
         window.location.assign('/checkout');
         return;
+      }
+
+      // Clear draft for non-checkout forms (form 2 draft is cleared on payment success)
+      if (typeof window !== 'undefined' && form?.id) {
+        window.localStorage.removeItem(getDraftKey(form.id));
       }
 
       setSubmitted(true);

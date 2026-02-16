@@ -52,12 +52,19 @@ export default function CheckoutSuccess() {
     }
   }, [order, gateway]);
 
+  // Clear form draft now that payment is complete
+  useEffect(() => {
+    if (order && typeof window !== 'undefined') {
+      try { window.localStorage.removeItem('formDraft_2'); } catch (e) {}
+    }
+  }, [order]);
+
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     } else {
-      router.push('/');
+      router.push('/parent-portal');
     }
   }, [countdown, router]);
 
@@ -123,9 +130,9 @@ export default function CheckoutSuccess() {
             A confirmation email has been sent to your email address.
           </p>
           <p style={{ color: '#dc0000', fontWeight: 700, marginBottom: '2rem' }}>
-            Redirecting to home page in {countdown} seconds...
+            Redirecting to Parent Portal in {countdown} seconds...
           </p>
-          <Link href="/" style={{ 
+          <Link href="/parent-portal" style={{ 
             padding: '1rem 2rem', 
             background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
             color: 'white',
@@ -134,7 +141,7 @@ export default function CheckoutSuccess() {
             fontWeight: 700,
             display: 'inline-block'
           }}>
-            Continue Shopping
+            Go to Parent Portal
           </Link>
         </div>
       </main>
