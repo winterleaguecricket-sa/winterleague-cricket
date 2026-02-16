@@ -3,6 +3,7 @@
 // SECURITY: Only marks orders as paid if Yoco API explicitly confirms payment
 import { query } from '../../../lib/db';
 import { getYocoConfig } from './config';
+import { sendParentPaymentSuccessEmail } from '../../../lib/parentEmailHelper';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -23,7 +24,7 @@ export default async function handler(req, res) {
   try {
     // 1. Look up order in database
     const orderResult = await query(
-      'SELECT id, order_number, total_amount, status, payment_status, payment_method, gateway_checkout_id FROM orders WHERE order_number = $1',
+      'SELECT id, order_number, total_amount, status, payment_status, payment_method, gateway_checkout_id, customer_email, customer_name FROM orders WHERE order_number = $1',
       [orderId]
     );
 
@@ -115,6 +116,19 @@ export default async function handler(req, res) {
           );
 
           console.log(`Order ${orderId} marked as PAID via Yoco API verification`);
+
+          // Send parent payment success email (non-blocking)
+          try {
+            await sendParentPaymentSuccessEmail(
+              orderId,
+              order.customer_email || '',
+              order.customer_name || '',
+              order.total_amount
+            );
+          } catch (emailErr) {
+            console.error('Parent payment email error (non-blocking):', emailErr.message);
+          }
+
           return res.status(200).json({
             success: true,
             status: 'paid',

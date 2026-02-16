@@ -1,6 +1,7 @@
 // Yoco Webhook handler — receives payment notifications from Yoco
 // SECURITY: Validates event structure, verifies amounts, prevents double-processing
 import { query } from '../../../lib/db';
+import { sendParentPaymentSuccessEmail } from '../../../lib/parentEmailHelper';
 
 // Yoco sends JSON webhooks
 export const config = {
@@ -45,7 +46,7 @@ export default async function handler(req, res) {
 
       // Verify order exists
       const orderResult = await query(
-        'SELECT id, order_number, total_amount, status, payment_status FROM orders WHERE order_number = $1',
+        'SELECT id, order_number, total_amount, status, payment_status, customer_email, customer_name FROM orders WHERE order_number = $1',
         [orderId]
       );
 
@@ -89,6 +90,18 @@ export default async function handler(req, res) {
           ]
         );
         console.log(`Order ${orderId} marked as PAID and CONFIRMED via Yoco`);
+
+        // Send parent payment success email (non-blocking)
+        try {
+          await sendParentPaymentSuccessEmail(
+            orderId,
+            order.customer_email || '',
+            order.customer_name || '',
+            order.total_amount
+          );
+        } catch (emailErr) {
+          console.error('Webhook: parent payment email error (non-blocking):', emailErr.message);
+        }
       } else {
         console.warn(`Yoco webhook: order ${orderId} not found in database`);
       }

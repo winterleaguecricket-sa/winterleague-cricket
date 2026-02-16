@@ -152,6 +152,53 @@ Request Date: {requestDate}
 Please review and process this payout request in the admin panel.
 
 Admin Panel Link: {adminLink}/admin/payouts`
+    },
+    parentPaymentSuccess: {
+      subject: 'Payment Received - Player Registration for {playerName}',
+      body: `Dear {parentName},
+
+Thank you for your payment! We have successfully received your player registration payment.
+
+Order Number: #{orderNumber}
+Total Amount: R{totalAmount}
+Player: {playerName}
+Team: {teamName}
+
+Your registration is now being reviewed by our admin team. You will receive another email once your player has been approved.
+
+You can log in to the Parent Portal to track the status of your registration:
+
+Login Link: {loginUrl}
+Email: {email}
+Password: {password}
+
+If you have any questions, please don't hesitate to contact us.
+
+Best regards,
+Winter League Cricket`
+    },
+    parentPlayerApproved: {
+      subject: 'Player Approved - {playerName} for {teamName}',
+      body: `Dear {parentName},
+
+Great news! Your player registration for {playerName} has been approved.
+
+Player: {playerName}
+Team: {teamName}
+Status: Approved
+
+Your player is now officially registered for the season. You can view all details and updates in the Parent Portal:
+
+Login Link: {loginUrl}
+Email: {email}
+Password: {password}
+
+You will receive additional information about schedules, fixtures, and next steps shortly.
+
+Welcome to the league!
+
+Best regards,
+Winter League Cricket`
     }
   }
 };
@@ -214,15 +261,13 @@ export function updateEmailTemplate(status, template) {
   if (!adminSettings.emailTemplates) {
     adminSettings.emailTemplates = { ...defaultSettings.emailTemplates };
   }
-  if (adminSettings.emailTemplates[status]) {
-    adminSettings.emailTemplates[status] = {
-      ...adminSettings.emailTemplates[status],
-      ...template
-    };
-    saveSettings(mergeSettings(adminSettings));
-    return adminSettings.emailTemplates[status];
-  }
-  return null;
+  // Update existing template or create new one
+  adminSettings.emailTemplates[status] = {
+    ...(adminSettings.emailTemplates[status] || {}),
+    ...template
+  };
+  saveSettings(mergeSettings(adminSettings));
+  return adminSettings.emailTemplates[status];
 }
 
 export function updateAllAdminSettings(settings) {

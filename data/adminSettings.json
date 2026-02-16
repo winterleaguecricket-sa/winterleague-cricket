@@ -32,6 +32,14 @@
     "payoutRequest": {
       "subject": "New Payout Request - {teamName}",
       "body": "A new payout request has been submitted:\n\nTeam: {teamName}\nCoach: {coachName}\nEmail: {email}\nPhone: {phone}\n\nRequest ID: #{requestId}\nTotal Amount: R{amount}\n\nBreakdown:\n- Player Registration Markup: R{markup}\n- Product Commission (10%): R{commission}\n\nRequest Date: {requestDate}\n\nPlease review and process this payout request in the admin panel.\n\nAdmin Panel Link: {adminLink}/admin/payouts"
+    },
+    "parentPaymentSuccess": {
+      "subject": "Payment Received - Player Registration for {playerName}",
+      "body": "Dear {parentName},\n\nThank you for your payment! We have successfully received your player registration payment.\n\nOrder Number: #{orderNumber}\nTotal Amount: R{totalAmount}\nPlayer: {playerName}\nTeam: {teamName}\n\nYour registration is now being reviewed by our admin team. You will receive another email once your player has been approved.\n\nYou can log in to the Parent Portal to track the status of your registration:\n\nLogin Link: {loginUrl}\nEmail: {email}\nPassword: {password}\n\nIf you have any questions, please don't hesitate to contact us.\n\nBest regards,\nWinter League Cricket"
+    },
+    "parentPlayerApproved": {
+      "subject": "Player Approved - {playerName} for {teamName}",
+      "body": "Dear {parentName},\n\nGreat news! Your player registration for {playerName} has been approved.\n\nPlayer: {playerName}\nTeam: {teamName}\nStatus: Approved\n\nYour player is now officially registered for the season. You can view all details and updates in the Parent Portal:\n\nLogin Link: {loginUrl}\nEmail: {email}\nPassword: {password}\n\nYou will receive additional information about schedules, fixtures, and next steps shortly.\n\nWelcome to the league!\n\nBest regards,\nWinter League Cricket"
     }
   }
 }

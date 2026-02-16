@@ -63,6 +63,13 @@ export default function AdminProfile() {
         <path d="M17 10h4m-2-2v4" />
       </svg>
     ),
+    'parent-emails': (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 6h16v12H4z" />
+        <path d="m4 7 8 6 8-6" />
+        <path d="M17 2h4m-2-2v4" />
+      </svg>
+    ),
     'email-config': (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />
@@ -84,7 +91,9 @@ export default function AdminProfile() {
             reviewed: { subject: '', body: '' },
             complete: { subject: '', body: '' },
             orderConfirmation: { subject: '', body: '' },
-            supplierForward: { subject: '', body: '' }
+            supplierForward: { subject: '', body: '' },
+            parentPaymentSuccess: { subject: '', body: '' },
+            parentPlayerApproved: { subject: '', body: '' }
           }
         };
         setSettings(safeSettings);
@@ -330,10 +339,19 @@ export default function AdminProfile() {
                 return;
               }
               setActiveTab(value);
+              // Set appropriate default template when switching tabs
+              if (value === 'email-templates') {
+                setSelectedTemplate('pending');
+              } else if (value === 'order-emails') {
+                setSelectedTemplate('orderConfirmation');
+              } else if (value === 'parent-emails') {
+                setSelectedTemplate('parentPaymentSuccess');
+              }
             }}
           >
             <option value="profile">👤︎ Profile</option>
             <option value="email-templates">✉︎ Team Registration Email</option>
+            <option value="parent-emails">👶︎ Parent Registration Email</option>
             <option value="order-emails">🛒︎ Order Emails</option>
             <option value="submission-data">📊︎ Submission Data</option>
             <option value="team-portal">👥︎ Team Portal</option>
@@ -595,6 +613,85 @@ export default function AdminProfile() {
                 </button>
               </form>
             </div>
+          </div>
+        )}
+
+        {/* Parent Emails Tab */}
+        {activeTab === 'parent-emails' && (
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Parent Registration Email Templates</h2>
+            <p className={styles.cardSubtitle}>
+              These emails are automatically sent to parents during the player registration process.
+            </p>
+            <p className={styles.cardSubtitle}>
+              Available variables: <code style={{ background: '#f3f4f6', padding: '0.2rem 0.4rem', borderRadius: '3px' }}>
+                {'{parentName}'}, {'{playerName}'}, {'{teamName}'}, {'{email}'}, {'{password}'}, {'{orderNumber}'}, {'{totalAmount}'}, {'{loginUrl}'}
+              </code>
+            </p>
+
+            {/* Template Selector */}
+            <div className={styles.templateButtons}>
+              <button
+                onClick={() => setSelectedTemplate('parentPaymentSuccess')}
+                className={`${styles.templateButton} ${selectedTemplate === 'parentPaymentSuccess' ? styles.templateButtonActive : ''}`}
+              >
+                💳 Payment Success
+              </button>
+              <button
+                onClick={() => setSelectedTemplate('parentPlayerApproved')}
+                className={`${styles.templateButton} ${selectedTemplate === 'parentPlayerApproved' ? styles.templateButtonActive : ''}`}
+              >
+                ✅ Player Approved
+              </button>
+            </div>
+
+            <div className={styles.alertBox}>
+              <strong>
+                {selectedTemplate === 'parentPaymentSuccess' 
+                  ? '💳 Payment Success Email — Sent automatically when a parent\'s payment is confirmed by Yoco.'
+                  : '✅ Player Approved Email — Sent automatically when an admin approves a player registration submission.'
+                }
+              </strong>
+            </div>
+
+            {/* Template Editor */}
+            <form onSubmit={handleSaveTemplate}>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label className={styles.label}>
+                  Email Subject
+                </label>
+                <input
+                  type="text"
+                  value={templateSubject}
+                  onChange={(e) => setTemplateSubject(e.target.value)}
+                  required
+                  className={styles.input}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label className={styles.label}>
+                  Email Body
+                </label>
+                <textarea
+                  value={templateBody}
+                  onChange={(e) => setTemplateBody(e.target.value)}
+                  required
+                  rows={14}
+                  className={styles.textarea}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className={styles.primaryButton}
+                style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' }}
+                onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+                onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+              >
+                💾 Save Template
+              </button>
+            </form>
           </div>
         )}
 
