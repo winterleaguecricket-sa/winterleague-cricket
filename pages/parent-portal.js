@@ -1095,18 +1095,16 @@ export default function ParentPortal() {
               )}
             </div>
 
-            {/* Age Group Teams Card */}
+            {/* Team Portal Card */}
             {(() => {
-              // Use parentPlayers (fetched by email) — works even without customers.team_id
               const myPlayers = parentPlayers.filter(p => p.teamId && p.subTeam);
               const mySubTeams = [...new Set(myPlayers.map(p => p.subTeam).filter(Boolean))];
-              if (mySubTeams.length === 0) return null;
               return (
                 <div
                   className="parentDashboardCard"
                   onClick={() => {
                     setAgeGroupTab(mySubTeams[0] || null);
-                    setActiveTab('ageGroups');
+                    setActiveTab('teamView');
                   }}
                   onMouseEnter={applyDashboardCardHover}
                   onMouseLeave={removeDashboardCardHover}
@@ -1127,18 +1125,18 @@ export default function ParentPortal() {
                     width: '48px',
                     height: '48px',
                     borderRadius: '12px',
-                    background: 'rgba(251,191,36,0.14)',
-                    border: '1px solid rgba(251,191,36,0.35)',
+                    background: 'rgba(52,211,153,0.14)',
+                    border: '1px solid rgba(52,211,153,0.35)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginBottom: '1rem',
-                    color: '#fbbf24'
+                    color: '#34d399'
                   }}>
                     {portalIcons.players}
                   </div>
                   <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', fontWeight: 800, color: '#f9fafb' }}>
-                    Age Group Teams
+                    Team Portal
                   </h3>
                   <p style={{ margin: 0, fontSize: '0.9rem', color: '#9ca3af', fontWeight: 600 }}>
                     View your players & their team rosters
@@ -1148,310 +1146,319 @@ export default function ParentPortal() {
                       position: 'absolute',
                       top: '1rem',
                       right: '1rem',
-                      background: 'rgba(251,191,36,0.2)',
-                      color: '#fbbf24',
+                      background: 'rgba(52,211,153,0.2)',
+                      color: '#34d399',
                       padding: '0.25rem 0.75rem',
                       borderRadius: '999px',
                       fontSize: '0.8rem',
                       fontWeight: 700
                     }}>
-                      {mySubTeams.length}
+                      {mySubTeams.length} {mySubTeams.length === 1 ? 'team' : 'teams'}
                     </span>
                   )}
                 </div>
               );
             })()}
-
-            {/* Team Portal Link Card */}
-            <a
-              href="/team-portal"
-              className="parentDashboardCard"
-              onMouseEnter={applyDashboardCardHover}
-              onMouseLeave={removeDashboardCardHover}
-              style={{
-                background: '#111827',
-                padding: '1.5rem',
-                borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                position: 'relative',
-                overflow: 'hidden',
-                textDecoration: 'none'
-              }}
-            >
-              <ShineEffect />
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: 'rgba(52,211,153,0.14)',
-                border: '1px solid rgba(52,211,153,0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '1rem',
-                color: '#34d399'
-              }}>
-                {portalIcons.tracking}
-              </div>
-              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', fontWeight: 800, color: '#f9fafb' }}>
-                Team Portal
-              </h3>
-              <p style={{ margin: 0, fontSize: '0.9rem', color: '#9ca3af', fontWeight: 600 }}>
-                Access your team dashboard & management
-              </p>
-            </a>
           </div>
         )}
 
-        {/* AGE GROUP TEAMS VIEW */}
-        {activeTab === 'ageGroups' && (() => {
-          // Use parentPlayers (fetched by email) + parentTeams for full roster data
+        {/* TEAM PORTAL VIEW */}
+        {activeTab === 'teamView' && (() => {
           const myPlayers = parentPlayers.filter(p => p.teamId && p.subTeam);
           const mySubTeams = [...new Set(myPlayers.map(p => p.subTeam).filter(Boolean))];
-          
-          // Build grouped data: for each sub-team, get all players from that team
+
+          // Build grouped data for ALL sub-teams the parent's children are in
           const groups = mySubTeams.map(stName => {
-            // Find the team for this sub-team
             const playerInSt = myPlayers.find(p => p.subTeam === stName);
             const teamData = playerInSt ? parentTeams[playerInSt.teamId] : null;
             const ageGroupTeams = teamData?.ageGroupTeams || teamData?.subTeams || playerInSt?.ageGroupTeams || [];
             const info = ageGroupTeams.find(ag => ag.teamName === stName) || {};
-            // All players in this sub-team (from the full team data)
             const allTeamPlayers = teamData?.players || teamData?.teamPlayers || [];
             const players = allTeamPlayers.filter(p => p.subTeam === stName);
             return { name: stName, info, players, teamName: teamData?.teamName || playerInSt?.teamName || '' };
           });
 
-          const currentGroup = groups.find(g => g.name === ageGroupTab) || groups[0] || null;
+          if (myPlayers.length === 0) {
+            return (
+              <div style={{
+                background: '#111827',
+                borderRadius: '12px',
+                padding: '3rem',
+                border: '1px solid rgba(255,255,255,0.08)',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👥</div>
+                <p style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.5rem', color: '#f9fafb' }}>
+                  No Players Registered Yet
+                </p>
+                <p style={{ fontSize: '0.9rem', color: '#9ca3af' }}>
+                  Once your players are registered and assigned to a team, their roster will appear here.
+                </p>
+              </div>
+            );
+          }
 
           return (
             <div>
-              {/* Sub-tab pills */}
-              {mySubTeams.length > 1 && (
+              {/* Player sub-tabs - one per child */}
+              {myPlayers.length > 1 && (
                 <div style={{
                   display: 'flex',
                   flexWrap: 'wrap',
                   gap: '0.75rem',
                   marginBottom: '1.5rem'
                 }}>
-                  {groups.map(group => (
-                    <button
-                      key={group.name}
-                      onClick={() => setAgeGroupTab(group.name)}
-                      style={{
-                        padding: '0.7rem 1.1rem',
-                        background: ageGroupTab === group.name ? '#111827' : '#0f172a',
-                        color: '#ffffff',
-                        border: ageGroupTab === group.name
-                          ? '1px solid rgba(239, 68, 68, 0.6)'
-                          : '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: '10px',
-                        fontSize: '0.95rem',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      {group.info.gender === 'Boys' ? '👦' : group.info.gender === 'Girls' ? '👧' : '👤'}{' '}
-                      {group.name}
-                      <span style={{
-                        marginLeft: '0.5rem',
-                        background: 'rgba(255,255,255,0.1)',
-                        padding: '0.15rem 0.5rem',
-                        borderRadius: '6px',
-                        fontSize: '0.8rem',
-                        fontWeight: 700
-                      }}>
-                        {group.players.length}
-                      </span>
-                    </button>
-                  ))}
+                  {myPlayers.map((player, idx) => {
+                    const isActive = ageGroupTab === player.subTeam;
+                    return (
+                      <button
+                        key={player.id || idx}
+                        onClick={() => setAgeGroupTab(player.subTeam)}
+                        style={{
+                          padding: '0.7rem 1.1rem',
+                          background: isActive ? '#111827' : '#0f172a',
+                          color: '#ffffff',
+                          border: isActive
+                            ? '1px solid rgba(52, 211, 153, 0.6)'
+                            : '1px solid rgba(255,255,255,0.08)',
+                          borderRadius: '10px',
+                          fontSize: '0.95rem',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        ⭐ {player.playerName || player.name || 'Player'}
+                        <span style={{
+                          marginLeft: '0.5rem',
+                          background: isActive ? 'rgba(52,211,153,0.2)' : 'rgba(255,255,255,0.1)',
+                          color: isActive ? '#34d399' : '#9ca3af',
+                          padding: '0.15rem 0.5rem',
+                          borderRadius: '6px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700
+                        }}>
+                          {player.subTeam}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
-              {/* Current group roster */}
-              {currentGroup && (
-                <div style={{
-                  background: '#111827',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  overflow: 'hidden'
-                }}>
-                  {/* Red gradient header */}
-                  <div style={{
-                    background: 'linear-gradient(135deg, #dc0000 0%, #b30000 100%)',
-                    padding: '1rem 1.5rem',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
+              {/* Stacked sub-team sections */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                {groups
+                  .filter(g => !ageGroupTab || g.name === ageGroupTab)
+                  .map(group => (
+                  <div key={group.name} style={{
+                    background: '#111827',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(255,255,255,0.08)',
+                    overflow: 'hidden'
                   }}>
-                    <div>
-                      <h3 style={{
-                        fontSize: '1.15rem',
-                        fontWeight: '700',
-                        color: 'white',
-                        margin: 0,
-                        marginBottom: '0.25rem'
-                      }}>
-                        {currentGroup.name}
-                      </h3>
-                      {(currentGroup.info.gender || currentGroup.info.ageGroup) && (
-                        <div style={{
-                          fontSize: '0.85rem',
-                          color: 'rgba(255, 255, 255, 0.9)',
-                          display: 'flex',
-                          gap: '1rem'
+                    {/* Red gradient header */}
+                    <div style={{
+                      background: 'linear-gradient(135deg, #dc0000 0%, #b30000 100%)',
+                      padding: '1rem 1.5rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <div>
+                        <h3 style={{
+                          fontSize: '1.15rem',
+                          fontWeight: '700',
+                          color: 'white',
+                          margin: 0,
+                          marginBottom: '0.25rem'
                         }}>
-                          {currentGroup.info.gender && <span>👤 {currentGroup.info.gender}</span>}
-                          {currentGroup.info.ageGroup && <span>📋 {currentGroup.info.ageGroup}</span>}
+                          {group.name}
+                        </h3>
+                        {(group.info.gender || group.info.ageGroup) && (
+                          <div style={{
+                            fontSize: '0.85rem',
+                            color: 'rgba(255, 255, 255, 0.9)',
+                            display: 'flex',
+                            gap: '1rem'
+                          }}>
+                            {group.info.gender && <span>👤 {group.info.gender}</span>}
+                            {group.info.ageGroup && <span>📋 {group.info.ageGroup}</span>}
+                          </div>
+                        )}
+                        {group.teamName && (
+                          <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginTop: '0.25rem' }}>
+                            🏏 {group.teamName}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                          background: 'rgba(255, 255, 255, 0.2)',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '8px',
+                          fontSize: '0.9rem',
+                          fontWeight: '700',
+                          color: 'white'
+                        }}>
+                          {group.players.length} {group.players.length === 1 ? 'Player' : 'Players'}
                         </div>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <div style={{
-                        background: 'rgba(255, 255, 255, 0.2)',
-                        padding: '0.5rem 1rem',
-                        borderRadius: '8px',
-                        fontSize: '0.9rem',
-                        fontWeight: '700',
-                        color: 'white'
-                      }}>
-                        {currentGroup.players.length} {currentGroup.players.length === 1 ? 'Player' : 'Players'}
+                        {group.players.length < 15 && (
+                          <div style={{
+                            background: '#fbbf24',
+                            padding: '0.4rem 0.85rem',
+                            borderRadius: '6px',
+                            fontSize: '0.8rem',
+                            fontWeight: '700',
+                            color: '#78350f',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }}>
+                            ⚠️ {15 - group.players.length} more needed
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Highlight: Your player(s) in this group */}
-                  {(() => {
-                    const myInGroup = myPlayers.filter(p => p.subTeam === currentGroup.name);
-                    if (myInGroup.length === 0) return null;
-                    return (
+                    {/* Warning alert if less than 15 */}
+                    {group.players.length < 15 && (
                       <div style={{
-                        background: 'rgba(251,191,36,0.08)',
-                        borderBottom: '1px solid rgba(251,191,36,0.2)',
-                        padding: '0.75rem 1.5rem',
+                        background: 'linear-gradient(135deg, rgba(127, 29, 29, 0.45) 0%, rgba(76, 5, 25, 0.55) 100%)',
+                        borderLeft: '4px solid #f87171',
+                        padding: '0.75rem 1rem',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.5rem',
-                        fontSize: '0.9rem',
-                        color: '#fcd34d',
-                        fontWeight: 700
+                        gap: '0.75rem'
                       }}>
-                        ⭐ Your {myInGroup.length === 1 ? 'player' : 'players'}: {myInGroup.map(p => p.playerName || p.name || 'Unknown').join(', ')}
+                        <div style={{ fontSize: '1.25rem', lineHeight: 1 }}>⚠️</div>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fee2e2' }}>
+                            Minimum 15 players required •
+                          </span>
+                          <span style={{ fontSize: '0.85rem', color: '#fecaca', marginLeft: '0.5rem' }}>
+                            Currently <strong>{group.players.length}</strong> registered • <strong>{15 - group.players.length} more</strong> needed
+                          </span>
+                        </div>
                       </div>
-                    );
-                  })()}
+                    )}
 
-                  {/* Players table (read-only) */}
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ background: '#0f172a' }}>
-                          <th style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>#</th>
-                          <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>Name</th>
-                          <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>Roles</th>
-                          <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>Shirt No.</th>
-                          <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>Joined</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {currentGroup.players.length === 0 ? (
-                          <tr>
-                            <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: '#6b7280', fontSize: '0.95rem' }}>
-                              No players registered yet
-                            </td>
+                    {/* Your player(s) highlight bar */}
+                    {(() => {
+                      const myInGroup = myPlayers.filter(p => p.subTeam === group.name);
+                      if (myInGroup.length === 0) return null;
+                      return (
+                        <div style={{
+                          background: 'rgba(251,191,36,0.08)',
+                          borderBottom: '1px solid rgba(251,191,36,0.2)',
+                          padding: '0.75rem 1.5rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontSize: '0.9rem',
+                          color: '#fcd34d',
+                          fontWeight: 700
+                        }}>
+                          ⭐ Your {myInGroup.length === 1 ? 'player' : 'players'}: {myInGroup.map(p => p.playerName || p.name || 'Unknown').join(', ')}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Players table (read-only) */}
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: '#0f172a' }}>
+                            <th style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>#</th>
+                            <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>Name</th>
+                            <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>Roles</th>
+                            <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>Shirt No.</th>
+                            <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>Joined</th>
                           </tr>
-                        ) : (
-                          currentGroup.players.map((player, index) => {
-                            const isMyPlayer = (player.playerEmail || '').toLowerCase() === (profile?.email || '').toLowerCase();
-                            return (
-                              <tr key={player.id || index} style={{
-                                borderTop: '1px solid rgba(148, 163, 184, 0.2)',
-                                background: isMyPlayer ? 'rgba(251,191,36,0.05)' : 'transparent'
-                              }}>
-                                <td style={{ padding: '0.75rem 1.5rem', fontSize: '0.9rem', color: '#94a3b8' }}>
-                                  {index + 1}
-                                </td>
-                                <td style={{ padding: '0.75rem', fontSize: '0.95rem', color: '#f9fafb', fontWeight: '600' }}>
-                                  {player.name || player.playerName || '-'}
-                                  {isMyPlayer && (
+                        </thead>
+                        <tbody>
+                          {group.players.length === 0 ? (
+                            <tr>
+                              <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: '#6b7280', fontSize: '0.95rem' }}>
+                                No players registered yet
+                              </td>
+                            </tr>
+                          ) : (
+                            group.players.map((player, index) => {
+                              const isMyPlayer = (player.playerEmail || '').toLowerCase() === (profile?.email || '').toLowerCase();
+                              return (
+                                <tr key={player.id || index} style={{
+                                  borderTop: '1px solid rgba(148, 163, 184, 0.2)',
+                                  background: isMyPlayer ? 'rgba(251,191,36,0.05)' : 'transparent'
+                                }}>
+                                  <td style={{ padding: '0.75rem 1.5rem', fontSize: '0.9rem', color: '#94a3b8' }}>
+                                    {index + 1}
+                                  </td>
+                                  <td style={{ padding: '0.75rem', fontSize: '0.95rem', color: '#f9fafb', fontWeight: '600' }}>
+                                    {player.name || player.playerName || '-'}
+                                    {isMyPlayer && (
+                                      <span style={{
+                                        marginLeft: '0.5rem',
+                                        background: 'rgba(251,191,36,0.2)',
+                                        color: '#fcd34d',
+                                        padding: '0.1rem 0.4rem',
+                                        borderRadius: '4px',
+                                        fontSize: '0.7rem',
+                                        fontWeight: 700
+                                      }}>YOUR PLAYER</span>
+                                    )}
+                                  </td>
+                                  <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#e2e8f0' }}>
+                                    {(player.roles || player.registrationData?.roles) ? (
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                                        {(Array.isArray(player.roles || player.registrationData?.roles)
+                                          ? (player.roles || player.registrationData?.roles)
+                                          : [player.roles || player.registrationData?.roles]
+                                        ).map((role, idx) => (
+                                          <span key={idx} style={{
+                                            display: 'inline-block',
+                                            background: 'rgba(59, 130, 246, 0.2)',
+                                            color: '#bfdbfe',
+                                            border: '1px solid rgba(59, 130, 246, 0.35)',
+                                            padding: '0.2rem 0.5rem',
+                                            borderRadius: '4px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: '600'
+                                          }}>
+                                            {role}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : '-'}
+                                  </td>
+                                  <td style={{ padding: '0.75rem', fontSize: '0.9rem', color: '#e2e8f0' }}>
                                     <span style={{
-                                      marginLeft: '0.5rem',
-                                      background: 'rgba(251,191,36,0.2)',
-                                      color: '#fcd34d',
-                                      padding: '0.1rem 0.4rem',
-                                      borderRadius: '4px',
-                                      fontSize: '0.7rem',
-                                      fontWeight: 700
-                                    }}>YOUR PLAYER</span>
-                                  )}
-                                </td>
-                                <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#e2e8f0' }}>
-                                  {(player.roles || player.registrationData?.roles) ? (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                                      {(Array.isArray(player.roles || player.registrationData?.roles)
-                                        ? (player.roles || player.registrationData?.roles)
-                                        : [player.roles || player.registrationData?.roles]
-                                      ).map((role, idx) => (
-                                        <span key={idx} style={{
-                                          display: 'inline-block',
-                                          background: 'rgba(59, 130, 246, 0.2)',
-                                          color: '#bfdbfe',
-                                          border: '1px solid rgba(59, 130, 246, 0.35)',
-                                          padding: '0.2rem 0.5rem',
-                                          borderRadius: '4px',
-                                          fontSize: '0.75rem',
-                                          fontWeight: '600'
-                                        }}>
-                                          {role}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  ) : '-'}
-                                </td>
-                                <td style={{ padding: '0.75rem', fontSize: '0.9rem', color: '#e2e8f0' }}>
-                                  <span style={{
-                                    display: 'inline-block',
-                                    background: '#1f2937',
-                                    padding: '0.25rem 0.75rem',
-                                    borderRadius: '6px',
-                                    fontWeight: '700',
-                                    color: '#f9fafb',
-                                    border: '1px solid rgba(255,255,255,0.08)'
-                                  }}>
-                                    #{player.shirtNumber || player.jerseyNumber || '-'}
-                                  </span>
-                                </td>
-                                <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#94a3b8' }}>
-                                  {player.addedAt || player.createdAt ? new Date(player.addedAt || player.createdAt).toLocaleDateString() : '-'}
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
+                                      display: 'inline-block',
+                                      background: '#1f2937',
+                                      padding: '0.25rem 0.75rem',
+                                      borderRadius: '6px',
+                                      fontWeight: '700',
+                                      color: '#f9fafb',
+                                      border: '1px solid rgba(255,255,255,0.08)'
+                                    }}>
+                                      #{player.shirtNumber || player.jerseyNumber || '-'}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#94a3b8' }}>
+                                    {player.addedAt || player.createdAt ? new Date(player.addedAt || player.createdAt).toLocaleDateString() : '-'}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {/* No team data fallback */}
-              {!currentGroup && (
-                <div style={{
-                  background: '#111827',
-                  borderRadius: '12px',
-                  padding: '2rem',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  textAlign: 'center',
-                  color: '#6b7280'
-                }}>
-                  No age group team data available
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           );
         })()}
