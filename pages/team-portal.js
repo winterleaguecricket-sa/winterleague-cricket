@@ -2185,10 +2185,10 @@ export default function TeamPortal() {
                 }}>
                   <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👥</div>
                   <p style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.5rem', color: '#f9fafb' }}>
-                    No Players Added Yet
+                    No Players Registered Yet
                   </p>
                   <p style={{ fontSize: '0.9rem' }}>
-                    Your player roster will appear here once added by the admin.
+                    Your player roster will appear here once parents complete the player registration form.
                   </p>
                 </div>
               )}
