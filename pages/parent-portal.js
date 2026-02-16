@@ -1232,36 +1232,63 @@ export default function ParentPortal() {
                 }}>
                   {myPlayers.map((player, idx) => {
                     const isActive = ageGroupTab === player.subTeam;
+                    const teamData = player.teamId ? parentTeams[player.teamId] : null;
+                    const logoUrl = teamData?.teamLogo || teamData?.submissionData?.teamLogo || teamData?.submissionData?.['22'] || teamData?.submissionData?.[22] || '';
                     return (
                       <button
                         key={player.id || idx}
                         onClick={() => setAgeGroupTab(player.subTeam)}
                         style={{
-                          padding: '0.7rem 1.1rem',
-                          background: isActive ? '#111827' : '#0f172a',
+                          padding: '1rem 1.25rem',
+                          background: '#111827',
                           color: '#ffffff',
                           border: isActive
-                            ? '1px solid rgba(52, 211, 153, 0.6)'
+                            ? '1px solid rgba(248, 113, 113, 0.7)'
                             : '1px solid rgba(255,255,255,0.08)',
-                          borderRadius: '10px',
+                          borderRadius: '12px',
                           fontSize: '0.95rem',
                           fontWeight: '800',
                           cursor: 'pointer',
                           textAlign: 'left',
-                          transition: 'all 0.2s'
+                          transition: 'all 0.2s',
+                          boxShadow: isActive
+                            ? '0 12px 24px rgba(220, 0, 0, 0.25)'
+                            : '0 1px 3px rgba(0,0,0,0.4)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.75rem'
                         }}
                       >
-                        ⭐ {player.playerName || player.name || 'Player'}
-                        <span style={{
-                          marginLeft: '0.5rem',
-                          background: isActive ? 'rgba(52,211,153,0.2)' : 'rgba(255,255,255,0.1)',
-                          color: isActive ? '#34d399' : '#9ca3af',
-                          padding: '0.15rem 0.5rem',
-                          borderRadius: '6px',
-                          fontSize: '0.75rem',
-                          fontWeight: 700
-                        }}>
-                          {player.subTeam}
+                        {logoUrl ? (
+                          <img
+                            src={logoUrl}
+                            alt="Team logo"
+                            style={{
+                              width: '36px',
+                              height: '36px',
+                              borderRadius: '50%',
+                              objectFit: 'cover',
+                              border: '2px solid rgba(239,68,68,0.5)',
+                              flexShrink: 0,
+                              background: '#1f2937'
+                            }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #dc0000 0%, #b30000 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1rem',
+                            flexShrink: 0,
+                            border: '2px solid rgba(239,68,68,0.5)'
+                          }}>🏏</div>
+                        )}
+                        <span style={{ color: '#f9fafb', fontWeight: 800 }}>
+                          {player.playerName || player.name || 'Player'}
                         </span>
                       </button>
                     );
