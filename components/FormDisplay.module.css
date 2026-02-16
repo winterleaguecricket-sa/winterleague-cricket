@@ -158,6 +158,8 @@
   font-weight: 900;
   color: #22c55e;
   font-size: 1.4rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .kitSizingPrice small {
@@ -379,6 +381,48 @@
     word-break: normal;
     overflow-wrap: normal;
     text-wrap: balance;
+  }
+
+  /* Kit sizing card — mobile fixes */
+  .kitSizingGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .kitSizingHeader {
+    flex-wrap: wrap;
+  }
+
+  .kitSizingPrice {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .kitSizingCard {
+    padding: 1rem;
+    overflow: hidden;
+  }
+
+  .kitSizeChart {
+    overflow: hidden;
+  }
+
+  .kitSizeChart img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .playerCard {
+    overflow: hidden;
+  }
+
+  .dropdownPanel {
+    position: relative;
+    margin-top: 0.5rem;
+  }
+
+  .selectGlowWrap {
+    position: relative;
+    overflow: visible;
   }
 }
 

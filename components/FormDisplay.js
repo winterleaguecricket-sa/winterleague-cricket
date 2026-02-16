@@ -4835,7 +4835,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                     altInput: true,
                                     altFormat: 'Y/m/d',
                                     allowInput: true,
-                                    disableMobile: false,
+                                    disableMobile: true,
                                     monthSelectorType: 'dropdown',
                                     maxDate: 'today',
                                     minDate: '1950-01-01'
@@ -5467,7 +5467,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                       altInput: true,
                       altFormat: 'Y/m/d',
                       allowInput: true,
-                      disableMobile: false,
+                      disableMobile: true,
                       monthSelectorType: 'dropdown',
                       maxDate: 'today',
                       minDate: '1950-01-01',
