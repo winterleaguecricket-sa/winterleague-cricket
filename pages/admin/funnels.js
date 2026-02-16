@@ -505,3 +505,8 @@ export default function AdminFunnels() {
     </div>
   );
 }
+
+// Force SSR to prevent prerender errors during build
+export async function getServerSideProps() {
+  return { props: {} };
+}

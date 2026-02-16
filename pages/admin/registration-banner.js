@@ -277,3 +277,8 @@ export default function RegistrationBanner() {
     </div>
   );
 }
+
+// Force SSR to prevent prerender errors during build
+export async function getServerSideProps() {
+  return { props: {} };
+}

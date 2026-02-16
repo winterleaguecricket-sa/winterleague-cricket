@@ -979,3 +979,8 @@ export default function AdminProfile() {
     </>
   );
 }
+
+// Force SSR to prevent prerender errors during build
+export async function getServerSideProps() {
+  return { props: {} };
+}

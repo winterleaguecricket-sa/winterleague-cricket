@@ -985,3 +985,8 @@ export default function LandingPagesAdmin() {
     </>
   );
 }
+
+// Force SSR to prevent prerender errors during build
+export async function getServerSideProps() {
+  return { props: {} };
+}
