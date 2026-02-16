@@ -1225,9 +1225,9 @@ export default function ParentPortal() {
               {/* Player sub-tabs - one per child */}
               {myPlayers.length > 1 && (
                 <div style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '0.75rem',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: '1rem',
                   marginBottom: '1.5rem'
                 }}>
                   {myPlayers.map((player, idx) => {
@@ -1237,59 +1237,75 @@ export default function ParentPortal() {
                     return (
                       <button
                         key={player.id || idx}
+                        type="button"
                         onClick={() => setAgeGroupTab(player.subTeam)}
                         style={{
-                          padding: '1rem 1.25rem',
                           background: '#111827',
-                          color: '#ffffff',
+                          padding: '1.5rem',
+                          borderRadius: '12px',
                           border: isActive
                             ? '1px solid rgba(248, 113, 113, 0.7)'
                             : '1px solid rgba(255,255,255,0.08)',
-                          borderRadius: '12px',
-                          fontSize: '0.95rem',
-                          fontWeight: '800',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          transition: 'all 0.2s',
                           boxShadow: isActive
                             ? '0 12px 24px rgba(220, 0, 0, 0.25)'
                             : '0 1px 3px rgba(0,0,0,0.4)',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          color: '#ffffff'
+                        }}
+                        onMouseEnter={applyDashboardCardHover}
+                        onMouseLeave={removeDashboardCardHover}
+                      >
+                        <span
+                          data-card-shine="true"
+                          style={{
+                            position: 'absolute',
+                            top: '-50%',
+                            left: '-120%',
+                            width: '60%',
+                            height: '200%',
+                            background: 'linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.45), transparent)',
+                            transform: 'skewX(-20deg)',
+                            transition: 'left 0.5s ease',
+                            pointerEvents: 'none'
+                          }}
+                        />
+                        <div style={{
+                          width: '48px',
+                          height: '48px',
+                          marginBottom: '0.75rem',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.75rem'
-                        }}
-                      >
-                        {logoUrl ? (
-                          <img
-                            src={logoUrl}
-                            alt="Team logo"
-                            style={{
-                              width: '36px',
-                              height: '36px',
-                              borderRadius: '50%',
-                              objectFit: 'cover',
-                              border: '2px solid rgba(239,68,68,0.5)',
-                              flexShrink: 0,
-                              background: '#1f2937'
-                            }}
-                          />
-                        ) : (
-                          <div style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #dc0000 0%, #b30000 100%)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '1rem',
-                            flexShrink: 0,
-                            border: '2px solid rgba(239,68,68,0.5)'
-                          }}>🏏</div>
-                        )}
-                        <span style={{ color: '#f9fafb', fontWeight: 800 }}>
+                          justifyContent: 'center',
+                          borderRadius: '50%',
+                          overflow: 'hidden',
+                          border: '2px solid rgba(239,68,68,0.5)',
+                          background: '#1f2937',
+                          flexShrink: 0
+                        }}>
+                          {logoUrl ? (
+                            <img
+                              src={logoUrl}
+                              alt="Team logo"
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                              }}
+                            />
+                          ) : (
+                            <span style={{ fontSize: '1.4rem' }}>🏏</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f9fafb', marginBottom: '0.25rem' }}>
                           {player.playerName || player.name || 'Player'}
-                        </span>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: '600' }}>
+                          {player.subTeam}
+                        </div>
                       </button>
                     );
                   })}
@@ -1394,27 +1410,6 @@ export default function ParentPortal() {
                       </div>
                     )}
 
-                    {/* Your player(s) highlight bar */}
-                    {(() => {
-                      const myInGroup = myPlayers.filter(p => p.subTeam === group.name);
-                      if (myInGroup.length === 0) return null;
-                      return (
-                        <div style={{
-                          background: 'rgba(251,191,36,0.08)',
-                          borderBottom: '1px solid rgba(251,191,36,0.2)',
-                          padding: '0.75rem 1.5rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          fontSize: '0.9rem',
-                          color: '#fcd34d',
-                          fontWeight: 700
-                        }}>
-                          ⭐ Your {myInGroup.length === 1 ? 'player' : 'players'}: {myInGroup.map(p => p.playerName || p.name || 'Unknown').join(', ')}
-                        </div>
-                      );
-                    })()}
-
                     {/* Players table (read-only) */}
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -1440,24 +1435,14 @@ export default function ParentPortal() {
                               return (
                                 <tr key={player.id || index} style={{
                                   borderTop: '1px solid rgba(148, 163, 184, 0.2)',
-                                  background: isMyPlayer ? 'rgba(251,191,36,0.05)' : 'transparent'
+                                  background: isMyPlayer ? 'rgba(220, 0, 0, 0.08)' : 'transparent',
+                                  borderLeft: isMyPlayer ? '3px solid rgba(220, 0, 0, 0.6)' : '3px solid transparent'
                                 }}>
                                   <td style={{ padding: '0.75rem 1.5rem', fontSize: '0.9rem', color: '#94a3b8' }}>
                                     {index + 1}
                                   </td>
-                                  <td style={{ padding: '0.75rem', fontSize: '0.95rem', color: '#f9fafb', fontWeight: '600' }}>
+                                  <td style={{ padding: '0.75rem', fontSize: '0.95rem', color: isMyPlayer ? '#fca5a5' : '#f9fafb', fontWeight: '600' }}>
                                     {player.name || player.playerName || '-'}
-                                    {isMyPlayer && (
-                                      <span style={{
-                                        marginLeft: '0.5rem',
-                                        background: 'rgba(251,191,36,0.2)',
-                                        color: '#fcd34d',
-                                        padding: '0.1rem 0.4rem',
-                                        borderRadius: '4px',
-                                        fontSize: '0.7rem',
-                                        fontWeight: 700
-                                      }}>YOUR PLAYER</span>
-                                    )}
                                   </td>
                                   <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#e2e8f0' }}>
                                     {(player.roles || player.registrationData?.roles) ? (
