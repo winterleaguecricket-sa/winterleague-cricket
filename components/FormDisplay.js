@@ -67,11 +67,13 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
   // Refs to break dependency cycles and enable debouncing
   const formDataRef = useRef(formData);
   const additionalApparelDetailsRef = useRef(additionalApparelDetails);
+  const playerLookupStateRef = useRef(playerLookupState);
   const draftTimerRef = useRef(null);
 
   // Keep refs in sync with state
   useEffect(() => { formDataRef.current = formData; }, [formData]);
   useEffect(() => { additionalApparelDetailsRef.current = additionalApparelDetails; }, [additionalApparelDetails]);
+  useEffect(() => { playerLookupStateRef.current = playerLookupState; }, [playerLookupState]);
 
   const getDraftKey = (formId) => `formDraft_${formId}`;
 
@@ -108,6 +110,10 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
           setCurrentPage(parsed.currentPage);
         }
       }
+      // Restore selected CricClubs profiles so they survive page reloads
+      if (parsed?.playerLookupState && typeof parsed.playerLookupState === 'object') {
+        setPlayerLookupState(parsed.playerLookupState);
+      }
     } catch (error) {
       console.warn('Failed to restore saved form draft:', error);
     }
@@ -140,10 +146,20 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
         safeFormData[key] = value;
       });
 
+      // Save only selectedProfile per player index (not search results or loading state)
+      const safeLookupState = {};
+      const currentLookup = playerLookupStateRef.current || {};
+      Object.entries(currentLookup).forEach(([idx, state]) => {
+        if (state?.selectedProfile) {
+          safeLookupState[idx] = { selectedProfile: state.selectedProfile };
+        }
+      });
+
       const payload = {
         formData: safeFormData,
         prefilledData,
-        currentPage
+        currentPage,
+        playerLookupState: Object.keys(safeLookupState).length > 0 ? safeLookupState : undefined
       };
 
       try {
@@ -156,7 +172,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     return () => {
       if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     };
-  }, [formData, prefilledData, currentPage, form?.id]);
+  }, [formData, prefilledData, currentPage, playerLookupState, form?.id]);
 
   const formatSubmissionValue = (value) => {
     if (value === null || value === undefined) return '';
