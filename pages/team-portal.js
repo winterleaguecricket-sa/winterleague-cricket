@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { getShirtDesignById } from '../data/shirtDesigns';
+// Kit designs loaded via API (not local import which returns old defaults on client)
 
 // API helper functions for database operations
 const apiHelpers = {
@@ -248,6 +248,7 @@ export default function TeamPortal() {
   const [kitDesignUploading, setKitDesignUploading] = useState(false);
   const [kitDesignMessage, setKitDesignMessage] = useState('');
   const [kitDesignDragActive, setKitDesignDragActive] = useState(false);
+  const [allShirtDesigns, setAllShirtDesigns] = useState([]);
   // Age group team management
   const [showAddAgeGroup, setShowAddAgeGroup] = useState(false);
   const [newAgeGroup, setNewAgeGroup] = useState({ teamName: '', ageGroup: '', gender: '' });
@@ -275,6 +276,20 @@ export default function TeamPortal() {
     };
 
     loadPortalTemplate();
+
+    // Load shirt designs from API (not local import which returns old defaults on client)
+    const loadShirtDesigns = async () => {
+      try {
+        const res = await fetch('/api/shirt-designs');
+        if (res.ok) {
+          const data = await res.json();
+          setAllShirtDesigns(data.designs || []);
+        }
+      } catch (err) {
+        console.error('Error loading shirt designs:', err);
+      }
+    };
+    loadShirtDesigns();
 
     // Check for admin bypass or existing session
     const initializeSession = async () => {
@@ -3413,7 +3428,7 @@ export default function TeamPortal() {
                   </h3>
 
                   {(() => {
-                    const kitDesign = getShirtDesignById(team.submissionData?.kitDesignId);
+                    const kitDesign = allShirtDesigns.find(d => d.id === team.submissionData?.kitDesignId || d.name === team.submissionData?.kitDesignId);
                     const adminFallbackUrl = kitDesign?.imageUrl || '';
                     const kitPreviewUrl = kitDesignImageUrl || (isAdminMode ? adminFallbackUrl : '');
 

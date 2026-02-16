@@ -4,7 +4,7 @@ import Wheel from '@uiw/react-color-wheel';
 import { hsvaToHex, hexToHsva } from '@uiw/color-convert';
 import styles from './FormDisplay.module.css';
 import { getFormTemplateById, getFormWithProducts } from '../data/forms';
-import { getShirtDesigns, availableColors, getMainImage } from '../data/shirtDesigns';
+import { availableColors, getMainImage } from '../data/shirtDesigns';
 import { useCart } from '../context/CartContext';
 import { getLandingPageByFormId } from '../data/landingPages';
 import FormLandingPage from './FormLandingPage';
@@ -674,12 +674,12 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
             const activeDesigns = (data.designs || []).filter(d => d.active);
             setShirtDesigns(activeDesigns);
           } else {
-            // Fallback to local data if API fails
-            setShirtDesigns(getShirtDesigns(true));
+            console.error('Shirt designs API returned non-OK status');
+            setShirtDesigns([]);
           }
         } catch (error) {
           console.error('Error loading shirt designs:', error);
-          setShirtDesigns(getShirtDesigns(true));
+          setShirtDesigns([]);
         }
       };
       loadShirtDesigns();

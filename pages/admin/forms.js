@@ -13,7 +13,6 @@ import {
   deleteFormField
 } from '../../data/forms';
 import { getCategories } from '../../data/categories';
-import { getShirtDesigns } from '../../data/shirtDesigns';
 // Note: adminSettings uses Node.js fs module, so we fetch via API instead
 
 export default function AdminForms() {
@@ -66,7 +65,19 @@ export default function AdminForms() {
   useEffect(() => {
     setForms(getFormTemplates());
     setCategories(getCategories());
-    setShirtDesigns(getShirtDesigns(true)); // Get only active designs
+    // Load shirt designs from API (not local import which returns old defaults on client)
+    const loadDesigns = async () => {
+      try {
+        const res = await fetch('/api/shirt-designs?activeOnly=true');
+        if (res.ok) {
+          const data = await res.json();
+          setShirtDesigns(data.designs || []);
+        }
+      } catch (err) {
+        console.error('Error loading shirt designs:', err);
+      }
+    };
+    loadDesigns();
     
     // Load submission counts from database
     const loadSubmissionCounts = async () => {

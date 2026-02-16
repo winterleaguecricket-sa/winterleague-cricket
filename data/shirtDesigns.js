@@ -12,37 +12,9 @@ if (isServer) {
   DATA_FILE = path.join(process.cwd(), 'data', 'shirtDesigns.json');
 }
 
-// Default shirt designs
-const defaultShirtDesigns = [
-  {
-    id: 1,
-    name: 'Classic Red Stripe',
-    images: ['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=300&h=300&fit=crop'],
-    active: true,
-    createdAt: new Date('2025-11-01T10:00:00').toISOString()
-  },
-  {
-    id: 2,
-    name: 'Blue Lightning',
-    images: ['https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=300&h=300&fit=crop'],
-    active: true,
-    createdAt: new Date('2025-11-01T10:05:00').toISOString()
-  },
-  {
-    id: 3,
-    name: 'Green Thunder',
-    images: ['https://images.unsplash.com/photo-1598032895397-d4e733ad8b33?w=300&h=300&fit=crop'],
-    active: true,
-    createdAt: new Date('2025-11-01T10:10:00').toISOString()
-  },
-  {
-    id: 4,
-    name: 'Yellow Storm',
-    images: ['https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=300&h=300&fit=crop'],
-    active: true,
-    createdAt: new Date('2025-11-01T10:15:00').toISOString()
-  }
-];
+// Default shirt designs - empty array, real designs are in shirtDesigns.json
+// managed via /admin/shirt-designs and served by /api/shirt-designs
+const defaultShirtDesigns = [];
 
 // Initialize data variables
 let shirtDesigns = [];
