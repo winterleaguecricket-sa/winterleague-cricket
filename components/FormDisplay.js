@@ -2820,7 +2820,11 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
       if (!entry?.dob) entryErrors.dob = 'Date of birth is required.';
       if (!entry?.birthCertificate) entryErrors.birthCertificate = 'Birth certificate is required.';
       if (!entry?.profileImage) entryErrors.profileImage = 'Profile image is required.';
-      if (!entry?.shirtNumber) entryErrors.shirtNumber = entryErrors.shirtNumber || 'Shirt number is required.';
+      if (!entry?.shirtNumber) {
+        entryErrors.shirtNumber = 'Shirt number is required.';
+      } else if (!/^\d{1,2}$/.test(String(entry.shirtNumber).trim())) {
+        entryErrors.shirtNumber = 'Only a 1–2 digit shirt number can be used.';
+      }
 
       if (requireSizes) {
         if (!entry?.shirtSize) entryErrors.shirtSize = 'Select a shirt size.';
