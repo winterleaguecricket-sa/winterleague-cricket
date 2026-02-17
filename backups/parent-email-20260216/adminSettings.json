@@ -1,0 +1,37 @@
+{
+  "email": "admin@cricketleague.com",
+  "password": "winterleagueshortdickman!",
+  "supplierEmail": "supplier@example.com",
+  "teamPortalTemplate": {
+    "title": "WL Team Portal",
+    "subtitle": "Manage your team, players, fixtures, and revenue",
+    "headerStart": "#000000",
+    "headerEnd": "#dc0000"
+  },
+  "emailTemplates": {
+    "pending": {
+      "subject": "Registration Received - {teamName}",
+      "body": "Dear {coachName},\n\nThank you for submitting your team registration for {teamName}.\n\nWe have received your registration and it is currently in the queue to be reviewed by our admin team.\n\nRegistration ID: #{registrationId}\nStatus: Pending Review\n\nYou will receive another email once your registration has been reviewed by the WL admin team.\n\nIf you have any questions, please don't hesitate to contact us.\n\nBest regards,\nWinter League Cricket"
+    },
+    "reviewed": {
+      "subject": "Registration Under Review - {teamName}",
+      "body": "Dear {coachName},\n\nYour team registration for {teamName} has been reviewed by the WL admin team. \n\nRegistration ID: #{registrationId}\nStatus: Your application has been reviewed \n\nIf we require any further information we will be in touch with you shortly. \n\nIf we do not require further information, you will then receive a final confirmation email with details to access your team portal.\n\nBest regards,\nWinter League Cricket"
+    },
+    "complete": {
+      "subject": "Registration Approved - {teamName}",
+      "body": "Dear {coachName},\n\nCongratulations! Your team registration for {teamName} has been approved.\n\nRegistration ID: #{registrationId}\nStatus: Complete\n\nHere are your details to login to the team portal:\nLogin Link:   {loginUrl}\nUsername:   {email}\nPassword:    {password}\n\nYour team is now officially registered for the season. You will receive additional information about schedules, fixtures, and next steps shortly.\n\nWelcome to the league!\n\nBest regards,\nWinter League Cricket"
+    },
+    "orderConfirmation": {
+      "subject": "Order Confirmation - #{orderNumber}",
+      "body": "Dear {customerName},\n\nThank you for your order!  It will be on its way shortly!\n\nOrder Number: #{orderNumber}\nOrder Date: {orderDate}\nTotal Amount: R{totalAmount}\n\nOrder Details:\n{orderItems}\n\nShipping Address:\n{shippingAddress}\n\nYour order has been received and is being processed. You will receive another email once your order has been shipped.\n\nIf you have any questions about your order, please contact us.\n\nBest regards,\nCricket League Shop"
+    },
+    "supplierForward": {
+      "subject": "New Product Order - #{orderNumber}",
+      "body": "New product order received, please fullfill:\n\nOrder Number: #{orderNumber}\nOrder Date: {orderDate}\nTotal Amount: R{totalAmount}\n\nCustomer Information:\nName: {customerName}\nEmail: {customerEmail}\nPhone: {customerPhone}\n\nOrder Details:\n{orderItems}\n\nShipping Address:\n{shippingAddress}\n\nPlease process this order at your earliest convenience."
+    },
+    "payoutRequest": {
+      "subject": "New Payout Request - {teamName}",
+      "body": "A new payout request has been submitted:\n\nTeam: {teamName}\nCoach: {coachName}\nEmail: {email}\nPhone: {phone}\n\nRequest ID: #{requestId}\nTotal Amount: R{amount}\n\nBreakdown:\n- Player Registration Markup: R{markup}\n- Product Commission (10%): R{commission}\n\nRequest Date: {requestDate}\n\nPlease review and process this payout request in the admin panel.\n\nAdmin Panel Link: {adminLink}/admin/payouts"
+    }
+  }
+}

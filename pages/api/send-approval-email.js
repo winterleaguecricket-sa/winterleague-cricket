@@ -1,5 +1,6 @@
 // API endpoint to send approval status notification emails
 import nodemailer from 'nodemailer';
+import { getSmtpConfig, createTransporter } from '../../lib/email';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,14 +14,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields (to, subject, body)' });
     }
 
-    // Get SMTP configuration from environment
-    const host = process.env.SMTP_HOST;
-    const port = process.env.SMTP_PORT;
-    const user = process.env.SMTP_USER;
-    const password = process.env.SMTP_PASSWORD;
-    const rawFromEmail = process.env.SMTP_FROM_EMAIL;
-    const fromEmail = rawFromEmail && rawFromEmail.includes('@') ? rawFromEmail : user;
-    const fromName = process.env.SMTP_FROM_NAME || 'Winter League Cricket';
+    // Get SMTP configuration from database/env
+    const smtp = await getSmtpConfig();
+    const host = smtp.host;
+    const user = smtp.user;
+    const password = smtp.password;
+    const fromEmail = smtp.fromEmail;
+    const fromName = smtp.fromName;
 
     // Check if email is configured
     if (!host || !user || !password) {
@@ -38,15 +38,7 @@ export default async function handler(req, res) {
     }
 
     // Create Nodemailer transporter
-    const transporter = nodemailer.createTransport({
-      host: host,
-      port: parseInt(port || '465'),
-      secure: parseInt(port || '465') === 465,
-      auth: {
-        user: user,
-        pass: password
-      }
-    });
+    const transporter = createTransporter(smtp);
 
     // Verify transporter connection
     await transporter.verify();

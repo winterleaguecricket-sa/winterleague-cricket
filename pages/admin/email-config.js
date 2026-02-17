@@ -28,9 +28,12 @@ export default function EmailConfig() {
   const [connectionTesting, setConnectionTesting] = useState(false);
   const [connectionResult, setConnectionResult] = useState(null);
   
-  // Update .env.local
+  // Update .env.local (deprecated - kept for reference)
   const [updating, setUpdating] = useState(false);
   const [updateResult, setUpdateResult] = useState(null);
+  
+  // Whether config was loaded from DB
+  const [configSource, setConfigSource] = useState('');
 
   useEffect(() => {
     // Fetch admin settings via API (adminSettings uses Node.js fs, can't run client-side)
@@ -46,37 +49,110 @@ export default function EmailConfig() {
     };
     loadSettings();
     
-    // Try to load from localStorage (browser-side only)
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('smtpConfig');
-      if (saved) {
-        const config = JSON.parse(saved);
-        setSmtpHost(config.host || '');
-        setSmtpPort(config.port || '465');
-        setSmtpUser(config.user || '');
-        setSmtpPassword(config.password || '');
-        setSmtpFromEmail(config.fromEmail || '');
-        setSmtpFromName(config.fromName || 'Cricket League Shop');
+    // Load SMTP config from database first
+    const loadSmtpConfig = async () => {
+      try {
+        const res = await fetch('/api/smtp-config');
+        const data = await res.json();
+        if (data.success && data.config) {
+          setSmtpHost(data.config.host || '');
+          setSmtpPort(data.config.port || '465');
+          setSmtpUser(data.config.user || '');
+          // Don't load masked password - user will re-enter if needed
+          setSmtpFromEmail(data.config.fromEmail || '');
+          setSmtpFromName(data.config.fromName || 'Cricket League Shop');
+          setConfigSource('database');
+          if (data.config.hasPassword) {
+            setSmtpPassword('••••••••'); // Placeholder to show password exists
+          }
+          return;
+        }
+      } catch (error) {
+        console.error('Error loading SMTP config from DB:', error);
       }
-    }
+      
+      // Fallback: try localStorage (legacy)
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('smtpConfig');
+        if (saved) {
+          const config = JSON.parse(saved);
+          setSmtpHost(config.host || '');
+          setSmtpPort(config.port || '465');
+          setSmtpUser(config.user || '');
+          setSmtpPassword(config.password || '');
+          setSmtpFromEmail(config.fromEmail || '');
+          setSmtpFromName(config.fromName || 'Cricket League Shop');
+          setConfigSource('localStorage (legacy)');
+        }
+      }
+    };
+    loadSmtpConfig();
   }, []);
 
-  const handleSaveConfig = (e) => {
+  const handleSaveConfig = async (e) => {
     e.preventDefault();
+    setSaveMessage('');
+    setErrorMessage('');
     
-    if (typeof window !== 'undefined') {
-      const config = {
+    // Validate: don't save the placeholder password
+    const actualPassword = smtpPassword === '••••••••' ? '' : smtpPassword;
+    
+    if (!smtpHost || !smtpUser) {
+      setErrorMessage('Host and User are required');
+      return;
+    }
+    
+    if (!actualPassword && configSource !== 'database') {
+      setErrorMessage('Password is required');
+      return;
+    }
+
+    try {
+      // Build body - if password is placeholder, fetch current from DB to preserve it
+      const body = {
         host: smtpHost,
         port: smtpPort,
         user: smtpUser,
-        password: smtpPassword,
         fromEmail: smtpFromEmail,
         fromName: smtpFromName
       };
-      localStorage.setItem('smtpConfig', JSON.stringify(config));
       
-      setSaveMessage('✓ Configuration saved! Note: For production, add these to your .env.local file.');
-      setTimeout(() => setSaveMessage(''), 5000);
+      if (actualPassword) {
+        body.password = actualPassword;
+      } else {
+        // Password unchanged (placeholder) - need to send a flag
+        // The API will need to handle this by keeping existing password
+        body.password = '__KEEP_EXISTING__';
+      }
+
+      const res = await fetch('/api/smtp-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        setSaveMessage('✓ SMTP configuration saved to database successfully!');
+        setConfigSource('database');
+        // Also save to localStorage as backup
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('smtpConfig', JSON.stringify({
+            host: smtpHost,
+            port: smtpPort,
+            user: smtpUser,
+            password: actualPassword || '(stored in DB)',
+            fromEmail: smtpFromEmail,
+            fromName: smtpFromName
+          }));
+        }
+        setTimeout(() => setSaveMessage(''), 5000);
+      } else {
+        setErrorMessage(data.message || 'Failed to save configuration');
+      }
+    } catch (error) {
+      setErrorMessage('Failed to save: ' + error.message);
     }
   };
 
@@ -112,19 +188,22 @@ export default function EmailConfig() {
   };
 
   const handleUpdateEnv = async () => {
-    setUpdating(true);
-    setUpdateResult(null);
+    // Redirect to database save instead of dangerous .env.local overwrite
+    setSaveMessage('');
     setErrorMessage('');
-
+    setUpdating(true);
+    
     try {
-      const response = await fetch('/api/update-env', {
+      const actualPassword = smtpPassword === '••••••••' ? '__KEEP_EXISTING__' : smtpPassword;
+      
+      const response = await fetch('/api/smtp-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           host: smtpHost,
           port: smtpPort,
           user: smtpUser,
-          password: smtpPassword,
+          password: actualPassword,
           fromEmail: smtpFromEmail,
           fromName: smtpFromName
         })
@@ -134,14 +213,15 @@ export default function EmailConfig() {
       setUpdateResult(data);
       
       if (data.success) {
-        setSaveMessage(data.message);
+        setSaveMessage('✓ SMTP configuration saved to database! Takes effect immediately.');
+        setConfigSource('database');
         setTimeout(() => setSaveMessage(''), 8000);
       } else {
-        setErrorMessage(data.message || 'Failed to update environment file');
+        setErrorMessage(data.message || 'Failed to save configuration');
       }
     } catch (error) {
       setUpdateResult({ success: false, message: error.message });
-      setErrorMessage('Failed to update environment file: ' + error.message);
+      setErrorMessage('Failed to save configuration: ' + error.message);
     } finally {
       setUpdating(false);
     }
@@ -321,6 +401,23 @@ This is a test email from your Cricket League system.`
             fontWeight: '600'
           }}>
             ⚠️ {errorMessage}
+          </div>
+        )}
+
+        {/* Config Source Indicator */}
+        {configSource && (
+          <div style={{
+            background: configSource === 'database' ? '#f0fdf4' : '#fffbeb',
+            border: `1px solid ${configSource === 'database' ? '#86efac' : '#fcd34d'}`,
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+            marginBottom: '1rem',
+            fontSize: '0.8rem',
+            color: configSource === 'database' ? '#166534' : '#92400e'
+          }}>
+            {configSource === 'database' 
+              ? '🔒 SMTP config loaded from database (persistent & safe)' 
+              : '⚠️ Config loaded from browser localStorage (not persistent — save to database!)'}
           </div>
         )}
 
@@ -707,7 +804,7 @@ This is a test email from your Cricket League system.`
                     transition: 'transform 0.2s'
                   }}
                 >
-                  {updating ? '⏳ Updating...' : '🚀 Save to .env.local'}
+                  {updating ? '⏳ Saving...' : '🚀 Save to Database'}
                 </button>
               </div>
             </form>

@@ -1,6 +1,6 @@
-// API endpoint to update .env.local file
-import fs from 'fs';
-import path from 'path';
+// DEPRECATED: This endpoint previously overwrote .env.local destroying all env vars.
+// Now redirects to database-backed /api/smtp-config instead.
+// Kept for backward compatibility with any existing admin pages that call it.
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -18,32 +18,38 @@ export default async function handler(req, res) {
       });
     }
 
-    // Path to .env.local file
-    const envPath = path.join(process.cwd(), '.env.local');
+    // Forward to the safe database-backed endpoint
+    const { query } = await import('../../lib/db');
+    const { clearSmtpConfigCache } = await import('../../lib/email');
 
-    // Create the environment variable content
-    const envContent = `# Email Configuration (Nodemailer)
-SMTP_HOST=${host}
-SMTP_PORT=${port}
-SMTP_USER=${user}
-SMTP_PASSWORD=${password}
-SMTP_FROM_EMAIL=${fromEmail}
-SMTP_FROM_NAME=${fromName}
-`;
+    const configValue = JSON.stringify({
+      host,
+      port: port || '465',
+      user,
+      password,
+      fromEmail: fromEmail || user,
+      fromName: fromName || 'Winter League Cricket'
+    });
 
-    // Write to .env.local file
-    fs.writeFileSync(envPath, envContent, 'utf8');
+    await query(
+      `INSERT INTO site_settings (key, value, updated_at)
+       VALUES ('smtp_config', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+      [configValue]
+    );
+
+    clearSmtpConfigCache();
 
     return res.status(200).json({ 
       success: true,
-      message: 'Environment file updated successfully! Please restart your development server for changes to take effect.'
+      message: 'SMTP configuration saved to database successfully! Changes take effect immediately.'
     });
 
   } catch (error) {
-    console.error('Error updating .env.local:', error);
+    console.error('Error saving SMTP config:', error);
     return res.status(500).json({ 
       success: false,
-      message: 'Failed to update environment file: ' + error.message
+      message: 'Failed to save SMTP configuration: ' + error.message
     });
   }
 }

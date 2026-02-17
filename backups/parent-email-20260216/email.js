@@ -1,34 +1,27 @@
-// API endpoint to send team registration confirmation emails
+// Shared email utility functions
 import nodemailer from 'nodemailer';
-import { getEmailTemplate } from '../../data/adminSettings';
-import { getSmtpConfig, createTransporter } from '../../lib/email';
+import { getEmailTemplate } from '../data/adminSettings';
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
-  }
-
+// Send registration confirmation email
+export async function sendRegistrationEmail({ teamName, coachName, email, password, registrationId, loginUrl }) {
   try {
-    const { teamName, coachName, email, password, registrationId, loginUrl } = req.body;
-
     // Validate required fields
     if (!email || !teamName) {
-      return res.status(400).json({ 
-        message: 'Missing required fields (email, teamName)',
-        success: false 
-      });
+      console.log('Missing required email fields');
+      return { success: false, message: 'Missing required fields' };
     }
 
-    // Get SMTP configuration from database/env
-    const smtp = await getSmtpConfig();
-    const host = smtp.host;
-    const user = smtp.user;
-    const smtpPassword = smtp.password;
-    const fromEmail = smtp.fromEmail;
-    const fromName = smtp.fromName;
+    // Get SMTP configuration from environment
+    const host = process.env.SMTP_HOST;
+    const port = process.env.SMTP_PORT;
+    const user = process.env.SMTP_USER;
+    const smtpPassword = process.env.SMTP_PASSWORD;
+    const rawFromEmail = process.env.SMTP_FROM_EMAIL;
+    const fromEmail = rawFromEmail && rawFromEmail.includes('@') ? rawFromEmail : user;
+    const fromName = process.env.SMTP_FROM_NAME || 'Winter League Cricket';
 
     // Get the email template from settings
-    const template = getEmailTemplate('pending'); // Using 'pending' template for new registrations
+    const template = getEmailTemplate('pending');
     
     // Default template if none set
     let subject = template?.subject || 'Welcome to Winter League Cricket - Registration Confirmed!';
@@ -75,45 +68,37 @@ Winter League Cricket Team`;
       console.log('=== REGISTRATION EMAIL (Development Mode) ===');
       console.log('To:', email);
       console.log('Subject:', subject);
-      console.log('Body:', body);
       console.log('==============================================');
-
-      return res.status(200).json({ 
-        success: true,
-        message: 'Registration email logged (development mode - configure SMTP to send real emails)',
-        emailSent: { to: email, subject, body }
-      });
+      return { success: true, message: 'Email logged (dev mode)', devMode: true };
     }
 
-    // Create Nodemailer transporter
-    const transporter = createTransporter(smtp);
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      host: host,
+      port: parseInt(port) || 465,
+      secure: parseInt(port) === 465,
+      auth: {
+        user: user,
+        pass: smtpPassword
+      }
+    });
 
-    // Verify transporter connection
-    await transporter.verify();
-    console.log('Email server connection verified for registration email');
-
-    // Send registration confirmation email
+    // Send email
     const info = await transporter.sendMail({
-      from: `"${fromName}" <${fromEmail || user}>`,
+      from: `"${fromName}" <${fromEmail}>`,
       to: email,
       subject: subject,
       text: body,
       html: body.replace(/\n/g, '<br>')
     });
-    console.log('Registration email sent:', info.messageId);
 
-    return res.status(200).json({ 
-      success: true,
-      message: 'Registration confirmation email sent successfully',
-      messageId: info.messageId
-    });
+    console.log('Registration email sent:', info.messageId);
+    return { success: true, message: 'Email sent successfully', messageId: info.messageId };
 
   } catch (error) {
-    console.error('Registration email error:', error);
-    return res.status(500).json({ 
-      success: false,
-      message: 'Failed to send registration email',
-      error: error.message 
-    });
+    console.error('Error sending registration email:', error.message);
+    return { success: false, message: error.message };
   }
 }
+
+export default { sendRegistrationEmail };

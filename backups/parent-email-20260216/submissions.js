@@ -5,7 +5,6 @@ import { query } from '../../lib/db';
 import { getFormTemplateById } from '../../data/forms';
 import nodemailer from 'nodemailer';
 import { getEmailTemplate } from '../../data/adminSettings';
-import { sendParentEmail, getSmtpConfig, createTransporter } from '../../lib/email';
 
 export default async function handler(req, res) {
   // GET - Fetch submissions
@@ -193,20 +192,6 @@ export default async function handler(req, res) {
           await sendStatusEmailForSubmission(submission, statusToSend);
         } catch (emailError) {
           console.error('Status email error:', emailError);
-        }
-      }
-
-      // Send parent email when player registration (formId 2) is approved
-      if (submission.formId === 2 && (status !== undefined || approvalStatus !== undefined)) {
-        const effectiveStatus = approvalStatus !== undefined ? approvalStatus : status;
-        const normalizedStatus = normalizeTemplateStatus(effectiveStatus);
-
-        if (normalizedStatus === 'complete') {
-          try {
-            await sendParentApprovalEmail(submission);
-          } catch (emailError) {
-            console.error('Parent approval email error:', emailError);
-          }
         }
       }
 
@@ -459,12 +444,13 @@ async function sendStatusEmailForSubmission(submission, status) {
     body = body.replace(new RegExp(escaped, 'g'), value);
   });
 
-  const smtp = await getSmtpConfig();
-  const host = smtp.host;
-  const user = smtp.user;
-  const smtpPassword = smtp.password;
-  const fromEmail = smtp.fromEmail;
-  const fromName = smtp.fromName;
+  const host = process.env.SMTP_HOST;
+  const port = process.env.SMTP_PORT;
+  const user = process.env.SMTP_USER;
+  const smtpPassword = process.env.SMTP_PASSWORD;
+  const rawFromEmail = process.env.SMTP_FROM_EMAIL;
+  const fromEmail = rawFromEmail && rawFromEmail.includes('@') ? rawFromEmail : user;
+  const fromName = process.env.SMTP_FROM_NAME || 'Winter League Cricket';
 
   if (!host || !user || !smtpPassword) {
     console.log('=== STATUS EMAIL (Development Mode) ===');
@@ -474,7 +460,15 @@ async function sendStatusEmailForSubmission(submission, status) {
     return { success: true, devMode: true };
   }
 
-  const transporter = createTransporter(smtp);
+  const transporter = nodemailer.createTransport({
+    host: host,
+    port: parseInt(port || '465'),
+    secure: parseInt(port || '465') === 465,
+    auth: {
+      user: user,
+      pass: smtpPassword
+    }
+  });
 
   await transporter.verify();
 
@@ -488,66 +482,6 @@ async function sendStatusEmailForSubmission(submission, status) {
 
   console.log('Status email sent:', info.messageId);
   return { success: true, messageId: info.messageId };
-}
-
-// Send parent approval email when a player submission is approved (formId === 2)
-async function sendParentApprovalEmail(submission) {
-  const data = submission.data || {};
-
-  // Extract parent and player info from submission data
-  const parentName = data[37] || data['37'] || '';
-  const parentEmail = data[38] || data['38'] || data.checkout_email || submission.customerEmail || '';
-  const playerName = data[6] || data['6'] || '';
-
-  if (!parentEmail) {
-    console.log('sendParentApprovalEmail: no parent email — skipping');
-    return { skipped: true, reason: 'No parent email' };
-  }
-
-  // Get team name from team selection field (field 8)
-  let teamName = '';
-  const teamField = data[8] || data['8'];
-  if (teamField && typeof teamField === 'object') {
-    teamName = teamField.teamName || teamField.label || teamField.name || '';
-  } else if (typeof teamField === 'string') {
-    try {
-      const parsed = JSON.parse(teamField);
-      teamName = parsed.teamName || parsed.label || parsed.name || '';
-    } catch (e) {
-      teamName = teamField;
-    }
-  }
-
-  // Look up parent password from customer_profiles
-  let password = '';
-  try {
-    const profileResult = await query(
-      `SELECT password FROM customer_profiles WHERE LOWER(email) = LOWER($1) LIMIT 1`,
-      [parentEmail]
-    );
-    if (profileResult.rows.length > 0) {
-      password = profileResult.rows[0].password || '';
-    }
-  } catch (err) {
-    console.log('Could not look up parent password for approval email:', err.message);
-  }
-
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://winterleaguecricket.co.za';
-
-  const result = await sendParentEmail({
-    templateKey: 'parentPlayerApproved',
-    parentName: parentName || 'Parent',
-    playerName: playerName || 'your player',
-    teamName: teamName || '',
-    email: parentEmail,
-    password: password,
-    orderNumber: '',
-    totalAmount: '',
-    loginUrl: `${baseUrl}/parent-portal`
-  });
-
-  console.log(`Parent approval email sent for player "${playerName}" to ${parentEmail}:`, result);
-  return result;
 }
 
 // Strip base64 images and large string values from submission data to reduce payload

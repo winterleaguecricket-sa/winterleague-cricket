@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { getAdminSettings, getEmailTemplate } from '../../data/adminSettings';
+import { getSmtpConfig, createTransporter } from '../../lib/email';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -21,15 +22,12 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Email template not configured' });
     }
 
-    // Check if SMTP is configured
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = process.env.SMTP_PORT;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPassword = process.env.SMTP_PASSWORD;
-    const smtpFromEmail = process.env.SMTP_FROM_EMAIL || settings.email;
-    const smtpFromName = process.env.SMTP_FROM_NAME || 'Cricket League';
+    // Get SMTP configuration from database/env
+    const smtp = await getSmtpConfig();
+    const smtpFromEmail = smtp.fromEmail || settings.email;
+    const smtpFromName = smtp.fromName || 'Cricket League';
 
-    if (!smtpHost || !smtpPort || !smtpUser || !smtpPassword) {
+    if (!smtp.host || !smtp.user || !smtp.password) {
       console.log('SMTP not configured - payout notification email not sent');
       return res.status(200).json({ 
         success: true, 
@@ -38,15 +36,7 @@ export default async function handler(req, res) {
     }
 
     // Create transporter
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: parseInt(smtpPort),
-      secure: parseInt(smtpPort) === 465,
-      auth: {
-        user: smtpUser,
-        pass: smtpPassword,
-      },
-    });
+    const transporter = createTransporter(smtp);
 
     // Get admin link (use request headers to construct URL)
     const protocol = req.headers['x-forwarded-proto'] || 'http';

@@ -1,6 +1,7 @@
 // API endpoint to send product order emails
 // This endpoint sends confirmation emails to customers and forwards order details to suppliers
 import nodemailer from 'nodemailer';
+import { getSmtpConfig, createTransporter } from '../../lib/email';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -30,13 +31,14 @@ export default async function handler(req, res) {
       fromEmail = smtpConfig.fromEmail;
       fromName = smtpConfig.fromName;
     } else {
-      // Use environment variables for production
-      host = process.env.SMTP_HOST;
-      port = process.env.SMTP_PORT;
-      user = process.env.SMTP_USER;
-      password = process.env.SMTP_PASSWORD;
-      fromEmail = process.env.SMTP_FROM_EMAIL;
-      fromName = process.env.SMTP_FROM_NAME;
+      // Use database/env config for production
+      const smtp = await getSmtpConfig();
+      host = smtp.host;
+      port = smtp.port;
+      user = smtp.user;
+      password = smtp.password;
+      fromEmail = smtp.fromEmail;
+      fromName = smtp.fromName;
     }
 
     // Check if email is configured
