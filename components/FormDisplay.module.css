@@ -399,7 +399,6 @@
 
   .kitSizingCard {
     padding: 1rem;
-    overflow: hidden;
   }
 
   .kitSizeChart {
@@ -409,10 +408,6 @@
   .kitSizeChart img {
     max-width: 100%;
     height: auto;
-  }
-
-  .playerCard {
-    overflow: hidden;
   }
 
   .dropdownPanel {

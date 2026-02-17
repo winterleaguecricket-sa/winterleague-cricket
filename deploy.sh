@@ -169,6 +169,10 @@ npm install --production
 print_success "Dependencies installed"
 
 # Step 7: Build application
+# WARNING: Do NOT run 'rm -rf .next' before building.
+# Incremental builds are reliable. Deleting .next causes intermittent race condition
+# failures during the "Collecting page data" phase on this server.
+# If a build fails, just run 'npm run build' again — do NOT delete .next.
 print_step "Step 7: Building Next.js application"
 npm run build
 print_success "Application built successfully"

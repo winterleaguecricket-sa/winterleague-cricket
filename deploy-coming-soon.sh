@@ -101,6 +101,8 @@ echo "Rebuilding application on server..."
 sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_HOST} << 'EOF'
     cd /home/vmycnmyo/winterleague-cricket
     
+    # WARNING: Do NOT run 'rm -rf .next' — causes intermittent build failures.
+    # Incremental builds are reliable. If a build fails, just re-run it.
     # Rebuild Next.js
     npm run build
     

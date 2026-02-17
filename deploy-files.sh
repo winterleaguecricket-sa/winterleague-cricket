@@ -110,6 +110,8 @@ done
 
 echo ""
 echo "Building application..."
+# WARNING: Do NOT run 'rm -rf .next' before building — causes intermittent build failures.
+# Incremental builds are reliable. If a build fails, just re-run it.
 sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_HOST} "cd ${APP_DIR} && npm run build"
 
 echo ""

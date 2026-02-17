@@ -96,6 +96,8 @@ print_success "Ensured: public/uploads/site-settings"
 
 echo ""
 echo "Rebuilding application on server..."
+# WARNING: Do NOT run 'rm -rf .next' before building — causes intermittent build failures.
+# Incremental builds are reliable. If a build fails, just re-run it.
 sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_HOST} "cd ${APP_DIR} && npm run build"
 
 echo ""

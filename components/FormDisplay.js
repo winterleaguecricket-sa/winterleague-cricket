@@ -5936,12 +5936,15 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                                 className={styles.selectGlowWrap}
                                                 tabIndex={0}
                                                 onBlur={(e) => {
-                                                  if (!e.currentTarget.contains(e.relatedTarget)) {
-                                                    setDropdownOpen((prev) => ({
-                                                      ...prev,
-                                                      [`player_${index}_shirtSize`]: false
-                                                    }));
-                                                  }
+                                                  const wrapper = e.currentTarget;
+                                                  requestAnimationFrame(() => {
+                                                    if (!wrapper.contains(document.activeElement)) {
+                                                      setDropdownOpen((prev) => ({
+                                                        ...prev,
+                                                        [`player_${index}_shirtSize`]: false
+                                                      }));
+                                                    }
+                                                  });
                                                 }}
                                               >
                                                 <button
@@ -6007,12 +6010,15 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                                 className={styles.selectGlowWrap}
                                                 tabIndex={0}
                                                 onBlur={(e) => {
-                                                  if (!e.currentTarget.contains(e.relatedTarget)) {
-                                                    setDropdownOpen((prev) => ({
-                                                      ...prev,
-                                                      [`player_${index}_pantsSize`]: false
-                                                    }));
-                                                  }
+                                                  const wrapper = e.currentTarget;
+                                                  requestAnimationFrame(() => {
+                                                    if (!wrapper.contains(document.activeElement)) {
+                                                      setDropdownOpen((prev) => ({
+                                                        ...prev,
+                                                        [`player_${index}_pantsSize`]: false
+                                                      }));
+                                                    }
+                                                  });
                                                 }}
                                               >
                                                 <button
@@ -6728,9 +6734,12 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                     className={styles.selectGlowWrap}
                     tabIndex={0}
                     onBlur={(e) => {
-                      if (!e.currentTarget.contains(e.relatedTarget)) {
-                        setDropdownOpen((prev) => ({ ...prev, [field.id]: false }));
-                      }
+                      const wrapper = e.currentTarget;
+                      requestAnimationFrame(() => {
+                        if (!wrapper.contains(document.activeElement)) {
+                          setDropdownOpen((prev) => ({ ...prev, [field.id]: false }));
+                        }
+                      });
                     }}
                   >
                     <button
