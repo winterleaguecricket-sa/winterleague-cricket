@@ -20,10 +20,12 @@ export default function PlayerRegistrationFormPage({ landingPage: landingPagePro
     ? `${selectedForm.name}: ${selectedForm.description || 'Submit your player registration online.'}`
     : `Register as a player with ${siteConfig.storeName} online.`;
   const heroImage = landingPage?.heroSection?.backgroundImage || siteConfig.heroMediaUrl || '';
-  const ogImageUrl = heroImage
-    ? heroImage.startsWith('http')
-      ? heroImage
-      : `${baseUrl}${heroImage.startsWith('/') ? '' : '/'}${heroImage}`
+  // Use compressed OG image for WhatsApp/social sharing (original is >2MB PNG)
+  const ogHeroImage = heroImage ? heroImage.replace(/\.(png|PNG)$/, '-og.jpg') : '';
+  const ogImageUrl = ogHeroImage
+    ? ogHeroImage.startsWith('http')
+      ? ogHeroImage
+      : `${baseUrl}${ogHeroImage.startsWith('/') ? '' : '/'}${ogHeroImage}`
     : `${baseUrl}/uploads/og-default.jpg`;
 
   return (
@@ -37,6 +39,8 @@ export default function PlayerRegistrationFormPage({ landingPage: landingPagePro
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
         {ogImageUrl && <meta property="og:image" content={ogImageUrl} />}
+        {ogImageUrl && <meta property="og:image:width" content="1200" />}
+        {ogImageUrl && <meta property="og:image:height" content="630" />}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={pageTitle} />
         <meta name="twitter:description" content={pageDescription} />

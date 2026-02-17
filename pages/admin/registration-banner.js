@@ -3,52 +3,77 @@ import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../../styles/adminSettings.module.css';
 import { siteConfig } from '../../data/products';
-import { getFormTemplates, updateFormTemplate } from '../../data/forms';
 
 export default function RegistrationBanner() {
-  const [form, setForm] = useState(null);
   const [imageUrl, setImageUrl] = useState('');
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get Player Registration form (id: 2)
-    const playerForm = getFormTemplates().find(f => f.id === 2);
-    if (playerForm) {
-      setForm(playerForm);
-      if (playerForm.welcomeBanner) {
-        setImageUrl(playerForm.welcomeBanner.imageUrl || '');
-        setTitle(playerForm.welcomeBanner.title || '');
-        setSubtitle(playerForm.welcomeBanner.subtitle || '');
+    // Load player registration banner from DB via API
+    const loadBanner = async () => {
+      try {
+        const res = await fetch('/api/player-registration-banner');
+        const data = await res.json();
+        if (data.success && data.banner) {
+          setImageUrl(data.banner.imageUrl || '');
+          setTitle(data.banner.title || '');
+          setSubtitle(data.banner.subtitle || '');
+        }
+      } catch (error) {
+        console.error('Error loading player banner:', error);
       }
-    }
+      setLoading(false);
+    };
+    loadBanner();
   }, []);
 
-  const handleSave = () => {
-    if (!form) return;
-
-    const updatedForm = {
-      ...form,
-      welcomeBanner: {
-        imageUrl: imageUrl,
-        title: title,
-        subtitle: subtitle,
-        showOnPage: 1
+  const handleSave = async () => {
+    try {
+      const res = await fetch('/api/player-registration-banner', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          banner: {
+            imageUrl: imageUrl,
+            title: title,
+            subtitle: subtitle,
+            showOnPage: 1
+          }
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
       }
-    };
-
-    updateFormTemplate(form.id, updatedForm);
-    setForm(updatedForm);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    } catch (error) {
+      console.error('Error saving player banner:', error);
+    }
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setImageUrl(url);
+    if (!file) return;
+    // Upload the file to server
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'site-settings');
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.url) {
+        setImageUrl(data.url);
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      // Fallback to object URL for preview only
+      setImageUrl(URL.createObjectURL(file));
     }
   };
 

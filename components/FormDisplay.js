@@ -463,14 +463,18 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     };
   }, [formBackground, formBackgroundReady]);
 
-  // Load team registration banner from DB
+  // Load registration banner from DB (team=1, player=2)
   useEffect(() => {
-    if (form.id !== 1) return;
+    if (form.id !== 1 && form.id !== 2) return;
     let isMounted = true;
+
+    const apiUrl = form.id === 1
+      ? '/api/team-registration-banner'
+      : '/api/player-registration-banner';
 
     const loadBanner = async () => {
       try {
-        const res = await fetch('/api/team-registration-banner');
+        const res = await fetch(apiUrl);
         const data = await res.json();
         if (!isMounted) return;
         if (data.success && data.banner) {
@@ -480,7 +484,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
           }));
         }
       } catch (error) {
-        console.error('Error loading team banner:', error);
+        console.error('Error loading banner:', error);
       }
     };
 
