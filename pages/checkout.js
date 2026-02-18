@@ -7,7 +7,6 @@ import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../styles/channel.module.css';
 import { siteConfig } from '../data/products';
-import { getProfileByEmail, createProfile, updateProfile, addOrderToProfile } from '../data/customers';
 
 export default function Checkout() {
   const { cart, cartLoaded, getCartTotal, clearCart } = useCart();
@@ -26,6 +25,7 @@ export default function Checkout() {
   const [profileMessage, setProfileMessage] = useState('');
   const [formBackground, setFormBackground] = useState('');
   const [activeGateway, setActiveGateway] = useState('payfast');
+  const [formSubmissionVerified, setFormSubmissionVerified] = useState(false);
 
   // Load active payment gateway
   useEffect(() => {
@@ -37,43 +37,93 @@ export default function Checkout() {
       .catch(() => {});
   }, []);
 
-  // Load customer data from localStorage (saved during registration form)
+  // Load customer data from localStorage and create/verify DB profile
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    try {
-      const savedFormData = localStorage.getItem('formDraft_2');
-      if (savedFormData) {
-        const parsed = JSON.parse(savedFormData);
-        const formData = parsed?.formData || {};
+    const loadAndCreateProfile = async () => {
+      try {
+        const savedFormData = localStorage.getItem('formDraft_2');
+        if (savedFormData) {
+          const parsed = JSON.parse(savedFormData);
+          const formData = parsed?.formData || {};
 
-        // Map registration form fields to checkout profile
-        // Field 37 = Parent Full Name and Surname
-        // Field 38 = Parent Email Address
-        // Field 39 = Password
-        // Field 40 = Parent Emergency Contact Number (Primary)
-        const parentName = String(formData[37] || (formData['checkout_firstName'] ? formData['checkout_firstName'] + ' ' + formData['checkout_lastName'] : '') || '').trim();
-        const parentEmail = String(formData[38] || formData['checkout_email'] || '').trim();
-        const parentPassword = String(formData[39] || formData['checkout_password'] || '').trim();
-        const parentPhone = String(formData[40] || formData['checkout_phone'] || '').trim();
+          // Map registration form fields to checkout profile
+          const parentName = String(formData[37] || (formData['checkout_firstName'] ? formData['checkout_firstName'] + ' ' + formData['checkout_lastName'] : '') || '').trim();
+          const parentEmail = String(formData[38] || formData['checkout_email'] || '').trim();
+          const parentPassword = String(formData[39] || formData['checkout_password'] || '').trim();
+          const parentPhone = String(formData[40] || formData['checkout_phone'] || '').trim();
 
-        // Parse first and last name
-        let firstName = formData['checkout_firstName'] || '';
-        let lastName = formData['checkout_lastName'] || '';
+          let firstName = formData['checkout_firstName'] || '';
+          let lastName = formData['checkout_lastName'] || '';
 
-        if (!firstName && !lastName && parentName) {
-          const parts = parentName.split(/\s+/).filter(Boolean);
-          firstName = parts.shift() || '';
-          lastName = parts.join(' ') || '';
-        }
+          if (!firstName && !lastName && parentName) {
+            const parts = parentName.split(/\s+/).filter(Boolean);
+            firstName = parts.shift() || '';
+            lastName = parts.join(' ') || '';
+          }
 
-        if (parentEmail && firstName) {
-          const existingProfile = getProfileByEmail(parentEmail);
+          if (parentEmail && firstName) {
+            // Check if profile exists in DB
+            let profile = null;
+            try {
+              const lookupRes = await fetch(`/api/customers?email=${encodeURIComponent(parentEmail)}`);
+              const lookupData = await lookupRes.json();
+              if (lookupData && lookupData.id) {
+                profile = lookupData;
+              }
+            } catch (lookupErr) {
+              console.error('Error looking up customer profile:', lookupErr);
+            }
 
-          if (existingProfile) {
-            setCustomerProfile(existingProfile);
-          } else {
-            const result = createProfile({
+            // Create profile in DB if it doesn't exist
+            if (!profile) {
+              try {
+                const createRes = await fetch('/api/customers', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'create',
+                    email: parentEmail,
+                    firstName: firstName,
+                    lastName: lastName,
+                    phone: parentPhone,
+                    password: parentPassword
+                  })
+                });
+                const createData = await createRes.json();
+                if (createData.profile) {
+                  profile = createData.profile;
+                } else if (createData.id) {
+                  profile = createData;
+                }
+              } catch (createErr) {
+                console.error('Error creating customer profile:', createErr);
+              }
+            }
+
+            if (profile) {
+              setCustomerProfile({
+                id: profile.id,
+                email: profile.email || parentEmail,
+                firstName: profile.first_name || profile.firstName || firstName,
+                lastName: profile.last_name || profile.lastName || lastName,
+                phone: profile.phone || parentPhone,
+                password: parentPassword
+              });
+            } else {
+              // Fallback: use local data for UI (but profile won't persist)
+              setCustomerProfile({
+                id: `local-${Date.now()}`,
+                email: parentEmail,
+                firstName: firstName,
+                lastName: lastName,
+                phone: parentPhone,
+                password: parentPassword
+              });
+            }
+
+            setProfileFormData({
               email: parentEmail,
               firstName: firstName,
               lastName: lastName,
@@ -81,26 +131,60 @@ export default function Checkout() {
               password: parentPassword
             });
 
-            if (result.profile) {
-              setCustomerProfile(result.profile);
+            // Also verify/create the form submission if it's missing
+            try {
+              const subRes = await fetch(`/api/form-submissions?formId=2`);
+              const subData = await subRes.json();
+              const submissions = subData.submissions || subData || [];
+              const hasSubmission = Array.isArray(submissions) && submissions.some(s => 
+                s.customer_email === parentEmail || 
+                (s.data && (s.data[38] === parentEmail || s.data['38'] === parentEmail))
+              );
+              
+              if (!hasSubmission && formData) {
+                // Create the missing form submission
+                const submissionPayload = {
+                  formId: 2,
+                  data: formData
+                };
+                if (cart && cart.length > 0) {
+                  submissionPayload.cartItems = cart.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                    selectedSize: item.selectedSize || null
+                  }));
+                  submissionPayload.cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                }
+                const createSubRes = await fetch('/api/form-submissions', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(submissionPayload)
+                });
+                if (createSubRes.ok) {
+                  console.log('Created missing form submission from checkout');
+                  setFormSubmissionVerified(true);
+                } else {
+                  console.error('Failed to create form submission from checkout');
+                }
+              } else {
+                setFormSubmissionVerified(true);
+              }
+            } catch (subErr) {
+              console.error('Error verifying form submission:', subErr);
             }
           }
-
-          setProfileFormData({
-            email: parentEmail,
-            firstName: firstName,
-            lastName: lastName,
-            phone: parentPhone,
-            password: parentPassword
-          });
         }
+      } catch (e) {
+        console.error('Error loading checkout data:', e);
       }
-    } catch (e) {
-      console.error('Error loading checkout data:', e);
-    }
 
-    setIsLoading(false);
-  }, []);
+      setIsLoading(false);
+    };
+
+    loadAndCreateProfile();
+  }, [cart]);
 
   // Load form background image to match the registration form theme
   useEffect(() => {
@@ -200,7 +284,7 @@ export default function Checkout() {
     localStorage.setItem('formDraft_2', JSON.stringify(nextDraft));
   };
 
-  const handleProfileSave = () => {
+  const handleProfileSave = async () => {
     setProfileMessage('');
     setError('');
 
@@ -217,20 +301,60 @@ export default function Checkout() {
       return;
     }
 
-    if (customerProfile?.id) {
-      const updated = updateProfile(customerProfile.id, nextProfile);
-      if (updated) {
-        setCustomerProfile(updated);
+    try {
+      if (customerProfile?.id && !String(customerProfile.id).startsWith('local-')) {
+        // Update existing DB profile
+        const updateRes = await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update',
+            id: customerProfile.id,
+            ...nextProfile
+          })
+        });
+        const updateData = await updateRes.json();
+        if (updateData && (updateData.profile || updateData.id)) {
+          const p = updateData.profile || updateData;
+          setCustomerProfile({
+            id: p.id || customerProfile.id,
+            email: p.email || nextProfile.email,
+            firstName: p.first_name || p.firstName || nextProfile.firstName,
+            lastName: p.last_name || p.lastName || nextProfile.lastName,
+            phone: p.phone || nextProfile.phone,
+            password: nextProfile.password
+          });
+        } else {
+          setCustomerProfile({ ...customerProfile, ...nextProfile });
+        }
       } else {
-        setCustomerProfile({ ...customerProfile, ...nextProfile });
+        // Create new DB profile
+        const createRes = await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create',
+            ...nextProfile
+          })
+        });
+        const createData = await createRes.json();
+        if (createData?.profile || createData?.id) {
+          const p = createData.profile || createData;
+          setCustomerProfile({
+            id: p.id,
+            email: p.email || nextProfile.email,
+            firstName: p.first_name || p.firstName || nextProfile.firstName,
+            lastName: p.last_name || p.lastName || nextProfile.lastName,
+            phone: p.phone || nextProfile.phone,
+            password: nextProfile.password
+          });
+        } else {
+          setCustomerProfile({ ...nextProfile, id: `local-${Date.now()}` });
+        }
       }
-    } else {
-      const created = createProfile(nextProfile);
-      if (created?.profile) {
-        setCustomerProfile(created.profile);
-      } else {
-        setCustomerProfile({ ...nextProfile, id: Date.now() });
-      }
+    } catch (saveErr) {
+      console.error('Error saving profile:', saveErr);
+      setCustomerProfile({ ...customerProfile, ...nextProfile });
     }
 
     persistCheckoutDraft(nextProfile);
@@ -249,15 +373,6 @@ export default function Checkout() {
 
     const orderTotal = getCartTotal().toFixed(2);
     const orderId = `ORD${Date.now()}`;
-
-    // Keep in-memory order for backward compatibility
-    addOrderToProfile(customerProfile.id, {
-      orderId,
-      items: cart,
-      total: parseFloat(orderTotal),
-      status: 'pending',
-      paymentMethod: activeGateway
-    });
 
     try {
       // ===== CREATE ORDER IN DATABASE =====
