@@ -768,7 +768,7 @@ export default function ParentPortal() {
                         {customer.createdAt ? formatDate(customer.createdAt) : '\u2014'}
                       </td>
                       <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#9ca3af' }}>
-                        {customer.orders ? customer.orders.length : 0}
+                        {customer.orderCount || 0}
                       </td>
                     </tr>
                   ))}

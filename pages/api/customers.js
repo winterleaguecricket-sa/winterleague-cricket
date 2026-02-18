@@ -11,6 +11,7 @@ import {
   generateResetCode,
   addOrderToProfile
 } from '../../data/customers-db';
+import { query } from '../../lib/db';
 
 export default async function handler(req, res) {
   try {
@@ -36,7 +37,18 @@ export default async function handler(req, res) {
       }
 
       const profiles = await getAllProfiles();
-      const sanitized = profiles.map(({ password, ...rest }) => rest);
+      // Include order count for each customer (used by admin directory)
+      const orderCountResult = await query(
+        'SELECT customer_email, COUNT(*)::int AS order_count FROM orders GROUP BY customer_email'
+      );
+      const orderCountMap = {};
+      for (const row of orderCountResult.rows) {
+        orderCountMap[row.customer_email?.toLowerCase()] = row.order_count;
+      }
+      const sanitized = profiles.map(({ password, ...rest }) => ({
+        ...rest,
+        orderCount: orderCountMap[rest.email?.toLowerCase()] || 0
+      }));
       return res.status(200).json({ customers: sanitized });
     }
 
