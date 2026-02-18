@@ -781,6 +781,9 @@ export default function AdminForms() {
           } else if (field.type === 'product-bundle') {
             allFieldLabels.add(field.label + ' - Shirt Size');
             allFieldLabels.add(field.label + ' - Pants Size');
+          } else if (field.type === 'sub-team-selector') {
+            allFieldLabels.add(field.label + ' - Team');
+            allFieldLabels.add(field.label + ' - Age Group');
           } else {
             allFieldLabels.add(field.label);
           }
@@ -796,6 +799,7 @@ export default function AdminForms() {
       if (f.type === 'entry-fee-pricing') return label.startsWith(f.label);
       if (f.type === 'image-select-library') return label.startsWith(f.label);
       if (f.type === 'product-bundle') return label.startsWith(f.label);
+      if (f.type === 'sub-team-selector') return label.startsWith(f.label);
       return f.label === label;
     });
 
@@ -840,6 +844,38 @@ export default function AdminForms() {
         return submission.data[`${field.id}_pantsSize`] || '';
       }
       return submission.data[`${field.id}_shirtSize`] || submission.data[`${field.id}_size`] || '';
+    }
+
+    if (field.type === 'sub-team-selector') {
+      const raw = submission.data[field.id] || submission.data[field.label] || '';
+      let parsed = raw;
+      if (typeof raw === 'string') {
+        try { parsed = JSON.parse(raw); } catch { parsed = raw; }
+      }
+      if (parsed && typeof parsed === 'object') {
+        if (label.includes('Team')) return parsed.teamName || '';
+        if (label.includes('Age Group')) return parsed.ageGroup ? parsed.ageGroup + (parsed.gender ? ' (' + parsed.gender + ')' : '') : '';
+      }
+      return typeof parsed === 'string' ? parsed : '';
+    }
+
+    if (field.type === 'submission-dropdown') {
+      const raw = submission.data[field.id] || submission.data[field.label] || '';
+      // Object with teamName (e.g. Odis: {"teamName": "Royal Falcons"})
+      if (raw && typeof raw === 'object') {
+        return raw.teamName || raw.label || raw.name || '';
+      }
+      // UUID string — get team name from sub-team-selector in same submission
+      if (typeof raw === 'string' && raw.length > 20) {
+        const subTeamField = formFields.find(f => f.type === 'sub-team-selector');
+        if (subTeamField) {
+          const stv = submission.data[subTeamField.id] || submission.data[subTeamField.label] || '';
+          let parsed = stv;
+          if (typeof stv === 'string') { try { parsed = JSON.parse(stv); } catch { /* */ } }
+          if (parsed && typeof parsed === 'object' && parsed.teamName) return parsed.teamName;
+        }
+      }
+      return raw || '';
     }
 
     if (field.type === 'dynamic-team-entries') {

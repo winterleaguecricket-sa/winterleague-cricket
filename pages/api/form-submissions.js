@@ -4,7 +4,7 @@
 import { query } from '../../lib/db';
 import { sendRegistrationEmail } from '../../lib/email';
 import { getFormTemplateById } from '../../data/forms';
-import { createProfile, getProfileByEmail } from '../../data/customers-db';
+import { createProfile, getProfileByEmail, updateProfile } from '../../data/customers-db';
 import { logApiError, logFormEvent } from '../../lib/logger';
 
 export const config = {
@@ -179,6 +179,8 @@ export default async function handler(req, res) {
                 phone: parentPhone,
                 teamId: matchedTeam?.id || null
               });
+            } else if (existingCustomer && !existingCustomer.teamId && matchedTeam?.id) {
+              await updateProfile(existingCustomer.id, { teamId: matchedTeam.id });
             }
           } catch (profileError) {
             console.log('Could not create customer profile:', profileError.message);
