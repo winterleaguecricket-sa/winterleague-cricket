@@ -6,48 +6,67 @@ import Script from 'next/script'
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
 
-// Google Analytics 4 Measurement ID
-// Replace G-XXXXXXXXXX with your actual GA4 Measurement ID from https://analytics.google.com
-const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_ID || 'G-XXXXXXXXXX'
-
 // Track page views on route change
-function usePageTracking() {
+function usePageTracking(gaId) {
   const router = useRouter()
 
   useEffect(() => {
     const handleRouteChange = (url) => {
-      if (typeof window !== 'undefined' && window.gtag && GA_MEASUREMENT_ID !== 'G-XXXXXXXXXX') {
-        window.gtag('config', GA_MEASUREMENT_ID, {
+      if (typeof window !== 'undefined' && window.gtag && gaId) {
+        window.gtag('config', gaId, {
           page_path: url,
         })
+      }
+      // Also send to local analytics
+      if (typeof window !== 'undefined') {
+        fetch('/api/analytics', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ page: url, referrer: document.referrer })
+        }).catch(() => {})
       }
     }
     router.events.on('routeChangeComplete', handleRouteChange)
     return () => router.events.off('routeChangeComplete', handleRouteChange)
-  }, [router.events])
+  }, [router.events, gaId])
+
+  // Track initial page load
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      fetch('/api/analytics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page: window.location.pathname, referrer: document.referrer })
+      }).catch(() => {})
+    }
+  }, [])
 }
 
 export default function MyApp({ Component, pageProps }) {
   const [faviconUrl, setFaviconUrl] = useState('/favicon.ico')
-  usePageTracking()
+  const [gaId, setGaId] = useState(null)
+  usePageTracking(gaId)
 
   useEffect(() => {
-    const loadFavicon = async () => {
+    const loadSiteConfig = async () => {
       try {
         const res = await fetch('/api/site-config')
         const data = await res.json()
-        if (data.success && data.config?.faviconUrl) {
-          setFaviconUrl(data.config.faviconUrl)
+        if (data.success && data.config) {
+          if (data.config.faviconUrl) {
+            setFaviconUrl(data.config.faviconUrl)
+          }
+          if (data.config.ga4MeasurementId && data.config.ga4MeasurementId.startsWith('G-')) {
+            setGaId(data.config.ga4MeasurementId)
+          }
         }
       } catch (error) {
-        // silent fallback to default
+        // silent fallback
       }
     }
 
-    loadFavicon()
+    loadSiteConfig()
   }, [])
-
-  const gaEnabled = GA_MEASUREMENT_ID && GA_MEASUREMENT_ID !== 'G-XXXXXXXXXX'
 
   return (
     <>
@@ -60,12 +79,12 @@ export default function MyApp({ Component, pageProps }) {
         <link rel="apple-touch-icon" href={faviconUrl} />
       </Head>
 
-      {/* Google Analytics 4 */}
-      {gaEnabled && (
+      {/* Google Analytics 4 — dynamically loaded from admin settings */}
+      {gaId && (
         <>
           <Script
             strategy="afterInteractive"
-            src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+            src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
           />
           <Script
             id="google-analytics"
@@ -75,7 +94,7 @@ export default function MyApp({ Component, pageProps }) {
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
-                gtag('config', '${GA_MEASUREMENT_ID}', {
+                gtag('config', '${gaId}', {
                   page_path: window.location.pathname,
                   send_page_view: true
                 });

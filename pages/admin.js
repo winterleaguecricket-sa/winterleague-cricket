@@ -325,6 +325,13 @@ export default function Admin() {
             <h3 className={styles.cardTitle}>Error Logs</h3>
             <p className={styles.cardDescription}>View server errors, form events, and system logs</p>
           </Link>
+          <Link href="/admin/analytics" className={styles.card}>
+            <div className={styles.cardIcon}>
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+            </div>
+            <h3 className={styles.cardTitle}>Analytics</h3>
+            <p className={styles.cardDescription}>View page views, traffic sources, and visitor insights</p>
+          </Link>
         </div>
       </main>
     </div>

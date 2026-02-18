@@ -15,6 +15,7 @@ const SECTION_OPTIONS = [
   { key: 'typography', label: '🔤 Typography', icon: 'typography' },
   { key: 'colors', label: '🎨 Color Theme', icon: 'palette' },
   { key: 'funnels', label: '🔗 Button Funnels', icon: 'link' },
+  { key: 'analytics', label: '📊 Analytics & Tracking', icon: 'analytics' },
 ];
 
 export default function AdminSettings() {
@@ -1069,6 +1070,140 @@ export default function AdminSettings() {
                 <button type="submit" className={styles.primaryButton}>
                   Save Changes
                 </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {activeSection === 'analytics' && (
+          <form onSubmit={handleSave}>
+            <div className={styles.sectionBody}>
+              <h2 className={styles.sectionTitle}>📊 Analytics & Tracking</h2>
+
+              {/* Connection Status */}
+              <div style={{
+                padding: '1rem 1.25rem',
+                borderRadius: '10px',
+                background: config.ga4MeasurementId && config.ga4MeasurementId.startsWith('G-') ? '#f0fdf4' : '#fef3c7',
+                border: config.ga4MeasurementId && config.ga4MeasurementId.startsWith('G-') ? '1px solid #86efac' : '1px solid #fcd34d',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem'
+              }}>
+                <span style={{ fontSize: '1.5rem' }}>
+                  {config.ga4MeasurementId && config.ga4MeasurementId.startsWith('G-') ? '✅' : '⚠️'}
+                </span>
+                <div>
+                  <strong style={{ color: '#111827' }}>
+                    {config.ga4MeasurementId && config.ga4MeasurementId.startsWith('G-')
+                      ? 'Google Analytics Connected'
+                      : 'Google Analytics Not Connected'}
+                  </strong>
+                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#6b7280' }}>
+                    {config.ga4MeasurementId && config.ga4MeasurementId.startsWith('G-')
+                      ? `Tracking with ${config.ga4MeasurementId}. View your analytics dashboard for insights.`
+                      : 'Add your GA4 Measurement ID below to start tracking visitors, page views, and conversions.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* GA4 Measurement ID */}
+              <div className={styles.formGroup}>
+                <label>GA4 Measurement ID</label>
+                <input
+                  type="text"
+                  value={config.ga4MeasurementId || ''}
+                  onChange={(e) => setConfig(prev => ({ ...prev, ga4MeasurementId: e.target.value.trim() }))}
+                  placeholder="G-XXXXXXXXXX"
+                  className={styles.input}
+                  style={{ fontFamily: 'monospace', letterSpacing: '0.5px' }}
+                />
+                <p className={styles.helpText}>
+                  Your GA4 Measurement ID starts with <strong>G-</strong> and can be found in your Google Analytics account.
+                </p>
+              </div>
+
+              {/* Looker Studio Embed URL */}
+              <div className={styles.formGroup}>
+                <label>Looker Studio Report URL (Optional)</label>
+                <input
+                  type="text"
+                  value={config.lookerStudioUrl || ''}
+                  onChange={(e) => setConfig(prev => ({ ...prev, lookerStudioUrl: e.target.value.trim() }))}
+                  placeholder="https://lookerstudio.google.com/embed/reporting/..."
+                  className={styles.input}
+                />
+                <p className={styles.helpText}>
+                  Paste your Looker Studio embed URL to view your analytics dashboard directly in the admin portal.
+                </p>
+              </div>
+
+              <div className={styles.buttonRow}>
+                <button type="submit" className={styles.primaryButton}>
+                  Save Analytics Settings
+                </button>
+                {config.ga4MeasurementId && config.ga4MeasurementId.startsWith('G-') && (
+                  <a
+                    href="/admin/analytics"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.75rem 1.5rem',
+                      background: '#1e40af',
+                      color: 'white',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontWeight: '600',
+                      fontSize: '0.95rem'
+                    }}
+                  >
+                    📊 View Analytics Dashboard
+                  </a>
+                )}
+              </div>
+
+              {/* Setup Guide */}
+              <div style={{
+                marginTop: '2rem',
+                padding: '1.5rem',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px'
+              }}>
+                <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', color: '#1e293b' }}>
+                  📋 How to Set Up Google Analytics 4
+                </h3>
+                <ol style={{ margin: 0, paddingLeft: '1.25rem', lineHeight: '2', color: '#475569' }}>
+                  <li>
+                    Go to <a href="https://analytics.google.com" target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb' }}>
+                      analytics.google.com
+                    </a> and sign in with your Google account
+                  </li>
+                  <li>Click <strong>Admin</strong> (gear icon) in the bottom-left</li>
+                  <li>Click <strong>+ Create Property</strong></li>
+                  <li>Enter property name (e.g. &quot;Winter League Cricket&quot;) and set timezone/currency</li>
+                  <li>Choose <strong>Web</strong> as your platform</li>
+                  <li>
+                    Enter your website URL: <code style={{ background: '#e2e8f0', padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.85rem' }}>
+                      winterleaguecricket.co.za
+                    </code>
+                  </li>
+                  <li>Copy your <strong>Measurement ID</strong> (starts with <strong>G-</strong>) and paste it above</li>
+                  <li>Click <strong>Save Analytics Settings</strong> — tracking starts immediately!</li>
+                </ol>
+
+                <div style={{ marginTop: '1.25rem', padding: '1rem', background: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                  <strong style={{ color: '#1e40af' }}>💡 Optional: Embed Your Dashboard</strong>
+                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: '#475569' }}>
+                    To view analytics directly in your admin portal, create a free report in{' '}
+                    <a href="https://lookerstudio.google.com" target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb' }}>
+                      Google Looker Studio
+                    </a>
+                    , connect it to your GA4 property, then click <strong>Share → Embed</strong> and paste the URL above.
+                  </p>
+                </div>
               </div>
             </div>
           </form>
