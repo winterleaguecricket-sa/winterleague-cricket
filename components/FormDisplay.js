@@ -9,6 +9,7 @@ import { useCart } from '../context/CartContext';
 import { getLandingPageByFormId } from '../data/landingPages';
 import FormLandingPage from './FormLandingPage';
 import ImageGalleryModal from './ImageGalleryModal';
+import { trackFormStart, trackFormStep, trackFormSubmit, trackFormError, trackTeamRegistration, trackPlayerRegistration } from '../lib/analytics';
 
 const Flatpickr = dynamic(() => import('react-flatpickr'), { ssr: false });
 
@@ -69,11 +70,20 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
   const additionalApparelDetailsRef = useRef(additionalApparelDetails);
   const playerLookupStateRef = useRef(playerLookupState);
   const draftTimerRef = useRef(null);
+  const formStartTracked = useRef(false);
 
   // Keep refs in sync with state
   useEffect(() => { formDataRef.current = formData; }, [formData]);
   useEffect(() => { additionalApparelDetailsRef.current = additionalApparelDetails; }, [additionalApparelDetails]);
   useEffect(() => { playerLookupStateRef.current = playerLookupState; }, [playerLookupState]);
+
+  // Track form_start when user first interacts (first formData change)
+  useEffect(() => {
+    if (!formStartTracked.current && Object.keys(formData).length > 0 && form?.id) {
+      formStartTracked.current = true;
+      trackFormStart(form.id, form.name);
+    }
+  }, [formData, form?.id, form?.name]);
 
   const getDraftKey = (formId) => `formDraft_${formId}`;
 
@@ -3116,10 +3126,12 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
       const currentIndex = orderedPages.findIndex(page => page.pageId === currentPage);
       const nextPage = orderedPages[currentIndex + 1];
       if (nextPage) {
+        trackFormStep(form.id, nextPage.pageId, nextPage.title || `Step ${nextPage.pageId}`);
         setCurrentPage(nextPage.pageId);
       }
       return;
     }
+    trackFormStep(form.id, currentPage + 1);
     setCurrentPage(prev => Math.min(prev + 1, totalPages));
   };
 
@@ -3336,6 +3348,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     if (missingFields.length > 0) {
       markMissingFields(missingFields);
       focusMissingField(missingFields[0]);
+      trackFormError(form.id, missingFields.length);
       setSubmitting(false);
       return;
     }
@@ -3511,6 +3524,19 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
       setSubmittedFormData(submittedData);
 
       setSubmitting(false);
+
+      // GA4: Track successful form submission
+      trackFormSubmit(form.id, form.name);
+
+      if (form.id === 1) {
+        const teamName = String(formData[1] || '').trim();
+        trackTeamRegistration(teamName);
+      }
+
+      if (form.id === 2) {
+        const entries = getPlayerEntries ? getPlayerEntries() : [];
+        trackPlayerRegistration(entries.length || 1);
+      }
 
       if (form.id === 2 && typeof window !== 'undefined') {
         // Don't clear formDraft yet — checkout page needs it for customer profile

@@ -7,6 +7,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../styles/channel.module.css';
 import { siteConfig } from '../data/products';
+import { trackCheckoutView, trackPaymentStart } from '../lib/analytics';
 
 export default function Checkout() {
   const { cart, cartLoaded, getCartTotal, clearCart } = useCart();
@@ -181,6 +182,12 @@ export default function Checkout() {
       }
 
       setIsLoading(false);
+
+      // GA4: Track checkout page view
+      if (cart.length > 0) {
+        const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        trackCheckoutView(total, cart.length);
+      }
     };
 
     loadAndCreateProfile();
@@ -373,6 +380,9 @@ export default function Checkout() {
 
     const orderTotal = getCartTotal().toFixed(2);
     const orderId = `ORD${Date.now()}`;
+
+    // GA4: Track payment initiation
+    trackPaymentStart(orderId, parseFloat(orderTotal), activeGateway);
 
     try {
       // ===== CREATE ORDER IN DATABASE =====

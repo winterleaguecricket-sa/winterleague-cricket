@@ -6,6 +6,7 @@ import { getFormTemplateById } from '../../data/forms';
 import nodemailer from 'nodemailer';
 import { getEmailTemplate } from '../../data/adminSettings';
 import { sendParentEmail, getSmtpConfig, createTransporter } from '../../lib/email';
+import { logApiError, logFormEvent } from '../../lib/logger';
 
 export default async function handler(req, res) {
   // GET - Fetch submissions
@@ -94,6 +95,9 @@ export default async function handler(req, res) {
 
       const submission = formatSubmission(result.rows[0]);
 
+      // Log successful form submission event
+      logFormEvent({ formId: formId, formName: form.name, email: customerEmail, action: 'submit' });
+
       return res.status(200).json({
         success: true,
         submission
@@ -101,6 +105,7 @@ export default async function handler(req, res) {
 
     } catch (error) {
       console.error('Form submission error:', error);
+      logApiError({ method: req.method, url: req.url, statusCode: 500, error, body: req.body });
       return res.status(500).json({ 
         error: 'Failed to submit form',
         details: error.message 

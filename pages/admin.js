@@ -318,6 +318,13 @@ export default function Admin() {
             <h3 className={styles.cardTitle}>Player Management</h3>
             <p className={styles.cardDescription}>New players to upload to CricClubs</p>
           </Link>
+          <Link href="/admin/error-logs" className={styles.card}>
+            <div className={styles.cardIcon}>
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+            </div>
+            <h3 className={styles.cardTitle}>Error Logs</h3>
+            <p className={styles.cardDescription}>View server errors, form events, and system logs</p>
+          </Link>
         </div>
       </main>
     </div>

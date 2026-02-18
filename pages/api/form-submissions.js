@@ -5,6 +5,7 @@ import { query } from '../../lib/db';
 import { sendRegistrationEmail } from '../../lib/email';
 import { getFormTemplateById } from '../../data/forms';
 import { createProfile, getProfileByEmail } from '../../data/customers-db';
+import { logApiError, logFormEvent } from '../../lib/logger';
 
 export const config = {
   api: {
@@ -450,6 +451,9 @@ export default async function handler(req, res) {
         await handlePlayerRegistration(data, submission);
       }
 
+      // Log successful form submission event
+      logFormEvent({ formId, formName: form?.name, email: data[3] || data[38] || null, action: 'submit' });
+
       return res.status(200).json({
         success: true,
         submission: submission,
@@ -458,6 +462,7 @@ export default async function handler(req, res) {
 
     } catch (error) {
       console.error('Form submission error:', error);
+      logApiError({ method: req.method, url: req.url, statusCode: 500, error, body: { formId: req.body?.formId } });
       return res.status(500).json({ error: 'Failed to submit form', details: error.message });
     }
   }

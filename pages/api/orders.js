@@ -16,6 +16,7 @@ import {
   getPlayerRegistrationStats,
   getTeamRegistrationStats
 } from '../../data/orders-db';
+import { logApiError, logPaymentEvent } from '../../lib/logger';
 
 export default async function handler(req, res) {
   try {
@@ -99,6 +100,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     console.error('Orders API error:', error);
+    logApiError({ method: req.method, url: req.url, statusCode: 500, error, body: req.body, query: req.query });
     return res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 }
