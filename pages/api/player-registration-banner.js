@@ -31,9 +31,8 @@ async function getBannerWithSeed() {
   try {
     const teamRes = await query('SELECT value FROM site_settings WHERE key = $1', ['team_registration_banner']);
     if (teamRes.rows.length > 0) {
-      const teamBanner = typeof teamRes.rows[0].value === 'string'
-        ? JSON.parse(teamRes.rows[0].value)
-        : teamRes.rows[0].value;
+      const rawVal = teamRes.rows[0].value;
+      const teamBanner = typeof rawVal === 'string' ? JSON.parse(rawVal) : rawVal;
       teamImageUrl = teamBanner?.imageUrl || '';
     }
   } catch (e) {

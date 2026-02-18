@@ -19,7 +19,8 @@ export default async function handler(req, res) {
       );
       
       if (result.rows.length > 0) {
-        const config = JSON.parse(result.rows[0].value);
+        const rawVal = result.rows[0].value;
+        const config = typeof rawVal === 'string' ? JSON.parse(rawVal) : rawVal;
         // Mask password for security - only show last 4 chars
         const maskedPassword = config.password 
           ? '•'.repeat(Math.max(0, config.password.length - 4)) + config.password.slice(-4)
@@ -69,7 +70,8 @@ export default async function handler(req, res) {
             "SELECT value FROM site_settings WHERE key = 'smtp_config'"
           );
           if (existing.rows.length > 0) {
-            const existingConfig = JSON.parse(existing.rows[0].value);
+            const rawExisting = existing.rows[0].value;
+            const existingConfig = typeof rawExisting === 'string' ? JSON.parse(rawExisting) : rawExisting;
             actualPassword = existingConfig.password || '';
           } else {
             return res.status(400).json({
