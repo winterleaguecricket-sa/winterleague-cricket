@@ -320,7 +320,9 @@ async function formatTeam(row) {
       jerseySize: p.jersey_size,
       jerseyNumber: p.jersey_number,
       position: p.position,
-      registrationData: typeof p.registration_data === 'string' ? JSON.parse(p.registration_data) : p.registration_data
+      registrationData: typeof p.registration_data === 'string' ? JSON.parse(p.registration_data) : p.registration_data,
+      createdAt: p.created_at,
+      addedAt: p.created_at
     })),
     revenue: revenueResult.rows.map(r => ({
       id: r.id,

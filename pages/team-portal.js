@@ -2045,7 +2045,7 @@ export default function TeamPortal() {
                                       </span>
                                     </td>
                                     <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#94a3b8' }}>
-                                      {new Date(player.addedAt).toLocaleDateString()}
+                                      {player.addedAt || player.createdAt ? new Date(player.addedAt || player.createdAt).toLocaleDateString() : '—'}
                                     </td>
                                     {(isAdminMode || isAuthenticated) && (
                                       <td style={{ padding: '0.75rem 1.5rem', textAlign: 'center' }}>

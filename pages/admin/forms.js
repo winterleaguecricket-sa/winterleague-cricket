@@ -784,6 +784,11 @@ export default function AdminForms() {
           } else if (field.type === 'sub-team-selector') {
             allFieldLabels.add(field.label + ' - Team');
             allFieldLabels.add(field.label + ' - Age Group');
+          } else if (field.type === 'submission-dropdown') {
+            allFieldLabels.add(field.label);
+            // Also add Team and Age Group columns — sub-team data stored in submission data
+            allFieldLabels.add(field.label + ' - Team');
+            allFieldLabels.add(field.label + ' - Age Group');
           } else {
             allFieldLabels.add(field.label);
           }
@@ -800,6 +805,7 @@ export default function AdminForms() {
       if (f.type === 'image-select-library') return label.startsWith(f.label);
       if (f.type === 'product-bundle') return label.startsWith(f.label);
       if (f.type === 'sub-team-selector') return label.startsWith(f.label);
+      if (f.type === 'submission-dropdown') return label.startsWith(f.label);
       return f.label === label;
     });
 
@@ -861,19 +867,48 @@ export default function AdminForms() {
 
     if (field.type === 'submission-dropdown') {
       const raw = submission.data[field.id] || submission.data[field.label] || '';
-      // Object with teamName (e.g. Odis: {"teamName": "Royal Falcons"})
+
+      // Helper: find sub-team data object from submission (scan all data keys)
+      const findSubTeamData = () => {
+        for (const key of Object.keys(submission.data || {})) {
+          if (String(key) === String(field.id)) continue; // skip the dropdown field itself
+          const val = submission.data[key];
+          if (val && typeof val === 'object' && val.teamName) return val;
+          if (typeof val === 'string' && val.startsWith('{')) {
+            try { const p = JSON.parse(val); if (p && p.teamName) return p; } catch { /* */ }
+          }
+        }
+        return null;
+      };
+
+      // Handle Team sub-column
+      if (label.endsWith(' - Team')) {
+        const subTeam = findSubTeamData();
+        if (subTeam) return subTeam.teamName || '';
+        // Fallback: extract from the dropdown value itself
+        if (raw && typeof raw === 'object') return raw.teamName || '';
+        return '';
+      }
+
+      // Handle Age Group sub-column
+      if (label.endsWith(' - Age Group')) {
+        const subTeam = findSubTeamData();
+        if (subTeam) {
+          const age = subTeam.ageGroup || '';
+          const gender = subTeam.gender || '';
+          return age ? age + (gender ? ' (' + gender + ')' : '') : '';
+        }
+        return '';
+      }
+
+      // Main column: resolve to team name
       if (raw && typeof raw === 'object') {
         return raw.teamName || raw.label || raw.name || '';
       }
-      // UUID string — get team name from sub-team-selector in same submission
+      // UUID string — get team name from sub-team data in same submission
       if (typeof raw === 'string' && raw.length > 20) {
-        const subTeamField = formFields.find(f => f.type === 'sub-team-selector');
-        if (subTeamField) {
-          const stv = submission.data[subTeamField.id] || submission.data[subTeamField.label] || '';
-          let parsed = stv;
-          if (typeof stv === 'string') { try { parsed = JSON.parse(stv); } catch { /* */ } }
-          if (parsed && typeof parsed === 'object' && parsed.teamName) return parsed.teamName;
-        }
+        const subTeam = findSubTeamData();
+        if (subTeam && subTeam.teamName) return subTeam.teamName;
       }
       return raw || '';
     }
@@ -2692,6 +2727,27 @@ export default function AdminForms() {
                                 const parts = [e.teamName, e.ageGroup, e.gender].filter(Boolean);
                                 return parts.join(' - ');
                               }).join(', ');
+                            } else if (field.type === 'submission-dropdown') {
+                              if (value && typeof value === 'object' && value.teamName) {
+                                displayValue = value.teamName;
+                              } else if (typeof value === 'string' && value.length > 20) {
+                                // UUID — try to find team name from sub-team data in same submission
+                                for (const dk of Object.keys(editingSubmission.data || {})) {
+                                  if (String(dk) === String(field.id)) continue;
+                                  const dv = editingSubmission.data[dk];
+                                  if (dv && typeof dv === 'object' && dv.teamName) { displayValue = dv.teamName; break; }
+                                  if (typeof dv === 'string' && dv.startsWith('{')) {
+                                    try { const p = JSON.parse(dv); if (p && p.teamName) { displayValue = p.teamName; break; } } catch { /* */ }
+                                  }
+                                }
+                              }
+                            } else if (field.type === 'sub-team-selector') {
+                              let parsed = value;
+                              if (typeof value === 'string') { try { parsed = JSON.parse(value); } catch { /* */ } }
+                              if (parsed && typeof parsed === 'object') {
+                                const parts = [parsed.teamName, parsed.ageGroup, parsed.gender].filter(Boolean);
+                                displayValue = parts.join(' - ');
+                              }
                             } else if (typeof value === 'object' && value !== null) {
                               displayValue = JSON.stringify(value);
                             }
@@ -2922,6 +2978,41 @@ export default function AdminForms() {
                         fromForm: true 
                       });
                       processedKeys.add(`${field.id}_size`);
+                    } else if (field.type === 'submission-dropdown') {
+                      // Resolve team name from submission-dropdown value
+                      const rawVal = viewingSubmission.data[field.label] !== undefined 
+                        ? viewingSubmission.data[field.label] 
+                        : viewingSubmission.data[field.id];
+                      let teamName = rawVal;
+                      if (rawVal && typeof rawVal === 'object' && rawVal.teamName) {
+                        teamName = rawVal.teamName;
+                      } else if (typeof rawVal === 'string' && rawVal.length > 20) {
+                        // UUID — try to find team name from sub-team data in same submission
+                        for (const dk of Object.keys(viewingSubmission.data || {})) {
+                          if (String(dk) === String(field.id) || dk === field.label) continue;
+                          const dv = viewingSubmission.data[dk];
+                          if (dv && typeof dv === 'object' && dv.teamName) { teamName = dv.teamName; break; }
+                          if (typeof dv === 'string' && dv.startsWith('{')) {
+                            try { const p = JSON.parse(dv); if (p && p.teamName) { teamName = p.teamName; break; } } catch { /* */ }
+                          }
+                        }
+                      }
+                      orderedData.push({ label: field.label, value: teamName, fromForm: true });
+                      processedKeys.add(field.label);
+                      processedKeys.add(field.id);
+                      // Also add sub-team info (team + age group) if available
+                      for (const dk of Object.keys(viewingSubmission.data || {})) {
+                        if (String(dk) === String(field.id) || dk === field.label) continue;
+                        const dv = viewingSubmission.data[dk];
+                        let parsed = dv;
+                        if (typeof dv === 'string' && dv.startsWith('{')) { try { parsed = JSON.parse(dv); } catch { /* */ } }
+                        if (parsed && typeof parsed === 'object' && parsed.teamName && parsed.ageGroup) {
+                          orderedData.push({ label: 'Sub-Team', value: parsed.teamName, fromForm: true });
+                          orderedData.push({ label: 'Age Group', value: parsed.ageGroup + (parsed.gender ? ' (' + parsed.gender + ')' : ''), fromForm: true });
+                          processedKeys.add(dk);
+                          break;
+                        }
+                      }
                     } else {
                       // Regular field - use label or field id
                       const fieldValue = value !== undefined ? value : viewingSubmission.data[field.id];
