@@ -1653,7 +1653,7 @@ export default function ParentPortal() {
                       </strong>
                       {order.items.map((item, idx) => (
                         <div key={idx} style={{ fontSize: '0.9rem', color: '#9ca3af', marginBottom: '0.25rem' }}>
-                          {item.quantity}x {item.name} {item.size ? '(' + item.size + ')' : ''}
+                          {item.quantity}x {item.name} {(item.selectedSize || item.size) ? '(' + (item.selectedSize || item.size) + ')' : ''}
                         </div>
                       ))}
                     </div>
@@ -1845,7 +1845,7 @@ export default function ParentPortal() {
                         {selectedOrder.items.map((item, idx) => (
                           <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <td style={{ padding: '0.75rem', color: '#f9fafb' }}>{item.name}</td>
-                            <td style={{ padding: '0.75rem', color: '#9ca3af' }}>{item.size || '-'}</td>
+                            <td style={{ padding: '0.75rem', color: '#9ca3af' }}>{item.selectedSize || item.size || '-'}</td>
                             <td style={{ padding: '0.75rem', textAlign: 'center', color: '#9ca3af' }}>{item.quantity}</td>
                             <td style={{ padding: '0.75rem', textAlign: 'right', color: '#9ca3af' }}>{formatCurrency(item.price)}</td>
                             <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#f9fafb' }}>

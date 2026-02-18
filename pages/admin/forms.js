@@ -779,7 +779,8 @@ export default function AdminForms() {
             allFieldLabels.add(field.label + ' - Primary Color');
             allFieldLabels.add(field.label + ' - Secondary Color');
           } else if (field.type === 'product-bundle') {
-            allFieldLabels.add(field.label + ' - Size');
+            allFieldLabels.add(field.label + ' - Shirt Size');
+            allFieldLabels.add(field.label + ' - Pants Size');
           } else {
             allFieldLabels.add(field.label);
           }
@@ -832,7 +833,13 @@ export default function AdminForms() {
     }
 
     if (field.type === 'product-bundle') {
-      return submission.data[`${field.id}_size`] || '';
+      if (label.includes('Shirt Size')) {
+        return submission.data[`${field.id}_shirtSize`] || submission.data[`${field.id}_size`] || '';
+      }
+      if (label.includes('Pants Size')) {
+        return submission.data[`${field.id}_pantsSize`] || '';
+      }
+      return submission.data[`${field.id}_shirtSize`] || submission.data[`${field.id}_size`] || '';
     }
 
     if (field.type === 'dynamic-team-entries') {
