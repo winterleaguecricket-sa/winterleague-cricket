@@ -42,10 +42,63 @@ function usePageTracking(gaId) {
   }, [])
 }
 
+// Live visitor heartbeat — pings /api/visitors every 30s so admin can see active users
+function useVisitorHeartbeat() {
+  const router = useRouter()
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    // Skip heartbeat on admin pages to not inflate visitor count
+    if (window.location.pathname.startsWith('/admin')) return
+
+    // Generate or retrieve a unique visitor ID for this browser session
+    let visitorId = sessionStorage.getItem('_vid')
+    if (!visitorId) {
+      visitorId = Math.random().toString(36).substring(2) + Date.now().toString(36)
+      sessionStorage.setItem('_vid', visitorId)
+    }
+
+    const sendHeartbeat = () => {
+      // Don't send heartbeats from admin pages
+      if (window.location.pathname.startsWith('/admin')) return
+      fetch('/api/visitors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitorId, page: window.location.pathname })
+      }).catch(() => {})
+    }
+
+    // Send immediately on first load
+    sendHeartbeat()
+
+    // Then every 30 seconds
+    const interval = setInterval(sendHeartbeat, 30000)
+
+    // On route change, send heartbeat with new page
+    const handleRouteChange = () => sendHeartbeat()
+    router.events.on('routeChangeComplete', handleRouteChange)
+
+    // On page close, notify server
+    const handleUnload = () => {
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon('/api/visitors', JSON.stringify({ visitorId, _delete: true }))
+      }
+    }
+    window.addEventListener('beforeunload', handleUnload)
+
+    return () => {
+      clearInterval(interval)
+      router.events.off('routeChangeComplete', handleRouteChange)
+      window.removeEventListener('beforeunload', handleUnload)
+    }
+  }, [])
+}
+
 export default function MyApp({ Component, pageProps }) {
   const [faviconUrl, setFaviconUrl] = useState('/favicon.ico')
   const [gaId, setGaId] = useState(null)
   usePageTracking(gaId)
+  useVisitorHeartbeat()
 
   useEffect(() => {
     const loadSiteConfig = async () => {

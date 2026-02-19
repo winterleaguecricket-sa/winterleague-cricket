@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 
@@ -7,6 +7,8 @@ export default function AdminAnalytics() {
   const [siteConfig, setSiteConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [liveData, setLiveData] = useState(null);
+  const [liveLoading, setLiveLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -27,6 +29,28 @@ export default function AdminAnalytics() {
     };
     fetchData();
   }, []);
+
+  // Fetch live visitor data
+  const fetchLiveVisitors = useCallback(async () => {
+    try {
+      setLiveLoading(true);
+      const res = await fetch('/api/visitors');
+      const data = await res.json();
+      if (data.success) setLiveData(data);
+    } catch (e) {
+      console.error('Error fetching live visitors:', e);
+    } finally {
+      setLiveLoading(false);
+    }
+  }, []);
+
+  // Auto-refresh live visitors when on that tab
+  useEffect(() => {
+    if (activeTab !== 'live') return;
+    fetchLiveVisitors();
+    const interval = setInterval(fetchLiveVisitors, 10000); // refresh every 10s
+    return () => clearInterval(interval);
+  }, [activeTab, fetchLiveVisitors]);
 
   const gaConnected = siteConfig?.ga4MeasurementId && siteConfig.ga4MeasurementId.startsWith('G-');
   const lookerUrl = siteConfig?.lookerStudioUrl;
@@ -107,6 +131,7 @@ export default function AdminAnalytics() {
       }}>
         {[
           { key: 'overview', label: 'Overview' },
+          { key: 'live', label: `🟢 Live Visitors${liveData ? ` (${liveData.totalActive})` : ''}` },
           { key: 'pages', label: 'Top Pages' },
           { key: 'referrers', label: 'Referrers' },
           ...(lookerUrl ? [{ key: 'ga-dashboard', label: 'GA4 Dashboard' }] : []),
@@ -132,6 +157,214 @@ export default function AdminAnalytics() {
       </div>
 
       <main style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+
+        {/* LIVE VISITORS TAB */}
+        {activeTab === 'live' && (
+          <>
+            {/* Live count banner */}
+            <div style={{
+              background: 'linear-gradient(135deg, #065f46 0%, #064e3b 100%)',
+              borderRadius: '16px',
+              padding: '2rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1rem',
+              border: '1px solid #10b981'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{
+                  width: '60px', height: '60px', borderRadius: '50%',
+                  background: 'rgba(16, 185, 129, 0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '1.5rem'
+                }}>🟢</div>
+                <div>
+                  <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#ecfdf5', lineHeight: 1 }}>
+                    {liveData?.totalActive || 0}
+                  </div>
+                  <div style={{ color: '#a7f3d0', fontSize: '0.95rem', fontWeight: 600, marginTop: '0.25rem' }}>
+                    {liveData?.totalActive === 1 ? 'Active Visitor' : 'Active Visitors'} Right Now
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={fetchLiveVisitors}
+                disabled={liveLoading}
+                style={{
+                  padding: '0.5rem 1.25rem',
+                  background: 'rgba(255,255,255,0.15)',
+                  border: '1px solid rgba(255,255,255,0.25)',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: liveLoading ? 'wait' : 'pointer'
+                }}
+              >
+                {liveLoading ? '⟳ Refreshing...' : '⟳ Refresh'}
+              </button>
+            </div>
+
+            {/* Stats row under banner */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              {/* Device breakdown */}
+              {liveData?.devices && Object.entries(liveData.devices).map(([device, count]) => (
+                <div key={device} style={{
+                  background: '#1e293b', borderRadius: '12px', padding: '1.25rem',
+                  border: '1px solid #334155', textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.35rem' }}>
+                    {device === 'Mobile' ? '📱' : device === 'Tablet' ? '📟' : '💻'}
+                  </div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f1f5f9' }}>{count}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>{device}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="liveVisitorsGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              {/* Locations */}
+              <div style={{
+                background: '#1e293b', borderRadius: '12px',
+                border: '1px solid #334155', overflow: 'hidden'
+              }}>
+                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #334155', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '1.1rem' }}>🌍</span>
+                  <h3 style={{ margin: 0, fontSize: '1rem', color: '#e2e8f0' }}>Visitor Locations</h3>
+                </div>
+                {liveData?.locations?.length > 0 ? (
+                  <div style={{ padding: '0' }}>
+                    {liveData.locations.map((loc, i) => (
+                      <div key={i} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '0.85rem 1.5rem',
+                        borderBottom: i < liveData.locations.length - 1 ? '1px solid #1e293b' : 'none',
+                        background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <span style={{ fontSize: '1.1rem' }}>
+                            {getFlagEmoji(loc.countryCode)}
+                          </span>
+                          <div>
+                            <div style={{ fontWeight: 600, color: '#e2e8f0', fontSize: '0.9rem' }}>
+                              {loc.city || loc.country}
+                            </div>
+                            {loc.city && (
+                              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{loc.country}</div>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{
+                          background: '#10b981', color: 'white',
+                          padding: '0.25rem 0.65rem', borderRadius: '12px',
+                          fontWeight: 700, fontSize: '0.8rem', minWidth: '28px', textAlign: 'center'
+                        }}>
+                          {loc.count}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                    No active visitors at the moment
+                  </div>
+                )}
+              </div>
+
+              {/* Current Pages */}
+              <div style={{
+                background: '#1e293b', borderRadius: '12px',
+                border: '1px solid #334155', overflow: 'hidden'
+              }}>
+                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #334155', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '1.1rem' }}>📄</span>
+                  <h3 style={{ margin: 0, fontSize: '1rem', color: '#e2e8f0' }}>Pages Being Viewed</h3>
+                </div>
+                {liveData?.currentPages?.length > 0 ? (
+                  <div style={{ padding: '0' }}>
+                    {liveData.currentPages.map((item, i) => (
+                      <div key={i} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '0.85rem 1.5rem',
+                        borderBottom: i < liveData.currentPages.length - 1 ? '1px solid #1e293b' : 'none',
+                        background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'
+                      }}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.9rem', color: '#e2e8f0' }}>
+                          {item.page}
+                        </span>
+                        <span style={{
+                          background: '#3b82f6', color: 'white',
+                          padding: '0.25rem 0.65rem', borderRadius: '12px',
+                          fontWeight: 700, fontSize: '0.8rem'
+                        }}>
+                          {item.count}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                    No pages being viewed
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Individual Visitors */}
+            {liveData?.visitors?.length > 0 && (
+              <div style={{
+                marginTop: '1.5rem', background: '#1e293b', borderRadius: '12px',
+                border: '1px solid #334155', overflow: 'hidden'
+              }}>
+                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #334155' }}>
+                  <h3 style={{ margin: 0, fontSize: '1rem', color: '#e2e8f0' }}>Active Sessions</h3>
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #334155' }}>
+                        <th style={{ textAlign: 'left', padding: '0.75rem 1.5rem', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600 }}>Visitor</th>
+                        <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600 }}>Location</th>
+                        <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600 }}>Current Page</th>
+                        <th style={{ textAlign: 'left', padding: '0.75rem', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600 }}>Device</th>
+                        <th style={{ textAlign: 'right', padding: '0.75rem 1.5rem', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600 }}>Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {liveData.visitors.map((v, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                          <td style={{ padding: '0.75rem 1.5rem' }}>
+                            <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#94a3b8' }}>#{v.visitorId}</span>
+                          </td>
+                          <td style={{ padding: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span>{getFlagEmoji(v.geo?.countryCode)}</span>
+                              <span style={{ color: '#e2e8f0', fontSize: '0.85rem' }}>{v.geo?.city || v.geo?.country || 'Unknown'}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '0.75rem', fontFamily: 'monospace', fontSize: '0.85rem', color: '#60a5fa' }}>{v.page}</td>
+                          <td style={{ padding: '0.75rem' }}>
+                            <span style={{ fontSize: '0.9rem' }}>{v.device === 'Mobile' ? '📱' : v.device === 'Tablet' ? '📟' : '💻'}</span>
+                          </td>
+                          <td style={{ padding: '0.75rem 1.5rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600 }}>
+                            {formatDuration(v.duration)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: '#475569', textAlign: 'center' }}>
+              Auto-refreshes every 10 seconds • Visitors are tracked via heartbeat pings • Admin pages are excluded
+            </div>
+          </>
+        )}
 
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
@@ -382,6 +615,13 @@ export default function AdminAnalytics() {
         )}
 
       </main>
+      <style jsx global>{`
+        @media (max-width: 768px) {
+          .liveVisitorsGrid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -411,6 +651,29 @@ function StatCard({ label, value, subtitle, color }) {
       </div>
     </div>
   );
+}
+
+function formatDuration(seconds) {
+  if (!seconds || seconds < 0) return '0s';
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (mins < 60) return `${mins}m ${secs}s`;
+  const hrs = Math.floor(mins / 60);
+  return `${hrs}h ${mins % 60}m`;
+}
+
+function getFlagEmoji(countryCode) {
+  if (!countryCode || countryCode.length !== 2) return '🌍';
+  const codePoints = countryCode
+    .toUpperCase()
+    .split('')
+    .map(char => 127397 + char.charCodeAt(0));
+  try {
+    return String.fromCodePoint(...codePoints);
+  } catch {
+    return '🌍';
+  }
 }
 
 export async function getServerSideProps() {
