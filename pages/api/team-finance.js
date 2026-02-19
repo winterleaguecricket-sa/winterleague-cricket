@@ -36,7 +36,13 @@ export default async function handler(req, res) {
         }
 
         const result = await query(
-          `SELECT * FROM team_revenue WHERE team_id = $1 ORDER BY created_at DESC`,
+          `SELECT tr.*, tp.player_name
+           FROM team_revenue tr
+           LEFT JOIN team_players tp 
+             ON tp.team_id = tr.team_id 
+             AND tp.registration_data->>'formSubmissionId' = tr.reference_id
+           WHERE tr.team_id = $1 
+           ORDER BY tr.created_at DESC`,
           [teamId]
         );
 
@@ -53,14 +59,23 @@ export default async function handler(req, res) {
         });
         
         return res.status(200).json({ 
-          revenue: result.rows.map(r => ({
-            id: r.id,
-            type: r.revenue_type,
-            amount: parseFloat(r.amount || 0),
-            description: r.description,
-            referenceId: r.reference_id,
-            date: r.created_at
-          })),
+          revenue: result.rows.map(r => {
+            // Extract player name from joined table or from description
+            let playerName = r.player_name || '';
+            if (!playerName && r.description) {
+              const match = r.description.match(/player:\s*(.+?)(?:\s*\(|$)/i);
+              if (match) playerName = match[1].trim();
+            }
+            return {
+              id: r.id,
+              type: r.revenue_type,
+              amount: parseFloat(r.amount || 0),
+              description: r.description,
+              playerName,
+              referenceId: r.reference_id,
+              date: r.created_at
+            };
+          }),
           total: markup + commission,
           markup,
           commission
