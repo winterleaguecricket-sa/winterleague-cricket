@@ -1324,7 +1324,7 @@ export default function ParentPortal() {
                     overflow: 'hidden'
                   }}>
                     {/* Red gradient header */}
-                    <div style={{
+                    <div className="teamGroupHeader" style={{
                       background: 'linear-gradient(135deg, #dc0000 0%, #b30000 100%)',
                       padding: '1rem 1.5rem',
                       display: 'flex',
@@ -1411,11 +1411,12 @@ export default function ParentPortal() {
                     )}
 
                     {/* Players table (read-only) */}
-                    <div style={{ overflowX: 'auto' }}>
+                    {/* Desktop table */}
+                    <div className="teamPlayersTable" style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                           <tr style={{ background: '#0f172a' }}>
-                            <th style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>#</th>
+                            <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>#</th>
                             <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>Name</th>
                             <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>Roles</th>
                             <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: '700', color: '#cbd5e1' }}>Shirt No.</th>
@@ -1438,7 +1439,7 @@ export default function ParentPortal() {
                                   background: isMyPlayer ? 'rgba(220, 0, 0, 0.08)' : 'transparent',
                                   borderLeft: isMyPlayer ? '3px solid rgba(220, 0, 0, 0.6)' : '3px solid transparent'
                                 }}>
-                                  <td style={{ padding: '0.75rem 1.5rem', fontSize: '0.9rem', color: '#94a3b8' }}>
+                                  <td style={{ padding: '0.75rem 1rem', fontSize: '0.9rem', color: '#94a3b8' }}>
                                     {index + 1}
                                   </td>
                                   <td style={{ padding: '0.75rem', fontSize: '0.95rem', color: isMyPlayer ? '#fca5a5' : '#f9fafb', fontWeight: '600' }}>
@@ -1489,6 +1490,77 @@ export default function ParentPortal() {
                           )}
                         </tbody>
                       </table>
+                    </div>
+                    {/* Mobile stacked cards */}
+                    <div className="teamPlayersMobile" style={{ display: 'none', padding: '0.75rem' }}>
+                      {group.players.length === 0 ? (
+                        <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280', fontSize: '0.95rem' }}>
+                          No players registered yet
+                        </div>
+                      ) : (
+                        group.players.map((player, index) => {
+                          const isMyPlayer = (player.playerEmail || '').toLowerCase() === (profile?.email || '').toLowerCase();
+                          return (
+                            <div key={player.id || index} style={{
+                              background: isMyPlayer ? 'rgba(220, 0, 0, 0.08)' : 'rgba(255,255,255,0.03)',
+                              border: isMyPlayer ? '1px solid rgba(220, 0, 0, 0.35)' : '1px solid rgba(255,255,255,0.06)',
+                              borderRadius: '10px',
+                              padding: '0.85rem',
+                              marginBottom: '0.6rem'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span style={{
+                                    background: 'rgba(255,255,255,0.08)',
+                                    color: '#94a3b8',
+                                    width: '24px', height: '24px',
+                                    borderRadius: '50%',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '0.75rem', fontWeight: 700, flexShrink: 0
+                                  }}>{index + 1}</span>
+                                  <span style={{ fontWeight: 700, color: isMyPlayer ? '#fca5a5' : '#f9fafb', fontSize: '0.95rem' }}>
+                                    {player.name || player.playerName || '-'}
+                                  </span>
+                                  {isMyPlayer && <span style={{ fontSize: '0.65rem', background: 'rgba(220,0,0,0.3)', color: '#fca5a5', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 700 }}>YOU</span>}
+                                </div>
+                                <span style={{
+                                  background: '#1f2937',
+                                  padding: '0.2rem 0.6rem',
+                                  borderRadius: '6px',
+                                  fontWeight: 700,
+                                  color: '#f9fafb',
+                                  fontSize: '0.8rem',
+                                  border: '1px solid rgba(255,255,255,0.08)'
+                                }}>#{player.shirtNumber || player.jerseyNumber || '-'}</span>
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+                                {(player.roles || player.registrationData?.roles) ? (
+                                  (Array.isArray(player.roles || player.registrationData?.roles)
+                                    ? (player.roles || player.registrationData?.roles)
+                                    : [player.roles || player.registrationData?.roles]
+                                  ).map((role, idx) => (
+                                    <span key={idx} style={{
+                                      display: 'inline-block',
+                                      background: 'rgba(59, 130, 246, 0.2)',
+                                      color: '#bfdbfe',
+                                      border: '1px solid rgba(59, 130, 246, 0.35)',
+                                      padding: '0.15rem 0.45rem',
+                                      borderRadius: '4px',
+                                      fontSize: '0.7rem',
+                                      fontWeight: 600
+                                    }}>{role}</span>
+                                  ))
+                                ) : <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>No roles</span>}
+                                {(player.addedAt || player.createdAt) && (
+                                  <span style={{ fontSize: '0.75rem', color: '#6b7280', marginLeft: 'auto' }}>
+                                    {new Date(player.addedAt || player.createdAt).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1797,7 +1869,7 @@ export default function ParentPortal() {
               boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
               border: '1px solid rgba(255,255,255,0.1)'
             }}>
-              <div style={{
+              <div className="orderModalHeader" style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 padding: '1.5rem 2rem',
                 background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
@@ -1819,12 +1891,13 @@ export default function ParentPortal() {
                 </button>
               </div>
 
-              <div style={{ padding: '2rem' }}>
+              <div className="orderModalBody" style={{ padding: '2rem' }}>
                 <section style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                   <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', fontWeight: 900, color: '#f9fafb' }}>
                     Order Items
                   </h3>
-                  <div style={{ overflowX: 'auto' }}>
+                  {/* Desktop table */}
+                  <div className="orderItemsTable" style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr>
@@ -1859,13 +1932,71 @@ export default function ParentPortal() {
                           <td colSpan="4" style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#94a3b8' }}>Subtotal:</td>
                           <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#f9fafb' }}>{formatCurrency(selectedOrder.subtotal)}</td>
                         </tr>
-
                         <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
                           <td colSpan="4" style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, fontSize: '1.1rem', color: '#f9fafb' }}>Total:</td>
                           <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 900, fontSize: '1.1rem', color: '#f87171' }}>{formatCurrency(selectedOrder.total)}</td>
                         </tr>
                       </tfoot>
                     </table>
+                  </div>
+                  {/* Mobile stacked cards */}
+                  <div className="orderItemsMobile" style={{ display: 'none' }}>
+                    {selectedOrder.items.map((item, idx) => (
+                      <div key={idx} style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '10px',
+                        padding: '1rem',
+                        marginBottom: '0.75rem'
+                      }}>
+                        <div style={{ fontWeight: 700, color: '#f9fafb', fontSize: '0.95rem', marginBottom: '0.75rem' }}>
+                          {item.name}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                          <div>
+                            <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Size</span>
+                            <div style={{ color: '#e2e8f0', fontSize: '0.9rem', fontWeight: 600 }}>{item.selectedSize || item.size || '-'}</div>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Qty</span>
+                            <div style={{ color: '#e2e8f0', fontSize: '0.9rem', fontWeight: 600 }}>{item.quantity}</div>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Price</span>
+                            <div style={{ color: '#e2e8f0', fontSize: '0.9rem', fontWeight: 600 }}>{formatCurrency(item.price)}</div>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Total</span>
+                            <div style={{ color: '#f9fafb', fontSize: '0.9rem', fontWeight: 700 }}>{formatCurrency(item.price * item.quantity)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      borderRadius: '10px',
+                      padding: '1rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: '0.5rem'
+                    }}>
+                      <span style={{ fontWeight: 600, color: '#94a3b8', fontSize: '0.9rem' }}>Subtotal:</span>
+                      <span style={{ fontWeight: 600, color: '#f9fafb', fontSize: '0.95rem' }}>{formatCurrency(selectedOrder.subtotal)}</span>
+                    </div>
+                    <div style={{
+                      background: 'linear-gradient(135deg, rgba(220,0,0,0.15) 0%, rgba(220,0,0,0.08) 100%)',
+                      border: '1px solid rgba(248,113,113,0.3)',
+                      borderRadius: '10px',
+                      padding: '1rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: '0.5rem'
+                    }}>
+                      <span style={{ fontWeight: 700, color: '#f9fafb', fontSize: '1.05rem' }}>Total:</span>
+                      <span style={{ fontWeight: 900, color: '#f87171', fontSize: '1.15rem' }}>{formatCurrency(selectedOrder.total)}</span>
+                    </div>
                   </div>
                 </section>
 
@@ -2134,6 +2265,35 @@ export default function ParentPortal() {
           }
           .parentInfoGrid {
             grid-template-columns: 1fr !important;
+          }
+          /* Order modal mobile */
+          .orderModalBody {
+            padding: 1rem !important;
+          }
+          .orderModalHeader {
+            padding: 1rem 1.25rem !important;
+          }
+          .orderModalHeader h2 {
+            font-size: 1.15rem !important;
+          }
+          .orderItemsTable {
+            display: none !important;
+          }
+          .orderItemsMobile {
+            display: block !important;
+          }
+          /* Team players table mobile */
+          .teamPlayersTable {
+            display: none !important;
+          }
+          .teamPlayersMobile {
+            display: block !important;
+          }
+          /* Team group header mobile */
+          .teamGroupHeader {
+            flex-direction: column !important;
+            gap: 0.75rem !important;
+            padding: 0.85rem 1rem !important;
           }
         }
 
