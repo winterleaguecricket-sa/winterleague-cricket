@@ -577,11 +577,12 @@ export default function TeamPortal() {
       });
 
       // Update form_submissions table
-      if (team.formSubmissionId) {
+      const submissionId = team.formSubmissionId || team.formSubmissionUuid;
+      if (submissionId) {
         await fetch('/api/submissions', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: team.formSubmissionId, data: nextSubmissionData })
+          body: JSON.stringify({ id: submissionId, data: nextSubmissionData })
         });
       }
 

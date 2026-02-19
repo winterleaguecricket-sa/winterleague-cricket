@@ -293,7 +293,8 @@ async function formatTeam(row) {
 
   return {
     id: row.id,
-    formSubmissionId: row.form_submission_id,
+    formSubmissionId: row.form_submission_id || row.form_submission_uuid,
+    formSubmissionUuid: row.form_submission_uuid,
     teamName: row.team_name,
     coachName: row.coach_name || row.manager_name,
     managerName: row.manager_name,
