@@ -123,6 +123,7 @@ export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingPayouts, setPendingPayouts] = useState(0);
 
   useEffect(() => {
     // Check if already authenticated in session
@@ -133,6 +134,22 @@ export default function Admin() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetchPendingPayouts = async () => {
+      try {
+        const res = await fetch('/api/team-finance?action=allPayouts');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setPendingPayouts(data.filter(p => p.status === 'pending').length);
+        }
+      } catch (err) {
+        console.log('Could not fetch pending payouts:', err.message);
+      }
+    };
+    fetchPendingPayouts();
+  }, [isAuthenticated]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -255,7 +272,16 @@ export default function Admin() {
             <p className={styles.cardDescription}>View and manage customer orders</p>
           </Link>
 
-          <Link href="/admin/payouts" className={styles.card}>
+          <Link href="/admin/payouts" className={styles.card} style={{ position: 'relative' }}>
+            {pendingPayouts > 0 && (
+              <span style={{
+                position: 'absolute', top: 8, right: 8,
+                background: '#ef4444', color: '#fff',
+                borderRadius: '50%', width: 24, height: 24,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, fontWeight: 700
+              }}>{pendingPayouts}</span>
+            )}
             <div className={styles.cardIcon}>{dashboardIcons.payouts}</div>
             <h3 className={styles.cardTitle}>Payouts</h3>
             <p className={styles.cardDescription}>Track and manage payment distributions</p>

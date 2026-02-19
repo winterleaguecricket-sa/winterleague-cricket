@@ -227,6 +227,35 @@ export default async function handler(req, res) {
                   JSON.stringify(registrationData)
                 ]
               );
+
+              // Record kit markup revenue for the team
+              try {
+                const teamRow = await query(
+                  `SELECT kit_pricing FROM teams WHERE id = $1`,
+                  [matchedTeam.id]
+                );
+                const kitPricing = teamRow.rows[0]?.kit_pricing;
+                if (kitPricing) {
+                  const pricing = typeof kitPricing === 'string' ? JSON.parse(kitPricing) : kitPricing;
+                  const markup = parseFloat(pricing.markup) || 0;
+                  if (markup > 0) {
+                    await query(
+                      `INSERT INTO team_revenue (team_id, revenue_type, amount, description, reference_id)
+                       VALUES ($1, $2, $3, $4, $5)`,
+                      [
+                        matchedTeam.id,
+                        'player-registration-markup',
+                        markup,
+                        `Kit markup for player: ${playerName}`,
+                        String(submissionData?.id || '')
+                      ]
+                    );
+                    console.log(`Recorded R${markup} kit markup revenue for team ${matchedTeam.id}, player: ${playerName}`);
+                  }
+                }
+              } catch (revenueError) {
+                console.log('Could not record kit markup revenue:', revenueError.message);
+              }
             }
           } catch (playerInsertError) {
             console.log('Could not create team player:', playerInsertError.message);
