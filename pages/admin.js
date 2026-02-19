@@ -224,6 +224,8 @@ export default function Admin() {
                 setIsAuthenticated(false);
                 if (typeof window !== 'undefined') {
                   sessionStorage.removeItem('adminAuth');
+                  // Clear admin cookie used by middleware
+                  document.cookie = 'adminAuth=; Path=/; Max-Age=0';
                 }
               }} 
               className={styles.logoutButton}

@@ -173,10 +173,11 @@ function Home() {
 
   if (!homepageConfig) return null;
 
-  const isPreview = router.query.preview === '1' || router.query.preview === 'true';
   const comingSoonEnabled = homepageConfig.siteAccess?.comingSoonEnabled;
 
-  if (comingSoonEnabled && !isPreview) {
+  // Preview bypass is now handled by middleware via admin cookie
+  // If we still reached here with comingSoon on, show the coming soon page
+  if (comingSoonEnabled && !(router.query.preview === '1')) {
     return <ComingSoon config={homepageConfig} />;
   }
 

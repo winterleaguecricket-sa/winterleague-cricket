@@ -48,6 +48,8 @@ export default function handler(req, res) {
     const validPassword = storedPassword || envPassword || defaultPassword;
 
     if (password === validPassword) {
+      // Set httpOnly cookie so middleware can verify admin access
+      res.setHeader('Set-Cookie', 'adminAuth=1; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400');
       return res.status(200).json({ authenticated: true });
     }
 
