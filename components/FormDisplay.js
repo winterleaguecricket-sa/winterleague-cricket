@@ -4586,16 +4586,16 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                               {!lookupState.loading && lookupState.searched && (lookupState.results || []).length > 0 && (
                                 <div style={{
                                   marginTop: '10px',
-                                  padding: '14px',
+                                  padding: '10px',
                                   background: '#0f172a',
                                   borderRadius: '12px',
                                   border: '1px solid rgba(220, 38, 38, 0.4)',
                                 }}>
                                   <div style={{
                                     color: '#dc2626',
-                                    fontSize: '0.95rem',
+                                    fontSize: '0.85rem',
                                     fontWeight: '700',
-                                    marginBottom: '12px',
+                                    marginBottom: '10px',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '8px'
@@ -4617,7 +4617,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                             }
                                           }}
                                           style={{
-                                            padding: '12px 14px',
+                                            padding: '10px',
                                             background: isSelected
                                               ? '#2a1520'
                                               : '#0b1120',
@@ -4628,10 +4628,10 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                             cursor: 'pointer',
                                           }}
                                         >
-                                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                                             <div style={{
-                                              width: '24px',
-                                              height: '24px',
+                                              width: '22px',
+                                              height: '22px',
                                               borderRadius: '6px',
                                               border: isSelected
                                                 ? '2px solid #dc2626'
@@ -4646,34 +4646,35 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                               marginTop: '2px',
                                             }}>
                                               {isSelected && (
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
                                                   <polyline points="20 6 9 17 4 12"></polyline>
                                                 </svg>
                                               )}
                                             </div>
-                                            <div style={{ flex: 1 }}>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
                                               <div style={{
                                                 fontWeight: '700',
                                                 color: '#fff',
-                                                fontSize: '1rem',
-                                                marginBottom: '4px'
+                                                fontSize: '0.9rem',
+                                                marginBottom: '3px',
+                                                lineHeight: '1.3'
                                               }}>
                                                 {player.name}
-                                                {isSelected && <span style={{ marginLeft: '8px', color: '#22c55e', fontSize: '0.85rem' }}>✓ Selected</span>}
+                                                {isSelected && <span style={{ marginLeft: '6px', color: '#22c55e', fontSize: '0.8rem' }}>✓ Selected</span>}
                                               </div>
                                               <div style={{
-                                                fontSize: '0.85rem',
+                                                fontSize: '0.8rem',
                                                 color: 'rgba(255,255,255,0.7)',
                                                 display: 'flex',
                                                 flexWrap: 'wrap',
-                                                gap: '8px'
+                                                gap: '6px'
                                               }}>
                                                 {player.team && (
                                                   <span style={{
                                                     background: 'rgba(220, 38, 38, 0.2)',
-                                                    padding: '2px 8px',
+                                                    padding: '2px 6px',
                                                     borderRadius: '4px',
-                                                    fontSize: '0.8rem'
+                                                    fontSize: '0.75rem'
                                                   }}>
                                                     {player.team}
                                                   </span>
@@ -4681,38 +4682,46 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                                                 {player.series && (
                                                   <span style={{
                                                     background: 'rgba(255, 255, 255, 0.1)',
-                                                    padding: '2px 8px',
+                                                    padding: '2px 6px',
                                                     borderRadius: '4px',
-                                                    fontSize: '0.8rem'
+                                                    fontSize: '0.75rem'
                                                   }}>
                                                     {player.series}
                                                   </span>
                                                 )}
                                               </div>
-                                              <a
-                                                href={player.profileUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                onClick={(e) => e.stopPropagation()}
-                                                style={{
-                                                  display: 'inline-block',
-                                                  marginTop: '8px',
-                                                  fontSize: '0.8rem',
-                                                  color: '#dc2626',
-                                                  textDecoration: 'none'
-                                                }}
-                                              >
-                                                View CricClubs Profile →
-                                              </a>
-                                            </div>
-                                            <div style={{
-                                              fontSize: '0.75rem',
-                                              color: isSelected ? '#22c55e' : 'rgba(255,255,255,0.5)',
-                                              fontWeight: '600',
-                                              textTransform: 'uppercase',
-                                              letterSpacing: '0.5px'
-                                            }}>
-                                              {isSelected ? '✓ SELECTED' : 'TAP TO SELECT'}
+                                              <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                marginTop: '6px',
+                                                flexWrap: 'wrap',
+                                                gap: '6px'
+                                              }}>
+                                                <a
+                                                  href={player.profileUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  style={{
+                                                    fontSize: '0.75rem',
+                                                    color: '#dc2626',
+                                                    textDecoration: 'none'
+                                                  }}
+                                                >
+                                                  View CricClubs Profile →
+                                                </a>
+                                                <span style={{
+                                                  fontSize: '0.7rem',
+                                                  color: isSelected ? '#22c55e' : 'rgba(255,255,255,0.45)',
+                                                  fontWeight: '600',
+                                                  textTransform: 'uppercase',
+                                                  letterSpacing: '0.3px',
+                                                  whiteSpace: 'nowrap'
+                                                }}>
+                                                  {isSelected ? '✓ SELECTED' : 'TAP TO SELECT'}
+                                                </span>
+                                              </div>
                                             </div>
                                           </div>
                                         </div>
