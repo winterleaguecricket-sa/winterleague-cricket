@@ -61,17 +61,27 @@ const resolveTeamSelection = async (teamSelectionValue) => {
   return { teamSubmissionId, teamName: resolvedTeamName };
 };
 
+const buildSubTeamLabel = (obj) => {
+  if (!obj) return '';
+  const name = (obj.teamName || '').trim();
+  const gender = (obj.gender || '').trim();
+  const age = (obj.ageGroup || '').trim();
+  if (name && gender && age) return `${name} (${gender} - ${age})`;
+  if (name && age) return `${name} (${age})`;
+  return name || age || gender || '';
+};
+
 const resolveSubTeam = (value) => {
   if (!value) return '';
   if (typeof value === 'object') {
-    return value.teamName || value.ageGroup || value.gender || '';
+    return buildSubTeamLabel(value);
   }
   if (typeof value === 'string') {
     const parsed = parseJsonSafe(value);
     if (parsed) {
-      return parsed.teamName || parsed.ageGroup || parsed.gender || '';
+      return buildSubTeamLabel(parsed);
     }
-    return value;
+    return value.trim();
   }
   return String(value);
 };

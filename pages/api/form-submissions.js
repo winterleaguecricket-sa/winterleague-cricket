@@ -152,14 +152,23 @@ export default async function handler(req, res) {
 
         let subTeam = '';
         const subTeamValue = playerData[34] || playerData['34'] || '';
+        const buildSubTeamLabel = (obj) => {
+          if (!obj) return '';
+          const name = (obj.teamName || '').trim();
+          const gender = (obj.gender || '').trim();
+          const age = (obj.ageGroup || '').trim();
+          if (name && gender && age) return `${name} (${gender} - ${age})`;
+          if (name && age) return `${name} (${age})`;
+          return name || age || gender || '';
+        };
         if (subTeamValue && typeof subTeamValue === 'object') {
-          subTeam = subTeamValue.teamName || subTeamValue.ageGroup || subTeamValue.gender || '';
+          subTeam = buildSubTeamLabel(subTeamValue);
         } else if (typeof subTeamValue === 'string') {
           try {
             const parsedSubTeam = JSON.parse(subTeamValue);
-            subTeam = parsedSubTeam.teamName || parsedSubTeam.ageGroup || parsedSubTeam.gender || '';
+            subTeam = buildSubTeamLabel(parsedSubTeam);
           } catch (parseError) {
-            subTeam = subTeamValue;
+            subTeam = subTeamValue.trim();
           }
         }
 

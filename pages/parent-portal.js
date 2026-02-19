@@ -1187,16 +1187,29 @@ export default function ParentPortal() {
         {/* TEAM PORTAL VIEW */}
         {activeTab === 'teamView' && (() => {
           const myPlayers = parentPlayers.filter(p => p.teamId && p.subTeam);
-          const mySubTeams = [...new Set(myPlayers.map(p => p.subTeam).filter(Boolean))];
+          const mySubTeams = [...new Set(myPlayers.map(p => (p.subTeam || '').trim()).filter(Boolean))];
+
+          // Helper to build composite key from age group team object
+          const buildKey = (ag) => {
+            const name = (ag.teamName || '').trim();
+            const gender = (ag.gender || '').trim();
+            const age = (ag.ageGroup || '').trim();
+            if (name && gender && age) return `${name} (${gender} - ${age})`;
+            if (name && age) return `${name} (${age})`;
+            return name || age || gender || '';
+          };
 
           // Build grouped data for ALL sub-teams the parent's children are in
           const groups = mySubTeams.map(stName => {
-            const playerInSt = myPlayers.find(p => p.subTeam === stName);
+            const playerInSt = myPlayers.find(p => (p.subTeam || '').trim() === stName);
             const teamData = playerInSt ? parentTeams[playerInSt.teamId] : null;
             const ageGroupTeams = teamData?.ageGroupTeams || teamData?.subTeams || playerInSt?.ageGroupTeams || [];
-            const info = ageGroupTeams.find(ag => ag.teamName === stName) || {};
+            // Match by composite key (new format) or legacy teamName
+            const info = ageGroupTeams.find(ag => buildKey(ag) === stName) 
+              || ageGroupTeams.find(ag => (ag.teamName || '').trim() === stName) 
+              || {};
             const allTeamPlayers = teamData?.players || teamData?.teamPlayers || [];
-            const players = allTeamPlayers.filter(p => p.subTeam === stName);
+            const players = allTeamPlayers.filter(p => (p.subTeam || '').trim() === stName);
             return { name: stName, info, players, teamName: teamData?.teamName || playerInSt?.teamName || '' };
           });
 
@@ -1339,7 +1352,7 @@ export default function ParentPortal() {
                           margin: 0,
                           marginBottom: '0.25rem'
                         }}>
-                          {group.name}
+                          {group.info.teamName || group.name}
                         </h3>
                         {(group.info.gender || group.info.ageGroup) && (
                           <div style={{

@@ -1844,9 +1844,20 @@ export default function TeamPortal() {
                   const subTeams = team.submissionData?.[33] || [];
                   const playersGrouped = {};
                   
-                  // Initialize groups for each sub-team
+                  // Build composite key for each sub-team: "TeamName (Gender - AgeGroup)"
+                  const buildKey = (st) => {
+                    const name = (st.teamName || '').trim();
+                    const gender = (st.gender || '').trim();
+                    const age = (st.ageGroup || '').trim();
+                    if (name && gender && age) return `${name} (${gender} - ${age})`;
+                    if (name && age) return `${name} (${age})`;
+                    return name || age || gender || 'Ungrouped';
+                  };
+                  
+                  // Initialize groups for each sub-team with composite key
                   subTeams.forEach(subTeam => {
-                    playersGrouped[subTeam.teamName] = {
+                    const key = buildKey(subTeam);
+                    playersGrouped[key] = {
                       info: subTeam,
                       players: []
                     };
@@ -1858,13 +1869,25 @@ export default function TeamPortal() {
                     players: []
                   };
                   
-                  // Group players
+                  // Group players — match by composite key, or try legacy teamName match
                   team.players.forEach(player => {
-                    const subTeamName = player.subTeam || 'Ungrouped';
-                    if (playersGrouped[subTeamName]) {
-                      playersGrouped[subTeamName].players.push(player);
-                    } else {
+                    const st = (player.subTeam || '').trim();
+                    if (!st) {
                       playersGrouped['Ungrouped'].players.push(player);
+                    } else if (playersGrouped[st]) {
+                      // Direct match (new composite format)
+                      playersGrouped[st].players.push(player);
+                    } else {
+                      // Legacy fallback: player.subTeam is just the teamName, find matching group
+                      const matchedKey = Object.keys(playersGrouped).find(key => {
+                        const info = playersGrouped[key].info;
+                        return info && (info.teamName || '').trim() === st;
+                      });
+                      if (matchedKey && matchedKey !== 'Ungrouped') {
+                        playersGrouped[matchedKey].players.push(player);
+                      } else {
+                        playersGrouped['Ungrouped'].players.push(player);
+                      }
                     }
                   });
                   
@@ -1896,7 +1919,7 @@ export default function TeamPortal() {
                                   margin: 0,
                                   marginBottom: '0.25rem'
                                 }}>
-                                  {subTeamName}
+                                  {group.info.teamName || subTeamName}
                                 </h3>
                                 {group.info.gender && group.info.ageGroup && (
                                   <div style={{ 
