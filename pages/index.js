@@ -175,9 +175,9 @@ function Home() {
 
   const comingSoonEnabled = homepageConfig.siteAccess?.comingSoonEnabled;
 
-  // Preview bypass is now handled by middleware via admin cookie
-  // If we still reached here with comingSoon on, show the coming soon page
-  if (comingSoonEnabled && !(router.query.preview === '1')) {
+  // Only allow ?preview=1 bypass if admin cookie is set
+  const isAdmin = typeof document !== 'undefined' && document.cookie.split(';').some(c => c.trim().startsWith('adminAuth=1'));
+  if (comingSoonEnabled && !(router.query.preview === '1' && isAdmin)) {
     return <ComingSoon config={homepageConfig} />;
   }
 
