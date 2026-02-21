@@ -314,6 +314,7 @@ async function formatTeam(row) {
     kitPricing: typeof row.kit_pricing === 'string' ? JSON.parse(row.kit_pricing) : (row.kit_pricing || {}),
     entryFee: typeof row.entry_fee === 'string' ? JSON.parse(row.entry_fee) : (row.entry_fee || {}),
     submissionData: typeof row.submission_data === 'string' ? JSON.parse(row.submission_data) : (row.submission_data || {}),
+    bankingDetails: typeof row.banking_details === 'string' ? JSON.parse(row.banking_details) : (row.banking_details || null),
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
