@@ -241,9 +241,11 @@ export default function TeamPortal() {
   });
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [previousTeam, setPreviousTeam] = useState(null);
-  const [sponsorLogoUrl, setSponsorLogoUrl] = useState('');
+  const [sponsorLogos, setSponsorLogos] = useState([]);
   const [sponsorLogoUploading, setSponsorLogoUploading] = useState(false);
   const [sponsorLogoMessage, setSponsorLogoMessage] = useState('');
+  const [teamLogoUploading, setTeamLogoUploading] = useState(false);
+  const [teamLogoMessage, setTeamLogoMessage] = useState('');
   const [kitDesignImageUrl, setKitDesignImageUrl] = useState('');
   const [kitDesignUploading, setKitDesignUploading] = useState(false);
   const [kitDesignMessage, setKitDesignMessage] = useState('');
@@ -326,8 +328,14 @@ export default function TeamPortal() {
 
   useEffect(() => {
     if (!team) return;
-    const existingLogo = team.sponsorLogo || team.submissionData?.[30] || team.submissionData?.['30'] || '';
-    setSponsorLogoUrl(existingLogo || '');
+    // Load sponsor logos — support both new array format and legacy single string
+    const existingLogos = team.submissionData?.sponsorLogos;
+    if (Array.isArray(existingLogos) && existingLogos.length > 0) {
+      setSponsorLogos(existingLogos);
+    } else {
+      const singleLogo = team.sponsorLogo || team.submissionData?.[30] || team.submissionData?.['30'] || '';
+      setSponsorLogos(singleLogo ? [singleLogo] : []);
+    }
     const existingKitImage = team.submissionData?.kitDesignImageUrl || team.submissionData?.kitDesignImage || '';
     setKitDesignImageUrl(existingKitImage || '');
   }, [team]);
@@ -418,16 +426,18 @@ export default function TeamPortal() {
     }
   };
 
-  const saveSponsorLogo = async (logoUrl) => {
+  const saveSponsorLogos = async (logos) => {
     if (!team?.id) return;
     const nextSubmissionData = { ...(team.submissionData || {}) };
-    nextSubmissionData[30] = logoUrl;
+    nextSubmissionData.sponsorLogos = logos;
+    // Keep field 30 as the first logo for backward compatibility
+    nextSubmissionData[30] = logos[0] || '';
 
     try {
       await fetch('/api/teams', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: team.id, sponsorLogo: logoUrl })
+        body: JSON.stringify({ id: team.id, sponsorLogo: logos[0] || '' })
       });
 
       if (team.formSubmissionId) {
@@ -440,15 +450,15 @@ export default function TeamPortal() {
 
       setTeam(prev => prev ? ({
         ...prev,
-        sponsorLogo: logoUrl,
+        sponsorLogo: logos[0] || '',
         submissionData: nextSubmissionData
       }) : prev);
-      setSponsorLogoUrl(logoUrl);
-      setSponsorLogoMessage('Sponsor logo updated.');
+      setSponsorLogos(logos);
+      setSponsorLogoMessage('Sponsor logos updated.');
       setTimeout(() => setSponsorLogoMessage(''), 3000);
     } catch (error) {
-      console.error('Error saving sponsor logo:', error);
-      setSponsorLogoMessage('Failed to update sponsor logo.');
+      console.error('Error saving sponsor logos:', error);
+      setSponsorLogoMessage('Failed to update sponsor logos.');
       setTimeout(() => setSponsorLogoMessage(''), 3000);
     }
   };
@@ -475,7 +485,8 @@ export default function TeamPortal() {
       });
       const data = await response.json();
       if (data?.success && data.url) {
-        await saveSponsorLogo(data.url);
+        const updatedLogos = [...sponsorLogos, data.url];
+        await saveSponsorLogos(updatedLogos);
       } else {
         setSponsorLogoMessage(data?.error || 'Failed to upload sponsor logo.');
       }
@@ -484,6 +495,72 @@ export default function TeamPortal() {
       setSponsorLogoMessage('Failed to upload sponsor logo.');
     } finally {
       setSponsorLogoUploading(false);
+    }
+  };
+
+  const removeSponsorLogo = async (index) => {
+    const updatedLogos = sponsorLogos.filter((_, i) => i !== index);
+    await saveSponsorLogos(updatedLogos);
+  };
+
+  const handleTeamLogoUpload = async (file) => {
+    if (!file || !team?.id) return;
+    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!validImageTypes.includes(file.type)) {
+      setTeamLogoMessage('Please upload a valid image file.');
+      setTimeout(() => setTeamLogoMessage(''), 3000);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setTeamLogoMessage('Image must be less than 5MB.');
+      setTimeout(() => setTeamLogoMessage(''), 3000);
+      return;
+    }
+
+    try {
+      setTeamLogoUploading(true);
+      const uploadData = new FormData();
+      uploadData.append('file', file);
+      const response = await fetch('/api/upload-site-asset?type=team-logo', {
+        method: 'POST',
+        body: uploadData
+      });
+      const data = await response.json();
+      if (data?.success && data.url) {
+        // Save team logo to DB
+        await fetch('/api/teams', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: team.id, teamLogo: data.url })
+        });
+
+        // Also update submission_data field 22 for backward compat
+        if (team.formSubmissionId) {
+          const nextData = { ...(team.submissionData || {}), 22: data.url, teamLogo: data.url };
+          await fetch('/api/submissions', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: team.formSubmissionId, data: nextData })
+          });
+        }
+
+        setTeam(prev => prev ? ({
+          ...prev,
+          teamLogo: data.url,
+          submissionData: { ...(prev.submissionData || {}), 22: data.url, teamLogo: data.url }
+        }) : prev);
+        setTeamLogoMessage('Team logo updated!');
+        setTimeout(() => setTeamLogoMessage(''), 3000);
+      } else {
+        setTeamLogoMessage(data?.error || 'Failed to upload team logo.');
+        setTimeout(() => setTeamLogoMessage(''), 3000);
+      }
+    } catch (error) {
+      console.error('Error uploading team logo:', error);
+      setTeamLogoMessage('Failed to upload team logo.');
+      setTimeout(() => setTeamLogoMessage(''), 3000);
+    } finally {
+      setTeamLogoUploading(false);
     }
   };
 
@@ -3098,16 +3175,50 @@ export default function TeamPortal() {
                         {team.email}
                       </div>
                     </div>
-                    <div>
+                    <div style={{ gridColumn: '1 / -1' }}>
                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8', marginBottom: '0.25rem' }}>
-                        Sponsor Logo
+                        Sponsor Logos ({sponsorLogos.length})
                       </label>
+                      {/* Existing logos gallery */}
+                      {sponsorLogos.length > 0 && (
+                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                          {sponsorLogos.map((url, idx) => (
+                            <div key={idx} style={{
+                              position: 'relative',
+                              border: '1px solid rgba(255,255,255,0.15)',
+                              borderRadius: '8px',
+                              padding: '0.5rem',
+                              background: 'rgba(255,255,255,0.05)',
+                              width: '120px',
+                              height: '100px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <img src={url} alt={`Sponsor ${idx + 1}`} style={{ maxWidth: '100%', maxHeight: '80px', objectFit: 'contain' }} />
+                              <button
+                                onClick={() => removeSponsorLogo(idx)}
+                                style={{
+                                  position: 'absolute', top: '-6px', right: '-6px',
+                                  width: '22px', height: '22px', borderRadius: '50%',
+                                  background: '#ef4444', color: '#fff', border: 'none',
+                                  cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  lineHeight: 1
+                                }}
+                                title="Remove this logo"
+                              >✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* Upload area */}
                       <div
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={(e) => {
                           e.preventDefault();
-                          const file = e.dataTransfer.files?.[0];
-                          handleSponsorLogoUpload(file);
+                          const files = Array.from(e.dataTransfer.files || []);
+                          files.forEach(f => handleSponsorLogoUpload(f));
                         }}
                         style={{
                           border: '2px dashed rgba(255,255,255,0.15)',
@@ -3122,24 +3233,19 @@ export default function TeamPortal() {
                           if (input) input.click();
                         }}
                       >
-                        {sponsorLogoUrl ? (
-                          <img
-                            src={sponsorLogoUrl}
-                            alt="Sponsor logo"
-                            style={{ maxWidth: '100%', maxHeight: '140px', objectFit: 'contain' }}
-                          />
-                        ) : (
-                          <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
-                            Drag & drop sponsor logo here, or click to upload
-                          </div>
-                        )}
+                        <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                          {sponsorLogos.length > 0 ? '➕ Add another sponsor logo' : 'Drag & drop sponsor logo here, or click to upload'}
+                        </div>
                       </div>
                       <input
                         id="sponsor-logo-upload"
                         type="file"
                         accept="image/*"
                         style={{ display: 'none' }}
-                        onChange={(e) => handleSponsorLogoUpload(e.target.files?.[0])}
+                        onChange={(e) => {
+                          handleSponsorLogoUpload(e.target.files?.[0]);
+                          e.target.value = '';
+                        }}
                       />
                       {sponsorLogoUploading && (
                         <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#94a3b8' }}>Uploading...</div>
@@ -3191,6 +3297,78 @@ export default function TeamPortal() {
                   }}>
                     <strong>📝 Note:</strong> To update team name, manager name, or contact number, please contact the league administrator.
                   </div>
+
+                  {/* Admin-Only: Update Team Logo */}
+                  {isAdminMode && (
+                    <div style={{
+                      marginTop: '1.5rem',
+                      padding: '1.25rem',
+                      background: 'rgba(168, 85, 247, 0.08)',
+                      border: '1px solid rgba(168, 85, 247, 0.3)',
+                      borderRadius: '10px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                        <span style={{
+                          background: 'rgba(168, 85, 247, 0.2)',
+                          color: '#c084fc',
+                          padding: '0.2rem 0.6rem',
+                          borderRadius: '4px',
+                          fontSize: '0.7rem',
+                          fontWeight: '800',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}>Admin Only</span>
+                        <span style={{ fontWeight: '700', fontSize: '0.95rem', color: '#e9d5ff' }}>Update Team Logo</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                        {teamLogoUrl && (
+                          <div style={{
+                            width: '64px', height: '64px', borderRadius: '50%',
+                            overflow: 'hidden', border: '2px solid rgba(168, 85, 247, 0.4)',
+                            flexShrink: 0
+                          }}>
+                            <img src={teamLogoUrl} alt="Team logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        )}
+                        <button
+                          onClick={() => {
+                            const input = document.getElementById('team-logo-upload-admin');
+                            if (input) input.click();
+                          }}
+                          disabled={teamLogoUploading}
+                          style={{
+                            padding: '0.6rem 1.2rem',
+                            background: teamLogoUploading ? '#555' : 'rgba(168, 85, 247, 0.25)',
+                            color: '#e9d5ff',
+                            border: '1px solid rgba(168, 85, 247, 0.5)',
+                            borderRadius: '8px',
+                            cursor: teamLogoUploading ? 'not-allowed' : 'pointer',
+                            fontWeight: '700',
+                            fontSize: '0.85rem'
+                          }}
+                        >
+                          {teamLogoUploading ? '⏳ Uploading...' : '📷 Upload New Team Logo'}
+                        </button>
+                        <input
+                          id="team-logo-upload-admin"
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            handleTeamLogoUpload(e.target.files?.[0]);
+                            e.target.value = '';
+                          }}
+                        />
+                        {teamLogoMessage && (
+                          <span style={{
+                            fontSize: '0.8rem',
+                            color: teamLogoMessage.includes('Failed') ? '#f87171' : '#a7f3d0',
+                            fontWeight: '600'
+                          }}>{teamLogoMessage}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Sub-Teams Section */}
                   <div style={{ marginTop: '2rem' }}>
