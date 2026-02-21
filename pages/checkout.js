@@ -65,7 +65,7 @@ export default function Checkout() {
           }
 
           if (parentEmail && firstName) {
-            // Check if profile exists in DB
+            // Check if profile already exists in DB (from a previous completed order)
             let profile = null;
             try {
               const lookupRes = await fetch(`/api/customers?email=${encodeURIComponent(parentEmail)}`);
@@ -77,32 +77,8 @@ export default function Checkout() {
               console.error('Error looking up customer profile:', lookupErr);
             }
 
-            // Create profile in DB if it doesn't exist
-            if (!profile) {
-              try {
-                const createRes = await fetch('/api/customers', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    action: 'create',
-                    email: parentEmail,
-                    firstName: firstName,
-                    lastName: lastName,
-                    phone: parentPhone,
-                    password: parentPassword
-                  })
-                });
-                const createData = await createRes.json();
-                if (createData.profile) {
-                  profile = createData.profile;
-                } else if (createData.id) {
-                  profile = createData;
-                }
-              } catch (createErr) {
-                console.error('Error creating customer profile:', createErr);
-              }
-            }
-
+            // DO NOT create customer in DB here — only store locally for the UI.
+            // The DB record will be created in handlePayment AFTER payment is initiated.
             if (profile) {
               setCustomerProfile({
                 id: profile.id,
@@ -113,7 +89,7 @@ export default function Checkout() {
                 password: parentPassword
               });
             } else {
-              // Fallback: use local data for UI (but profile won't persist)
+              // Local-only profile until payment — no DB record yet
               setCustomerProfile({
                 id: `local-${Date.now()}`,
                 email: parentEmail,
@@ -294,29 +270,8 @@ export default function Checkout() {
           setCustomerProfile({ ...customerProfile, ...nextProfile });
         }
       } else {
-        // Create new DB profile
-        const createRes = await fetch('/api/customers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'create',
-            ...nextProfile
-          })
-        });
-        const createData = await createRes.json();
-        if (createData?.profile || createData?.id) {
-          const p = createData.profile || createData;
-          setCustomerProfile({
-            id: p.id,
-            email: p.email || nextProfile.email,
-            firstName: p.first_name || p.firstName || nextProfile.firstName,
-            lastName: p.last_name || p.lastName || nextProfile.lastName,
-            phone: p.phone || nextProfile.phone,
-            password: nextProfile.password
-          });
-        } else {
-          setCustomerProfile({ ...nextProfile, id: `local-${Date.now()}` });
-        }
+        // No DB profile yet — just update local state (DB record created at payment time)
+        setCustomerProfile({ ...nextProfile, id: customerProfile?.id || `local-${Date.now()}` });
       }
     } catch (saveErr) {
       console.error('Error saving profile:', saveErr);
@@ -348,6 +303,32 @@ export default function Checkout() {
     trackPaymentStart(orderId, parseFloat(orderTotal), activeGateway);
 
     try {
+      // ===== ENSURE CUSTOMER PROFILE EXISTS IN DB (create now if local-only) =====
+      if (!customerProfile.id || String(customerProfile.id).startsWith('local-')) {
+        try {
+          const createRes = await fetch('/api/customers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'create',
+              email: customerProfile.email,
+              firstName: customerProfile.firstName,
+              lastName: customerProfile.lastName,
+              phone: customerProfile.phone || '',
+              password: customerProfile.password || ''
+            })
+          });
+          const createData = await createRes.json();
+          if (createData?.profile || createData?.id) {
+            const p = createData.profile || createData;
+            setCustomerProfile(prev => ({ ...prev, id: p.id || prev.id }));
+            customerProfile.id = p.id || customerProfile.id;
+          }
+        } catch (createErr) {
+          console.error('Error creating customer profile at payment:', createErr);
+        }
+      }
+
       // ===== CREATE ORDER IN DATABASE =====
       const orderRes = await fetch('/api/orders', {
         method: 'POST',
