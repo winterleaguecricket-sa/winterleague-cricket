@@ -1041,7 +1041,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
 
   const formatUploadSize = (bytes) => `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 
-  const handleImageFileUpload = (file, fieldId, label = 'Image') => {
+  const handleImageFileUpload = async (file, fieldId, label = 'Image') => {
     if (!file) return;
     if (file.size > MAX_UPLOAD_BYTES) {
       setFormAlert({
@@ -1050,6 +1050,28 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
       });
       setValidationErrors(prev => ({ ...prev, [fieldId]: true }));
       return;
+    }
+
+    // For team logo (22) and sponsor logo (30) on team registration form,
+    // upload to server as a file to avoid base64 bloat in the database
+    const UPLOAD_FIELDS = [22, 30];
+    if (UPLOAD_FIELDS.includes(fieldId)) {
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const typeParam = fieldId === 22 ? 'team-logo' : 'sponsor-logo';
+        const res = await fetch(`/api/upload-site-asset?type=${typeParam}`, {
+          method: 'POST',
+          body: fd,
+        });
+        if (!res.ok) throw new Error('Upload failed');
+        const data = await res.json();
+        handleInputChange(fieldId, data.url);
+        return;
+      } catch (err) {
+        console.error('Image upload failed, falling back to base64:', err);
+        // Fall through to base64 if upload fails
+      }
     }
 
     const reader = new FileReader();

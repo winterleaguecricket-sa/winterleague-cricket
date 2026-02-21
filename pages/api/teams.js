@@ -230,6 +230,55 @@ export default async function handler(req, res) {
     }
   }
 
+  // PATCH - Targeted field update on submission_data (avoids sending full blob)
+  if (req.method === 'PATCH') {
+    try {
+      const { id, field, value } = req.body;
+      if (!id || !field) {
+        return res.status(400).json({ error: 'Team ID and field name are required' });
+      }
+
+      // Update submission_data using jsonb_set (targeted, no body size issue)
+      const result = await query(
+        `UPDATE teams 
+         SET submission_data = jsonb_set(COALESCE(submission_data, '{}')::jsonb, $1, $2::jsonb),
+             updated_at = NOW()
+         WHERE id = $3 RETURNING *`,
+        [
+          `{${field}}`,
+          JSON.stringify(value),
+          id
+        ]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Team not found' });
+      }
+
+      // Also update the linked form_submission if it exists
+      const row = result.rows[0];
+      const formSubmissionId = row.form_submission_id || row.form_submission_uuid;
+      if (formSubmissionId) {
+        await query(
+          `UPDATE form_submissions
+           SET data = jsonb_set(COALESCE(data, '{}')::jsonb, $1, $2::jsonb),
+               updated_at = NOW()
+           WHERE id = $3`,
+          [
+            `{${field}}`,
+            JSON.stringify(value),
+            formSubmissionId
+          ]
+        );
+      }
+
+      return res.status(200).json({ success: true, field, value });
+    } catch (error) {
+      console.error('Error patching team:', error);
+      return res.status(500).json({ error: 'Failed to patch team', details: error.message });
+    }
+  }
+
   // DELETE - Delete team
   if (req.method === 'DELETE') {
     try {

@@ -489,35 +489,32 @@ export default function TeamPortal() {
 
   const saveKitDesignImage = async (imageUrl) => {
     if (!team?.id) return;
-    const nextSubmissionData = { ...(team.submissionData || {}) };
-    nextSubmissionData.kitDesignImageUrl = imageUrl;
 
     try {
-      await fetch('/api/teams', {
-        method: 'PUT',
+      // Use PATCH for targeted update — avoids sending the full submission_data blob
+      // which can exceed the 1MB body parser limit for teams with base64 logos
+      const res = await fetch('/api/teams', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: team.id, submissionData: nextSubmissionData })
+        body: JSON.stringify({ id: team.id, field: 'kitDesignImageUrl', value: imageUrl })
       });
 
-      if (team.formSubmissionId) {
-        await fetch('/api/submissions', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: team.formSubmissionId, data: nextSubmissionData })
-        });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server error ${res.status}`);
       }
 
       setTeam(prev => prev ? ({
         ...prev,
-        submissionData: nextSubmissionData
+        submissionData: { ...(prev.submissionData || {}), kitDesignImageUrl: imageUrl }
       }) : prev);
       setKitDesignImageUrl(imageUrl);
       setKitDesignMessage('Kit design updated.');
       setTimeout(() => setKitDesignMessage(''), 3000);
     } catch (error) {
       console.error('Error saving kit design image:', error);
-      setKitDesignMessage('Failed to update kit design.');
-      setTimeout(() => setKitDesignMessage(''), 3000);
+      setKitDesignMessage('Failed to update kit design: ' + error.message);
+      setTimeout(() => setKitDesignMessage(''), 5000);
     }
   };
 

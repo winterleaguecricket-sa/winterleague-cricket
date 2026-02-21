@@ -10,11 +10,17 @@ export const config = {
 
 const IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
 const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/ogg'];
-const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'site-settings');
+const defaultUploadDir = path.join(process.cwd(), 'public', 'uploads', 'site-settings');
 
-function ensureUploadDir() {
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+const TYPE_DIRS = {
+  'team-logo': path.join(process.cwd(), 'public', 'uploads', 'team-logos'),
+  'sponsor-logo': path.join(process.cwd(), 'public', 'uploads', 'team-logos'),
+  'team-kit': path.join(process.cwd(), 'public', 'uploads', 'team-logos'),
+};
+
+function ensureUploadDir(dir) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 }
 
@@ -23,9 +29,10 @@ export default function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  ensureUploadDir();
-
   const { type = 'asset' } = req.query;
+  const uploadDir = TYPE_DIRS[type] || defaultUploadDir;
+  ensureUploadDir(uploadDir);
+
   const isVideoAllowed = type === 'hero' || type === 'media' || type === 'video';
 
   const form = new IncomingForm({
@@ -61,7 +68,8 @@ export default function handler(req, res) {
       return res.status(400).json({ error: 'Invalid image type' });
     }
 
-    const publicUrl = `/uploads/site-settings/${path.basename(uploadedFile.filepath)}`;
+    const relDir = path.relative(path.join(process.cwd(), 'public'), uploadDir);
+    const publicUrl = `/${relDir}/${path.basename(uploadedFile.filepath)}`;
 
     return res.status(200).json({
       success: true,
