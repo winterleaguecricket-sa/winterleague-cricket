@@ -376,7 +376,7 @@ export default function ManufacturerPortal() {
           display: 'flex', justifyContent: 'space-between', alignItems: 'center'
         }}>
           <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '600' }}>
-            {team.playerCount} player{team.playerCount !== 1 ? 's' : ''}{team.sponsorLogo ? ' · Sponsor' : ''}
+            {team.playerCount} player{team.playerCount !== 1 ? 's' : ''}{(team.sponsorLogos || []).length > 0 ? ` · ${(team.sponsorLogos || []).length} Sponsor${(team.sponsorLogos || []).length > 1 ? 's' : ''}` : ''}
           </span>
           <span style={{ fontSize: '0.8rem', color: '#f87171', fontWeight: '700' }}>
             View Details →
@@ -449,8 +449,8 @@ export default function ManufacturerPortal() {
               <span style={{ fontSize: '0.8rem', color: '#9ca3af', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                 {icons.player} {team.playerCount} paid player{team.playerCount !== 1 ? 's' : ''}
               </span>
-              {team.sponsorLogo && (
-                <span style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: '600' }}>+ Sponsor</span>
+              {(team.sponsorLogos || []).length > 0 && (
+                <span style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: '600' }}>+ {(team.sponsorLogos || []).length} Sponsor{(team.sponsorLogos || []).length > 1 ? 's' : ''}</span>
               )}
               {hasAdditionalItems && (
                 <span style={{
@@ -525,21 +525,31 @@ export default function ManufacturerPortal() {
               <div style={{
                 fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.75rem',
                 textTransform: 'uppercase', letterSpacing: '0.08em'
-              }}>Sponsor Logo</div>
-              {team.sponsorLogo ? (
-                <img src={team.sponsorLogo} alt={`${team.teamName} sponsor`}
-                  style={{ maxWidth: '100%', maxHeight: '150px', objectFit: 'contain', borderRadius: '6px' }} />
+              }}>Sponsor Logo{(team.sponsorLogos || []).length > 1 ? 's' : ''} {(team.sponsorLogos || []).length > 0 ? `(${(team.sponsorLogos || []).length})` : ''}</div>
+              {(team.sponsorLogos || []).length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', justifyContent: 'center' }}>
+                  {(team.sponsorLogos || []).map((logoUrl, idx) => (
+                    <div key={idx} style={{
+                      border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px',
+                      padding: '0.5rem', background: 'rgba(255,255,255,0.03)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <img src={logoUrl} alt={`${team.teamName} sponsor ${idx + 1}`}
+                        style={{ maxWidth: '120px', maxHeight: '100px', objectFit: 'contain', borderRadius: '4px' }} />
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div style={{ color: '#475569', fontSize: '0.85rem', padding: '1rem' }}>No sponsor logo</div>
               )}
-              {team.sponsorLogo && (
+              {(team.sponsorLogos || []).length > 0 && (
                 <div style={{
                   marginTop: '0.6rem', padding: '0.45rem 0.7rem',
                   background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
                   borderRadius: '6px', fontSize: '0.75rem', color: '#fbbf24', fontWeight: '600',
                   lineHeight: 1.4, textAlign: 'left'
                 }}>
-                  ⚠️ Sponsor logo should be printed on the <strong>sleeve</strong> of the shirt.
+                  ⚠️ Sponsor logo{(team.sponsorLogos || []).length > 1 ? 's' : ''} should be printed on the <strong>sleeve</strong> of the shirt.
                 </div>
               )}
             </div>

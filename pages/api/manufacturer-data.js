@@ -17,6 +17,7 @@ export default async function handler(req, res) {
         t.team_name,
         t.team_logo,
         t.sponsor_logo,
+        t.submission_data->'sponsorLogos' as sponsor_logos_json,
         t.shirt_design,
         t.submission_data->>'kitDesignImageUrl' as kit_image_url,
         t.submission_data->>'kitDesignImage' as kit_image_fallback,
@@ -163,6 +164,14 @@ export default async function handler(req, res) {
         teamName: (t.team_name || '').trim(),
         teamLogo: t.team_logo || '',
         sponsorLogo: t.sponsor_logo || '',
+        sponsorLogos: (() => {
+          // Support new multi-logo array from submission_data, fall back to single sponsor_logo
+          try {
+            const arr = typeof t.sponsor_logos_json === 'string' ? JSON.parse(t.sponsor_logos_json) : t.sponsor_logos_json;
+            if (Array.isArray(arr) && arr.length > 0) return arr;
+          } catch (e) { /* ignore */ }
+          return t.sponsor_logo ? [t.sponsor_logo] : [];
+        })(),
         kitDesignName,
         kitDesignImage,
         playerCount: players.length,
