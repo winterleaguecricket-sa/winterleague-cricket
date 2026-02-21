@@ -1117,7 +1117,7 @@ export default function ManufacturerPortal() {
                   }}>💰</div>
                   <div>
                     <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 900, color: '#f9fafb' }}>Revenue Overview</h2>
-                    <p style={{ margin: '0.25rem 0 0 0', color: '#9ca3af', fontSize: '0.9rem' }}>Kit manufacturing revenue — R433.50 per player kit</p>
+                    <p style={{ margin: '0.25rem 0 0 0', color: '#9ca3af', fontSize: '0.9rem' }}>Kit manufacturing revenue overview</p>
                   </div>
                 </div>
 
@@ -1145,7 +1145,6 @@ export default function ManufacturerPortal() {
                   }}>
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fcd34d', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Per Kit Rate</div>
                     <div style={{ fontSize: '2rem', fontWeight: 900, color: '#fbbf24' }}>R433.50</div>
-                    <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.25rem' }}>out of R550.00 kit fee</div>
                   </div>
                 </div>
               </div>
@@ -1207,15 +1206,7 @@ export default function ManufacturerPortal() {
                 </div>
               </div>
 
-              {/* Rate breakdown info */}
-              <div style={{
-                marginTop: '1rem', padding: '1rem 1.25rem',
-                background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)',
-                borderRadius: '10px', fontSize: '0.82rem', color: '#93c5fd', lineHeight: 1.6
-              }}>
-                <strong>ℹ️ Kit Fee Breakdown:</strong> Each player registration kit fee is R550.00 — of which <strong>R433.50 (78.8%)</strong> goes to the manufacturer for kit production.
-                The remaining R116.50 covers league administration and platform fees.
-              </div>
+
             </div>
           )}
 
