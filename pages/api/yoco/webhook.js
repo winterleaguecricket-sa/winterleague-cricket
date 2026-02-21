@@ -68,17 +68,19 @@ export default async function handler(req, res) {
           }
         }
 
-        // Update order to paid/confirmed
+        // Update order to paid/confirmed (also store the Yoco payment ID for reconciliation)
         await query(
           `UPDATE orders SET 
             payment_status = 'paid',
             status = 'confirmed',
             payment_method = 'yoco',
-            status_notes = $1,
-            status_history = COALESCE(status_history, '[]'::jsonb) || $2::jsonb,
+            gateway_payment_id = $1,
+            status_notes = $2,
+            status_history = COALESCE(status_history, '[]'::jsonb) || $3::jsonb,
             updated_at = NOW()
-          WHERE order_number = $3 AND payment_status != 'paid'`,
+          WHERE order_number = $4 AND payment_status != 'paid'`,
           [
+            yocoPaymentId !== 'N/A' ? yocoPaymentId : null,
             `Payment confirmed via Yoco webhook at ${new Date().toISOString()}`,
             JSON.stringify([{
               status: 'confirmed',

@@ -413,6 +413,7 @@ export default function OrderManagement() {
               }}>
                 <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: '700', textAlign: 'left' }}>Order #</th>
                 <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: '700', textAlign: 'left' }}>Customer</th>
+                <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: '700', textAlign: 'left' }}>Yoco Ref</th>
                 <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: '700', textAlign: 'left' }}>Items</th>
                 <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: '700', textAlign: 'left' }}>Total</th>
                 <th style={{ padding: '0.75rem', fontSize: '0.8rem', fontWeight: '700', textAlign: 'left' }}>Status</th>
@@ -436,6 +437,22 @@ export default function OrderManagement() {
                     <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#111827' }}>{order.customerName}</div>
                     <div style={{ fontSize: '0.7rem', color: '#6b7280' }}>{order.customerEmail}</div>
                     <div style={{ fontSize: '0.7rem', color: '#6b7280' }}>{order.customerPhone}</div>
+                  </td>
+                  <td style={{ padding: '0.75rem' }}>
+                    {order.gatewayCheckoutId ? (
+                      <div style={{ fontSize: '0.7rem', fontFamily: 'monospace' }}>
+                        <div style={{ color: '#6b7280', marginBottom: '2px' }}>Checkout</div>
+                        <div style={{ color: '#111827', fontWeight: '600', wordBreak: 'break-all' }}>{order.gatewayCheckoutId}</div>
+                        {order.gatewayPaymentId && (
+                          <>
+                            <div style={{ color: '#6b7280', marginTop: '4px', marginBottom: '2px' }}>Payment</div>
+                            <div style={{ color: '#059669', fontWeight: '600', wordBreak: 'break-all' }}>{order.gatewayPaymentId}</div>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>—</span>
+                    )}
                   </td>
                   <td style={{ padding: '0.75rem', fontSize: '0.8rem', color: '#374151' }}>{order.items.length} item(s)</td>
                   <td style={{ padding: '0.75rem' }}><strong style={{ fontSize: '0.9rem', color: '#111827' }}>{formatCurrency(order.total)}</strong></td>
@@ -503,6 +520,39 @@ export default function OrderManagement() {
                     </div>
                   </div>
                 </section>
+
+                {/* Yoco Payment Reference */}
+                {selectedOrder.gatewayCheckoutId && (
+                  <section className={styles.section}>
+                    <h3>💳 Yoco Payment Reference</h3>
+                    <div style={{
+                      padding: '1rem',
+                      background: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      lineHeight: '1.8'
+                    }}>
+                      <div>
+                        <strong style={{ color: '#374151' }}>Checkout ID:</strong>{' '}
+                        <code style={{ background: '#e5e7eb', padding: '2px 6px', borderRadius: '4px', fontSize: '0.85rem', fontFamily: 'monospace' }}>
+                          {selectedOrder.gatewayCheckoutId}
+                        </code>
+                      </div>
+                      {selectedOrder.gatewayPaymentId && (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <strong style={{ color: '#374151' }}>Payment ID:</strong>{' '}
+                          <code style={{ background: '#d1fae5', padding: '2px 6px', borderRadius: '4px', fontSize: '0.85rem', fontFamily: 'monospace', color: '#065f46' }}>
+                            {selectedOrder.gatewayPaymentId}
+                          </code>
+                        </div>
+                      )}
+                      <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#6b7280' }}>
+                        Use these IDs to verify the transaction on your Yoco dashboard.
+                      </div>
+                    </div>
+                  </section>
+                )}
 
 
 

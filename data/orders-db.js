@@ -31,6 +31,8 @@ function rowToOrder(row) {
     },
     notes: row.notes || '',
     refundStatus: row.refund_status || null,
+    gatewayCheckoutId: row.gateway_checkout_id || null,
+    gatewayPaymentId: row.gateway_payment_id || null,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : '',
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : ''
   };
