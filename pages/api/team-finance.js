@@ -41,7 +41,7 @@ export default async function handler(req, res) {
            LEFT JOIN team_players tp 
              ON tp.team_id = tr.team_id 
              AND tp.registration_data->>'formSubmissionId' = tr.reference_id
-           WHERE tr.team_id = $1 
+           WHERE tr.team_id = $1 AND tr.payment_status = 'paid'
            ORDER BY tr.created_at DESC`,
           [teamId]
         );
@@ -57,6 +57,16 @@ export default async function handler(req, res) {
             commission += amount;
           }
         });
+
+        // Also get pending revenue for info display
+        const pendingResult = await query(
+          `SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+           FROM team_revenue
+           WHERE team_id = $1 AND payment_status = 'pending_payment'`,
+          [teamId]
+        );
+        const pendingCount = parseInt(pendingResult.rows[0]?.count || 0);
+        const pendingTotal = parseFloat(pendingResult.rows[0]?.total || 0);
         
         return res.status(200).json({ 
           revenue: result.rows.map(r => {
@@ -78,7 +88,9 @@ export default async function handler(req, res) {
           }),
           total: markup + commission,
           markup,
-          commission
+          commission,
+          pendingCount,
+          pendingTotal
         });
       }
 
@@ -161,8 +173,8 @@ export default async function handler(req, res) {
         }
 
         const result = await query(
-          `INSERT INTO team_revenue (team_id, revenue_type, amount, description, reference_id)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO team_revenue (team_id, revenue_type, amount, description, reference_id, payment_status)
+           VALUES ($1, $2, $3, $4, $5, 'paid')
            RETURNING *`,
           [tid, revenueType, amount, description, referenceId]
         );
@@ -187,9 +199,9 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Team ID is required' });
         }
 
-        // Get team's revenue breakdown
+        // Get team's revenue breakdown (only paid revenue)
         const revenueResult = await query(
-          `SELECT * FROM team_revenue WHERE team_id = $1`,
+          `SELECT * FROM team_revenue WHERE team_id = $1 AND payment_status = 'paid'`,
           [tid]
         );
 
@@ -296,10 +308,10 @@ export default async function handler(req, res) {
           return res.status(404).json({ error: 'Payout request not found' });
         }
 
-        // Clear the team's revenue after payout
+        // Clear only PAID team revenue after payout (pending stays for when they pay)
         const payout = result.rows[0];
         await query(
-          `DELETE FROM team_revenue WHERE team_id = $1`,
+          `DELETE FROM team_revenue WHERE team_id = $1 AND payment_status = 'paid'`,
           [payout.team_id]
         );
 

@@ -101,6 +101,24 @@ export default async function handler(req, res) {
           } catch (playerErr) {
             console.error('PayFast ITN: failed to update team_players payment status:', playerErr.message);
           }
+
+          // Mark team revenue entries as paid for this customer's players
+          try {
+            const revenueUpdate = await query(
+              `UPDATE team_revenue tr SET payment_status = 'paid'
+               FROM team_players tp
+               WHERE tp.team_id = tr.team_id
+                 AND tp.registration_data->>'formSubmissionId' = tr.reference_id
+                 AND LOWER(tp.player_email) = LOWER($1)
+                 AND tr.payment_status = 'pending_payment'`,
+              [order.customer_email]
+            );
+            if (revenueUpdate.rowCount > 0) {
+              console.log(`PayFast ITN: marked ${revenueUpdate.rowCount} revenue entry(s) as paid for ${order.customer_email}`);
+            }
+          } catch (revErr) {
+            console.error('PayFast ITN: failed to update team_revenue payment status:', revErr.message);
+          }
         } else if (paymentStatus === 'CANCELLED') {
           await query(
             `UPDATE orders SET 

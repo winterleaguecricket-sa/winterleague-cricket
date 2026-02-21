@@ -250,8 +250,8 @@ export default async function handler(req, res) {
                   const markup = parseFloat(pricing.markup) || 0;
                   if (markup > 0) {
                     await query(
-                      `INSERT INTO team_revenue (team_id, revenue_type, amount, description, reference_id)
-                       VALUES ($1, $2, $3, $4, $5)`,
+                      `INSERT INTO team_revenue (team_id, revenue_type, amount, description, reference_id, payment_status)
+                       VALUES ($1, $2, $3, $4, $5, 'pending_payment')`,
                       [
                         matchedTeam.id,
                         'player-registration-markup',

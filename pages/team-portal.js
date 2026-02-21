@@ -2516,6 +2516,30 @@ export default function TeamPortal() {
                       </div>
                     </div>
 
+                    {/* Pending Revenue Warning */}
+                    {(breakdown.pendingCount > 0) && (
+                      <div style={{
+                        background: 'rgba(245, 158, 11, 0.1)',
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        borderRadius: '10px',
+                        padding: '1rem 1.25rem',
+                        marginBottom: '1.5rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem'
+                      }}>
+                        <span style={{ fontSize: '1.3rem' }}>⏳</span>
+                        <div>
+                          <div style={{ color: '#fbbf24', fontWeight: '700', fontSize: '0.9rem', marginBottom: '0.15rem' }}>
+                            Pending Revenue: R{(breakdown.pendingTotal || 0).toFixed(2)}
+                          </div>
+                          <div style={{ color: '#d4a574', fontSize: '0.8rem' }}>
+                            {breakdown.pendingCount} player registration{breakdown.pendingCount !== 1 ? 's' : ''} awaiting payment. Revenue will be added once parents complete checkout.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Payout Request Section */}
                     <div style={{
                       background: '#0f172a',

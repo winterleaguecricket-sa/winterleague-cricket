@@ -289,7 +289,7 @@ async function formatTeam(row, options = {}) {
            LEFT JOIN team_players tp 
              ON tp.team_id = tr.team_id 
              AND tp.registration_data->>'formSubmissionId' = tr.reference_id
-           WHERE tr.team_id = $1 
+           WHERE tr.team_id = $1 AND tr.payment_status = 'paid'
            ORDER BY tr.created_at DESC`, [row.id]),
     query(`SELECT * FROM team_messages WHERE team_id = $1 ORDER BY created_at DESC`, [row.id])
   ]);
