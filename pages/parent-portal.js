@@ -1981,6 +1981,81 @@ export default function ParentPortal() {
                       ))}
                     </div>
 
+                    {/* Refund Status Banner */}
+                    {order.refundStatus && (
+                      <div style={{
+                        padding: '1rem 1.25rem',
+                        background: order.refundStatus === 'completed'
+                          ? 'rgba(16,185,129,0.12)'
+                          : 'rgba(245,158,11,0.12)',
+                        border: `2px solid ${order.refundStatus === 'completed' ? 'rgba(16,185,129,0.5)' : 'rgba(245,158,11,0.5)'}`,
+                        borderRadius: '10px',
+                        marginBottom: '1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '1rem',
+                        flexWrap: 'wrap'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <span style={{ fontSize: '1.5rem' }}>
+                            {order.refundStatus === 'completed' ? '✅' : '⏳'}
+                          </span>
+                          <div>
+                            <div style={{
+                              fontSize: '1rem',
+                              fontWeight: 900,
+                              color: order.refundStatus === 'completed' ? '#6ee7b7' : '#fcd34d',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em'
+                            }}>
+                              {order.refundStatus === 'completed' ? 'REFUND PAID' : 'REFUND PENDING'}
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: '#9ca3af', marginTop: '0.15rem' }}>
+                              {order.refundStatus === 'completed'
+                                ? 'Your refund has been processed successfully.'
+                                : 'A refund for this order is being processed. You will be notified once complete.'}
+                            </div>
+                          </div>
+                        </div>
+                        {(isAdminMode || isPreviewMode) && order.refundStatus === 'pending' && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm('Mark this refund as PAID? This will update the status visible to the parent.')) return;
+                              try {
+                                const res = await fetch('/api/orders', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ action: 'update-refund-status', orderId: order.id, refundStatus: 'completed' })
+                                });
+                                if (res.ok) {
+                                  setOrders(prev => prev.map(o => o.id === order.id ? { ...o, refundStatus: 'completed' } : o));
+                                } else {
+                                  alert('Failed to update refund status');
+                                }
+                              } catch (err) {
+                                alert('Error: ' + err.message);
+                              }
+                            }}
+                            style={{
+                              padding: '0.5rem 1.25rem',
+                              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              fontWeight: 700,
+                              fontSize: '0.8rem',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
+                            }}
+                          >
+                            ✅ Mark Refund Paid
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     {/* Kit Status Progress */}
                     {(() => {
                       const steps = [

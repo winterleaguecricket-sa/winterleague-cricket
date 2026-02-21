@@ -78,6 +78,19 @@ export default async function handler(req, res) {
         return res.status(200).json({ order });
       }
 
+      if (action === 'update-refund-status') {
+        const { orderId, refundStatus } = req.body;
+        if (!orderId || !['pending', 'completed'].includes(refundStatus)) {
+          return res.status(400).json({ error: 'orderId and valid refundStatus (pending/completed) required' });
+        }
+        const result = await import('../../lib/db').then(m => m.query(
+          'UPDATE orders SET refund_status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+          [refundStatus, orderId]
+        ));
+        if (!result.rows[0]) return res.status(404).json({ error: 'Order not found' });
+        return res.status(200).json({ success: true, refundStatus });
+      }
+
       return res.status(400).json({ error: 'Unknown action' });
     }
 
