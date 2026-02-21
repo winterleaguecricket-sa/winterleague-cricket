@@ -2775,22 +2775,47 @@ export default function TeamPortal() {
                               style={{
                                 padding: '1.25rem',
                                 marginBottom: '0.75rem',
-                                background: entry.type === 'player-registration-markup'
-                                  ? 'rgba(16, 185, 129, 0.12)'
-                                  : 'rgba(59, 130, 246, 0.12)',
-                                border: entry.type === 'player-registration-markup'
-                                  ? '1px solid rgba(16, 185, 129, 0.5)'
-                                  : '1px solid rgba(59, 130, 246, 0.5)',
-                                borderRadius: '10px'
+                                background: entry.type === 'payout'
+                                  ? 'rgba(168, 85, 247, 0.12)'
+                                  : entry.paymentStatus === 'paid_out'
+                                    ? 'rgba(100, 116, 139, 0.1)'
+                                    : entry.type === 'player-registration-markup'
+                                      ? 'rgba(16, 185, 129, 0.12)'
+                                      : 'rgba(59, 130, 246, 0.12)',
+                                border: entry.type === 'payout'
+                                  ? '1px solid rgba(168, 85, 247, 0.5)'
+                                  : entry.paymentStatus === 'paid_out'
+                                    ? '1px solid rgba(100, 116, 139, 0.25)'
+                                    : entry.type === 'player-registration-markup'
+                                      ? '1px solid rgba(16, 185, 129, 0.5)'
+                                      : '1px solid rgba(59, 130, 246, 0.5)',
+                                borderRadius: '10px',
+                                opacity: entry.paymentStatus === 'paid_out' && entry.type !== 'payout' ? 0.65 : 1
                               }}
                             >
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
                                 <div>
                                   <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#f9fafb', marginBottom: '0.25rem' }}>
-                                    {entry.type === 'player-registration-markup' ? (
+                                    {entry.type === 'payout' ? (
+                                      <>💸 Payout Processed</>
+                                    ) : entry.type === 'player-registration-markup' ? (
                                       <>🏏 Player Registration - {entry.playerName}</>
                                     ) : (
                                       <>🛍️ Product Commission - {entry.customerName}</>
+                                    )}
+                                    {entry.paymentStatus === 'paid_out' && entry.type !== 'payout' && (
+                                      <span style={{
+                                        marginLeft: '0.5rem',
+                                        fontSize: '0.7rem',
+                                        padding: '0.15rem 0.5rem',
+                                        background: 'rgba(168, 85, 247, 0.2)',
+                                        color: '#c4b5fd',
+                                        borderRadius: '4px',
+                                        fontWeight: '600',
+                                        verticalAlign: 'middle'
+                                      }}>
+                                        PAID OUT ✓
+                                      </span>
                                     )}
                                   </div>
                                   <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
@@ -2800,13 +2825,22 @@ export default function TeamPortal() {
                                 <div style={{
                                   fontSize: '1.25rem',
                                   fontWeight: '900',
-                                  color: entry.type === 'player-registration-markup' ? '#34d399' : '#60a5fa'
+                                  color: entry.type === 'payout' 
+                                    ? '#c084fc'
+                                    : entry.paymentStatus === 'paid_out'
+                                      ? '#94a3b8'
+                                      : entry.type === 'player-registration-markup' ? '#34d399' : '#60a5fa'
                                 }}>
-                                  +R{entry.amount.toFixed(2)}
+                                  {entry.amount < 0 ? '' : '+'}{entry.type === 'payout' ? `-R${Math.abs(entry.amount).toFixed(2)}` : `R${entry.amount.toFixed(2)}`}
                                 </div>
                               </div>
+                              {entry.type === 'payout' && (
+                                <div style={{ fontSize: '0.85rem', color: '#c4b5fd', marginTop: '0.25rem' }}>
+                                  {entry.description}
+                                </div>
+                              )}
                               <div style={{ fontSize: '0.85rem', color: '#cbd5f5', marginTop: '0.5rem' }}>
-                                {entry.details}
+                                {entry.type !== 'payout' && entry.details}
                               </div>
                               {entry.orderNumber && (
                                 <div style={{ 

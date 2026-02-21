@@ -57,13 +57,14 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Team ID is required' });
         }
 
+        // Get ALL revenue (paid, paid_out, payout) for transaction history display
         const result = await query(
           `SELECT tr.*, tp.player_name
            FROM team_revenue tr
            LEFT JOIN team_players tp 
              ON tp.team_id = tr.team_id 
              AND tp.registration_data->>'formSubmissionId' = tr.reference_id
-           WHERE tr.team_id = $1 AND tr.payment_status = 'paid'
+           WHERE tr.team_id = $1 AND tr.payment_status IN ('paid', 'paid_out')
            ORDER BY tr.created_at DESC`,
           [teamId]
         );
@@ -71,7 +72,9 @@ export default async function handler(req, res) {
         let markup = 0;
         let commission = 0;
         
+        // Only count 'paid' rows for available balance (paid_out already processed)
         result.rows.forEach(r => {
+          if (r.payment_status !== 'paid') return;
           const amount = parseFloat(r.amount || 0);
           if (r.revenue_type === 'player-registration-markup') {
             markup += amount;
@@ -105,6 +108,7 @@ export default async function handler(req, res) {
               description: r.description,
               playerName,
               referenceId: r.reference_id,
+              paymentStatus: r.payment_status,
               date: r.created_at
             };
           }),
@@ -330,11 +334,27 @@ export default async function handler(req, res) {
           return res.status(404).json({ error: 'Payout request not found' });
         }
 
-        // Clear only PAID team revenue after payout (pending stays for when they pay)
+        // Mark revenue as paid_out (only rows that existed at/before the payout request)
         const payout = result.rows[0];
         await query(
-          `DELETE FROM team_revenue WHERE team_id = $1 AND payment_status = 'paid'`,
-          [payout.team_id]
+          `UPDATE team_revenue 
+           SET payment_status = 'paid_out' 
+           WHERE team_id = $1 
+             AND payment_status = 'paid' 
+             AND created_at <= $2`,
+          [payout.team_id, payout.requested_at]
+        );
+
+        // Insert a payout transaction line so coaches see the payout in their revenue history
+        await query(
+          `INSERT INTO team_revenue (team_id, revenue_type, amount, description, reference_id, payment_status)
+           VALUES ($1, 'payout', $2, $3, $4, 'paid_out')`,
+          [
+            payout.team_id,
+            -parseFloat(payout.amount),
+            `Payout processed — R${parseFloat(payout.amount).toFixed(2)} paid to team`,
+            `payout-${payout.id}`
+          ]
         );
 
         return res.status(200).json({ 
