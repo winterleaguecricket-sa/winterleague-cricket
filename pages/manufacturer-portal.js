@@ -641,7 +641,7 @@ export default function ManufacturerPortal() {
                               padding: '0.2rem 0.5rem', background: 'rgba(251,191,36,0.1)',
                               border: '1px solid rgba(251,191,36,0.2)', borderRadius: '4px',
                               fontSize: '0.78rem', fontWeight: '600', color: '#fcd34d', whiteSpace: 'nowrap'
-                            }}>{new Date(player.dateOfBirth + 'T00:00:00').toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                            }}>{(() => { const d = new Date(player.dateOfBirth + 'T00:00:00'); const yy = String(d.getFullYear()).slice(-2); const mm = String(d.getMonth()+1).padStart(2,'0'); const dd = String(d.getDate()).padStart(2,'0'); return `${yy}/${mm}/${dd}`; })()}</span>
                           ) : (
                             <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
                           )}
