@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   // GET - Fetch players
   if (req.method === 'GET') {
     try {
-      const { teamId, id, email, showAll } = req.query;
+      const { teamId, id, email } = req.query;
       
       if (id) {
         const result = await query(
@@ -43,9 +43,8 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Team ID is required' });
       }
 
-      const playerFilter = showAll === 'true' ? '' : "AND payment_status = 'paid'";
       const result = await query(
-        `SELECT * FROM team_players WHERE team_id = $1 ${playerFilter} ORDER BY created_at`,
+        `SELECT * FROM team_players WHERE team_id = $1 ORDER BY created_at`,
         [teamId]
       );
       

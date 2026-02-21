@@ -5,8 +5,6 @@ import Link from 'next/link';
 
 // API helper functions for database operations
 const apiHelpers = {
-  _adminMode: false,
-
   async verifyCredentials(identifier, password) {
     const res = await fetch('/api/team-auth', {
       method: 'POST',
@@ -19,16 +17,14 @@ const apiHelpers = {
   },
   
   async getTeamById(teamId) {
-    const showAll = this._adminMode ? '&showAll=true' : '';
-    const res = await fetch(`/api/teams?id=${teamId}${showAll}`);
+    const res = await fetch(`/api/teams?id=${teamId}`);
     if (!res.ok) return null;
     const data = await res.json();
     return data.team || null;
   },
   
   async getAllTeams() {
-    const showAll = this._adminMode ? '&showAll=true' : '';
-    const res = await fetch(`/api/teams?linkedOnly=true${showAll}`);
+    const res = await fetch('/api/teams?linkedOnly=true');
     if (!res.ok) return [];
     const data = await res.json();
     return data.teams || [];
@@ -303,7 +299,6 @@ export default function TeamPortal() {
         const adminBypass = urlParams.get('admin') === 'true';
         
         if (adminBypass) {
-          apiHelpers._adminMode = true;
           setIsAdminMode(true);
           setIsAuthenticated(true);
           setAdminViewTab('directory');
@@ -412,7 +407,6 @@ export default function TeamPortal() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setIsAdminMode(false);
-    apiHelpers._adminMode = false;
     setTeam(null);
     setIdentifier('');
     setPassword('');
@@ -1440,7 +1434,11 @@ export default function TeamPortal() {
                               {teamRow.status || 'pending'}
                             </td>
                             <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#9ca3af' }}>
-                              {teamRow.players ? teamRow.players.length : 0}
+                              {teamRow.players ? (() => {
+                                const paid = teamRow.players.filter(p => p.paymentStatus !== 'pending_payment').length;
+                                const total = teamRow.players.length;
+                                return paid === total ? total : `${paid} / ${total}`;
+                              })() : 0}
                             </td>
                             <td style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#9ca3af' }}>
                               {teamRow.createdAt ? new Date(teamRow.createdAt).toLocaleDateString() : '—'}
@@ -1686,6 +1684,16 @@ export default function TeamPortal() {
                   <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f9fafb' }}>
                     Player Management
                   </div>
+                  {team?.players && (() => {
+                    const paid = team.players.filter(p => p.paymentStatus !== 'pending_payment').length;
+                    const unpaid = team.players.filter(p => p.paymentStatus === 'pending_payment').length;
+                    return (
+                      <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '0.25rem' }}>
+                        {paid} player{paid !== 1 ? 's' : ''} registered
+                        {unpaid > 0 && <span style={{ color: '#fbbf24', marginLeft: '0.35rem' }}>• {unpaid} unpaid</span>}
+                      </div>
+                    );
+                  })()}
                 </button>
 
 
@@ -1846,7 +1854,11 @@ export default function TeamPortal() {
                 }}>
                   {team.players?.length > 0 ? (
                 (() => {
-                  // Group players by sub-team
+                  // Separate paid vs unpaid players
+                  const paidPlayers = team.players.filter(p => p.paymentStatus !== 'pending_payment');
+                  const unpaidPlayers = team.players.filter(p => p.paymentStatus === 'pending_payment');
+
+                  // Group PAID players by sub-team
                   const subTeams = team.submissionData?.[33] || [];
                   const playersGrouped = {};
                   
@@ -1875,8 +1887,8 @@ export default function TeamPortal() {
                     players: []
                   };
                   
-                  // Group players — match by composite key, or try legacy teamName match
-                  team.players.forEach(player => {
+                  // Group paid players — match by composite key, or try legacy teamName match
+                  paidPlayers.forEach(player => {
                     const st = (player.subTeam || '').trim();
                     if (!st) {
                       playersGrouped['Ungrouped'].players.push(player);
@@ -1899,6 +1911,61 @@ export default function TeamPortal() {
                   
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                      {/* Unpaid Players Warning Section */}
+                      {unpaidPlayers.length > 0 && (
+                        <div style={{
+                          background: 'rgba(245, 158, 11, 0.08)',
+                          borderRadius: '12px',
+                          border: '2px solid rgba(245, 158, 11, 0.3)',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{
+                            background: 'linear-gradient(135deg, #92400e 0%, #78350f 100%)',
+                            padding: '1rem 1.5rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <div>
+                              <h3 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#fbbf24', margin: 0, marginBottom: '0.25rem' }}>
+                                ⚠️ Awaiting Payment ({unpaidPlayers.length})
+                              </h3>
+                              <div style={{ fontSize: '0.8rem', color: 'rgba(251, 191, 36, 0.8)' }}>
+                                These players registered but have not completed payment. They will appear on the roster once paid.
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ padding: '0.5rem 1.5rem 1rem' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr>
+                                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '700', color: '#d97706', borderBottom: '1px solid rgba(245, 158, 11, 0.2)' }}>#</th>
+                                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '700', color: '#d97706', borderBottom: '1px solid rgba(245, 158, 11, 0.2)' }}>Player Name</th>
+                                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '700', color: '#d97706', borderBottom: '1px solid rgba(245, 158, 11, 0.2)' }}>Parent Email</th>
+                                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'left', fontSize: '0.8rem', fontWeight: '700', color: '#d97706', borderBottom: '1px solid rgba(245, 158, 11, 0.2)' }}>Sub-team</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {unpaidPlayers.map((player, idx) => (
+                                  <tr key={player.id} style={{ borderBottom: '1px solid rgba(245, 158, 11, 0.1)' }}>
+                                    <td style={{ padding: '0.6rem 0.5rem', fontSize: '0.85rem', color: '#d97706' }}>{idx + 1}</td>
+                                    <td style={{ padding: '0.6rem 0.5rem', fontSize: '0.9rem', color: '#fbbf24', fontWeight: '600' }}>
+                                      {player.name || player.playerName}
+                                    </td>
+                                    <td style={{ padding: '0.6rem 0.5rem', fontSize: '0.85rem', color: '#b45309' }}>
+                                      {player.playerEmail || '—'}
+                                    </td>
+                                    <td style={{ padding: '0.6rem 0.5rem', fontSize: '0.85rem', color: '#b45309' }}>
+                                      {player.subTeam || '—'}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
                       {Object.entries(playersGrouped).map(([subTeamName, group]) => {
                         if (group.players.length === 0) return null;
                         

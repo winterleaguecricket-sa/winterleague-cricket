@@ -31,6 +31,7 @@ export default function ParentPortal() {
   const [team, setTeam] = useState(null);
   const [ageGroupTab, setAgeGroupTab] = useState(null);
   const [parentPlayers, setParentPlayers] = useState([]);
+  const [parentPlayersLoaded, setParentPlayersLoaded] = useState(false);
   const [parentTeams, setParentTeams] = useState({});
 
   const statusColors = {
@@ -171,6 +172,7 @@ export default function ParentPortal() {
   useEffect(() => {
     if (!profile?.email) {
       setParentPlayers([]);
+      setParentPlayersLoaded(false);
       setParentTeams({});
       return;
     }
@@ -198,6 +200,8 @@ export default function ParentPortal() {
         }
       } catch (err) {
         console.error('Failed to fetch parent players:', err);
+      } finally {
+        setParentPlayersLoaded(true);
       }
     };
     fetchParentPlayers();
@@ -779,6 +783,113 @@ export default function ParentPortal() {
         </div>
 
         {renderResponsiveStyles()}
+      </div>
+    );
+  }
+
+  // ========================================
+  // WAIT FOR PLAYER DATA BEFORE SHOWING PORTAL
+  // ========================================
+  if (profile && !isAdminMode && !isPreviewMode && !parentPlayersLoaded) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #dc0000 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Head>
+          <title>Loading - Winter League Cricket</title>
+        </Head>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2rem', marginBottom: '1rem', animation: 'spin 1s linear infinite' }}>🏏</div>
+          <p style={{ color: '#9ca3af', fontSize: '0.95rem' }}>Loading your portal...</p>
+        </div>
+        <style jsx>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // ========================================
+  // PAYMENT REQUIRED GATE (logged in but unpaid)
+  // ========================================
+  const allUnpaid = parentPlayers.filter(p => p.paymentStatus === 'pending_payment' && p.teamId);
+  if (!isAdminMode && !isPreviewMode && allUnpaid.length > 0) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #dc0000 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+        <Head>
+          <title>Payment Required - Winter League Cricket</title>
+        </Head>
+        <div style={{
+          background: '#0f0f13',
+          borderRadius: '16px',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          padding: '2.5rem',
+          maxWidth: '520px',
+          width: '100%',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+          <h2 style={{ color: '#fbbf24', fontSize: '1.5rem', fontWeight: '800', margin: '0 0 0.75rem 0' }}>
+            Payment Required
+          </h2>
+          <p style={{ color: '#d4a574', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
+            You have {allUnpaid.length} player registration{allUnpaid.length !== 1 ? 's' : ''} awaiting payment.
+            Please complete your payment to access the parent portal and for your {allUnpaid.length !== 1 ? 'children' : 'child'} to appear on the team roster.
+          </p>
+          <div style={{
+            background: 'rgba(245, 158, 11, 0.08)',
+            border: '1px solid rgba(245, 158, 11, 0.2)',
+            borderRadius: '10px',
+            padding: '1rem',
+            marginBottom: '1.5rem',
+            textAlign: 'left'
+          }}>
+            {allUnpaid.map((p, i) => (
+              <div key={p.id || i} style={{
+                padding: '0.5rem 0',
+                borderBottom: i < allUnpaid.length - 1 ? '1px solid rgba(245,158,11,0.15)' : 'none',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span style={{ color: '#fbbf24', fontWeight: '600', fontSize: '0.9rem' }}>
+                  {p.playerName || p.name}
+                </span>
+                <span style={{ color: '#b45309', fontSize: '0.8rem' }}>
+                  {p.teamName || 'Team assigned'}
+                </span>
+              </div>
+            ))}
+          </div>
+          <a
+            href="/checkout"
+            style={{
+              display: 'inline-block',
+              padding: '0.85rem 2rem',
+              background: 'linear-gradient(135deg, #dc0000 0%, #b30000 100%)',
+              color: 'white',
+              borderRadius: '10px',
+              fontSize: '1rem',
+              fontWeight: '700',
+              textDecoration: 'none',
+              boxShadow: '0 4px 15px rgba(220, 0, 0, 0.4)',
+              marginBottom: '1rem'
+            }}
+          >
+            Complete Payment →
+          </a>
+          <div style={{ marginTop: '1rem' }}>
+            <button
+              onClick={() => { setProfile(null); setParentPlayers([]); setParentTeams({}); }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#6b7280',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Logout
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

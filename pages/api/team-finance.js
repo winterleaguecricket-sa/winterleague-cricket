@@ -2,11 +2,16 @@
 import { query } from '../../lib/db';
 
 function formatPayout(row) {
+  let breakdown = row.breakdown || null;
+  if (typeof breakdown === 'string') {
+    try { breakdown = JSON.parse(breakdown); } catch (e) { breakdown = null; }
+  }
   return {
     id: row.id,
     teamId: row.team_id,
     teamName: row.team_name,
     amount: parseFloat(row.amount || 0),
+    breakdown: breakdown || { markup: 0, commission: 0, total: 0 },
     bankName: row.bank_name,
     accountNumber: row.account_number,
     branchCode: row.branch_code,

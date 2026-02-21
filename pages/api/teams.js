@@ -278,12 +278,10 @@ function camelToSnake(str) {
 }
 
 // Helper to format database row to consistent team object
-async function formatTeam(row, options = {}) {
-  const { showAllPlayers = false } = options;
-  const playerFilter = showAllPlayers ? '' : "AND payment_status = 'paid'";
-  // Fetch related data
+async function formatTeam(row) {
+  // Fetch related data — return ALL players with paymentStatus, let UI filter
   const [playersResult, revenueResult, messagesResult] = await Promise.all([
-    query(`SELECT * FROM team_players WHERE team_id = $1 ${playerFilter} ORDER BY created_at`, [row.id]),
+    query(`SELECT * FROM team_players WHERE team_id = $1 ORDER BY created_at`, [row.id]),
     query(`SELECT tr.*, tp.player_name
            FROM team_revenue tr
            LEFT JOIN team_players tp 
