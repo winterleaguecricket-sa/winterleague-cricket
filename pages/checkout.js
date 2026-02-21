@@ -132,49 +132,8 @@ export default function Checkout() {
               password: parentPassword
             });
 
-            // Also verify/create the form submission if it's missing
-            try {
-              const subRes = await fetch(`/api/form-submissions?formId=2`);
-              const subData = await subRes.json();
-              const submissions = subData.submissions || subData || [];
-              const hasSubmission = Array.isArray(submissions) && submissions.some(s => 
-                s.customer_email === parentEmail || 
-                (s.data && (s.data[38] === parentEmail || s.data['38'] === parentEmail))
-              );
-              
-              if (!hasSubmission && formData) {
-                // Create the missing form submission
-                const submissionPayload = {
-                  formId: 2,
-                  data: formData
-                };
-                if (cart && cart.length > 0) {
-                  submissionPayload.cartItems = cart.map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    price: item.price,
-                    quantity: item.quantity,
-                    selectedSize: item.selectedSize || null
-                  }));
-                  submissionPayload.cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                }
-                const createSubRes = await fetch('/api/form-submissions', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(submissionPayload)
-                });
-                if (createSubRes.ok) {
-                  console.log('Created missing form submission from checkout');
-                  setFormSubmissionVerified(true);
-                } else {
-                  console.error('Failed to create form submission from checkout');
-                }
-              } else {
-                setFormSubmissionVerified(true);
-              }
-            } catch (subErr) {
-              console.error('Error verifying form submission:', subErr);
-            }
+            // Form submission is already created by FormDisplay - just mark as verified
+            setFormSubmissionVerified(true);
           }
         }
       } catch (e) {

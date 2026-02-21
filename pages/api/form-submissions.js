@@ -200,11 +200,25 @@ export default async function handler(req, res) {
           try {
             let hasExistingPlayer = false;
             try {
+              // Dedup: check by player name + email + team + sub_team (not formSubmissionId which is always unique)
               const existingPlayer = await query(
-                `SELECT id FROM team_players WHERE registration_data->>'formSubmissionId' = $1 LIMIT 1`,
-                [String(submissionData?.id || '')]
+                `SELECT id FROM team_players 
+                 WHERE team_id = $1 
+                   AND LOWER(player_name) = LOWER($2) 
+                   AND LOWER(COALESCE(player_email, '')) = LOWER($3)
+                   AND LOWER(COALESCE(sub_team, '')) = LOWER($4)
+                 LIMIT 1`,
+                [
+                  matchedTeam.id,
+                  playerName,
+                  parentEmail || '',
+                  subTeam || ''
+                ]
               );
               hasExistingPlayer = existingPlayer.rows.length > 0;
+              if (hasExistingPlayer) {
+                console.log(`Skipping duplicate player: ${playerName} (team ${matchedTeam.id}, sub_team: ${subTeam})`);
+              }
             } catch (lookupError) {
               hasExistingPlayer = false;
             }
