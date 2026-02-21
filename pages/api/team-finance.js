@@ -6,18 +6,35 @@ function formatPayout(row) {
   if (typeof breakdown === 'string') {
     try { breakdown = JSON.parse(breakdown); } catch (e) { breakdown = null; }
   }
+
+  // Build bankingDetails from payout columns + team's banking_details for accountHolder
+  let teamBanking = row.banking_details || null;
+  if (typeof teamBanking === 'string') {
+    try { teamBanking = JSON.parse(teamBanking); } catch (e) { teamBanking = null; }
+  }
+  const hasBankingOnPayout = row.bank_name || row.account_number;
+  const bankingDetails = hasBankingOnPayout ? {
+    accountHolder: (teamBanking && teamBanking.accountHolder) || row.coach_name || '',
+    bankName: row.bank_name || '',
+    accountNumber: row.account_number || '',
+    branchCode: row.branch_code || '',
+    accountType: row.account_type || ''
+  } : (teamBanking && Object.keys(teamBanking).length > 1 ? teamBanking : null);
+
   return {
     id: row.id,
     teamId: row.team_id,
     teamName: row.team_name,
     amount: parseFloat(row.amount || 0),
     breakdown: breakdown || { markup: 0, commission: 0, total: 0 },
+    bankingDetails,
     bankName: row.bank_name,
     accountNumber: row.account_number,
     branchCode: row.branch_code,
     accountType: row.account_type,
     status: row.status,
     adminNotes: row.admin_notes,
+    notes: row.admin_notes,
     requestedAt: row.requested_at,
     requested_at: row.requested_at,
     processedAt: row.processed_at,
@@ -106,7 +123,7 @@ export default async function handler(req, res) {
         }
 
         const result = await query(
-          `SELECT p.*, t.team_name FROM payout_requests p 
+          `SELECT p.*, t.team_name, t.banking_details, t.coach_name FROM payout_requests p 
            JOIN teams t ON p.team_id = t.id 
            WHERE p.team_id = $1 AND p.status = 'pending'`,
           [teamId]
@@ -124,7 +141,7 @@ export default async function handler(req, res) {
         }
 
         const result = await query(
-          `SELECT p.*, t.team_name FROM payout_requests p 
+          `SELECT p.*, t.team_name, t.banking_details, t.coach_name FROM payout_requests p 
            JOIN teams t ON p.team_id = t.id 
            WHERE p.team_id = $1 
            ORDER BY p.requested_at DESC`,
@@ -139,7 +156,7 @@ export default async function handler(req, res) {
       // Get all payouts (for admin)
       if (operationType === 'allPayouts') {
         const result = await query(
-          `SELECT p.*, t.team_name, t.coach_name, t.email, t.phone 
+          `SELECT p.*, t.team_name, t.coach_name, t.email, t.phone, t.banking_details, t.manager_name 
            FROM payout_requests p 
            JOIN teams t ON p.team_id = t.id 
            ORDER BY p.requested_at DESC`
