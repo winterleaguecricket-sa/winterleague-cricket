@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import Head from 'next/head';
 
 // ─── SVG ICONS ─────────────────────────────────────────────
@@ -613,51 +613,94 @@ export default function ManufacturerPortal() {
                 </thead>
                 <tbody>
                   {team.players.map((player, idx) => (
-                    <tr key={idx} style={{
-                      background: idx % 2 === 0 ? '#111827' : '#0f172a',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)'
-                    }}>
-                      <td style={{ ...tdStyle, color: '#6b7280', fontWeight: '600', fontSize: '0.82rem', width: '40px' }}>
-                        {idx + 1}
-                      </td>
-                      <td style={{ ...tdStyle, color: '#f1f5f9', fontWeight: '700' }}>
-                        {player.name}
-                      </td>
-                      <td style={tdStyle}>
-                        {player.shirtSize ? (
-                          <span style={{
-                            padding: '0.2rem 0.5rem', background: 'rgba(96,165,250,0.1)',
-                            border: '1px solid rgba(96,165,250,0.2)', borderRadius: '4px',
-                            fontSize: '0.82rem', fontWeight: '600', color: '#93c5fd'
-                          }}>{player.shirtSize}</span>
-                        ) : (
-                          <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
-                        )}
-                      </td>
-                      <td style={tdStyle}>
-                        {player.pantsSize ? (
-                          <span style={{
-                            padding: '0.2rem 0.5rem', background: 'rgba(34,197,94,0.1)',
-                            border: '1px solid rgba(34,197,94,0.2)', borderRadius: '4px',
-                            fontSize: '0.82rem', fontWeight: '600', color: '#86efac'
-                          }}>{player.pantsSize}</span>
-                        ) : (
-                          <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
-                        )}
-                      </td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>
-                        {player.shirtNumber != null ? (
-                          <span style={{
-                            display: 'inline-block', minWidth: '32px',
-                            padding: '0.2rem 0.5rem', background: 'rgba(239,68,68,0.1)',
-                            border: '1px solid rgba(239,68,68,0.25)', borderRadius: '6px',
-                            fontSize: '0.9rem', fontWeight: '800', color: '#fca5a5', textAlign: 'center'
-                          }}>{player.shirtNumber}</span>
-                        ) : (
-                          <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
-                        )}
-                      </td>
-                    </tr>
+                    <Fragment key={idx}>
+                      <tr style={{
+                        background: idx % 2 === 0 ? '#111827' : '#0f172a',
+                        borderBottom: (player.additionalItems && player.additionalItems.length > 0) ? 'none' : '1px solid rgba(255,255,255,0.04)'
+                      }}>
+                        <td style={{ ...tdStyle, color: '#6b7280', fontWeight: '600', fontSize: '0.82rem', width: '40px' }}>
+                          {idx + 1}
+                        </td>
+                        <td style={{ ...tdStyle, color: '#f1f5f9', fontWeight: '700' }}>
+                          {player.name}
+                        </td>
+                        <td style={tdStyle}>
+                          {player.shirtSize ? (
+                            <span style={{
+                              padding: '0.2rem 0.5rem', background: 'rgba(96,165,250,0.1)',
+                              border: '1px solid rgba(96,165,250,0.2)', borderRadius: '4px',
+                              fontSize: '0.82rem', fontWeight: '600', color: '#93c5fd'
+                            }}>{player.shirtSize}</span>
+                          ) : (
+                            <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
+                          )}
+                        </td>
+                        <td style={tdStyle}>
+                          {player.pantsSize ? (
+                            <span style={{
+                              padding: '0.2rem 0.5rem', background: 'rgba(34,197,94,0.1)',
+                              border: '1px solid rgba(34,197,94,0.2)', borderRadius: '4px',
+                              fontSize: '0.82rem', fontWeight: '600', color: '#86efac'
+                            }}>{player.pantsSize}</span>
+                          ) : (
+                            <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
+                          )}
+                        </td>
+                        <td style={{ ...tdStyle, textAlign: 'center' }}>
+                          {player.shirtNumber != null ? (
+                            <span style={{
+                              display: 'inline-block', minWidth: '32px',
+                              padding: '0.2rem 0.5rem', background: 'rgba(239,68,68,0.1)',
+                              border: '1px solid rgba(239,68,68,0.25)', borderRadius: '6px',
+                              fontSize: '0.9rem', fontWeight: '800', color: '#fca5a5', textAlign: 'center'
+                            }}>{player.shirtNumber}</span>
+                          ) : (
+                            <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
+                          )}
+                        </td>
+                      </tr>
+                      {player.additionalItems && player.additionalItems.length > 0 && (
+                        <tr style={{
+                          background: idx % 2 === 0 ? '#111827' : '#0f172a',
+                          borderBottom: '1px solid rgba(255,255,255,0.04)'
+                        }}>
+                          <td colSpan={5} style={{ padding: '0 1rem 0.6rem 3.2rem' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600', marginRight: '0.15rem' }}>
+                                Additional:
+                              </span>
+                              {player.additionalItems.map((ai, aiIdx) => (
+                                <span key={aiIdx} style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                                  padding: '0.2rem 0.55rem',
+                                  background: ai.isSupporter ? 'rgba(168,85,247,0.1)' : 'rgba(59,130,246,0.1)',
+                                  border: `1px solid ${ai.isSupporter ? 'rgba(168,85,247,0.25)' : 'rgba(59,130,246,0.25)'}`,
+                                  borderRadius: '5px', fontSize: '0.78rem', fontWeight: '600',
+                                  color: ai.isSupporter ? '#c4b5fd' : '#93c5fd'
+                                }}>
+                                  {ai.image && (
+                                    <img src={ai.image} alt="" style={{
+                                      width: '18px', height: '18px', objectFit: 'cover',
+                                      borderRadius: '3px', border: '1px solid rgba(255,255,255,0.1)'
+                                    }} />
+                                  )}
+                                  {ai.name}
+                                  {ai.size && ai.size !== 'One Size' && (
+                                    <span style={{ color: ai.isSupporter ? '#a78bfa' : '#60a5fa', fontWeight: '700' }}>({ai.size})</span>
+                                  )}
+                                  {ai.quantity > 1 && (
+                                    <span style={{ fontWeight: '800' }}>×{ai.quantity}</span>
+                                  )}
+                                  {ai.isSupporter && (
+                                    <span style={{ fontSize: '0.65rem', background: 'rgba(168,85,247,0.25)', padding: '0.08rem 0.3rem', borderRadius: '3px', color: '#d8b4fe', fontWeight: '700', marginLeft: '0.1rem' }}>SUPPORTER</span>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -673,7 +716,7 @@ export default function ManufacturerPortal() {
           </div>
         )}
 
-        {/* ── ADDITIONAL MANUFACTURED ITEMS ── */}
+        {/* ── ADDITIONAL MANUFACTURED ITEMS (PER-PLAYER) ── */}
         {hasAdditionalItems && (
           <div style={{ marginBottom: '1.5rem' }}>
             <div style={{
@@ -681,56 +724,107 @@ export default function ManufacturerPortal() {
               textTransform: 'uppercase', letterSpacing: '0.08em',
               display: 'flex', alignItems: 'center', gap: '0.4rem'
             }}>
-              {icons.package} Additional Items — {team.additionalItems.reduce((s, i) => s + i.quantity, 0)} item{team.additionalItems.reduce((s, i) => s + i.quantity, 0) !== 1 ? 's' : ''} ordered
+              {icons.package} Additional Items — {team.totalAdditionalQty || team.additionalItems.reduce((s, i) => s + i.quantity, 0)} item{(team.totalAdditionalQty || team.additionalItems.reduce((s, i) => s + i.quantity, 0)) !== 1 ? 's' : ''} ordered
             </div>
+
+            {/* ── Manufacturing Notes ── */}
+            {team.additionalItems.some(i => !i.isSupporter) && (
+              <div style={{
+                background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)',
+                borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '0.75rem',
+                display: 'flex', alignItems: 'flex-start', gap: '0.5rem'
+              }}>
+                <span style={{ fontSize: '1.1rem', lineHeight: 1, flexShrink: 0 }}>⚠️</span>
+                <span style={{ fontSize: '0.82rem', color: '#fbbf24', fontWeight: '600', lineHeight: 1.4 }}>
+                  <strong>Team Kit Items:</strong> All additional apparel items for this team must be manufactured in the same colours as the team&apos;s chosen kit design shown above.
+                </span>
+              </div>
+            )}
+            {team.additionalItems.some(i => i.isSupporter) && (
+              <div style={{
+                background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.25)',
+                borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '0.75rem',
+                display: 'flex', alignItems: 'flex-start', gap: '0.5rem'
+              }}>
+                <span style={{ fontSize: '1.1rem', lineHeight: 1, flexShrink: 0 }}>⚠️</span>
+                <span style={{ fontSize: '0.82rem', color: '#c4b5fd', fontWeight: '600', lineHeight: 1.4 }}>
+                  <strong>Supporter Items:</strong> All supporter items must have &quot;SUPPORTER&quot; printed on the back of the tops.
+                </span>
+              </div>
+            )}
+
+            {/* ── Per-player items table ── */}
             <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(59,130,246,0.2)' }}>
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', minWidth: '400px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', minWidth: '500px' }}>
                   <thead>
                     <tr style={{ background: 'rgba(59,130,246,0.08)' }}>
-                      <th style={{ ...thStyle, color: '#60a5fa' }}>Item</th>
+                      <th style={{ ...thStyle, color: '#60a5fa', textAlign: 'left' }}>Player</th>
+                      <th style={{ ...thStyle, color: '#60a5fa', textAlign: 'left' }}>Item</th>
                       <th style={{ ...thStyle, color: '#60a5fa', textAlign: 'left' }}>Size</th>
                       <th style={{ ...thStyle, color: '#60a5fa', textAlign: 'center' }}>Qty</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {team.additionalItems.map((item, idx) => (
-                      <tr key={idx} style={{
-                        background: idx % 2 === 0 ? '#111827' : '#0f172a',
-                        borderBottom: '1px solid rgba(255,255,255,0.04)'
-                      }}>
-                        <td style={{ ...tdStyle, color: '#f1f5f9', fontWeight: '700' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                            {item.image && (
-                              <img src={item.image} alt="" style={{
-                                width: '32px', height: '32px', objectFit: 'cover',
-                                borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', flexShrink: 0
-                              }} />
-                            )}
-                            {item.name}
-                          </div>
-                        </td>
-                        <td style={tdStyle}>
-                          {item.size && item.size !== 'One Size' ? (
-                            <span style={{
-                              padding: '0.2rem 0.5rem', background: 'rgba(59,130,246,0.1)',
-                              border: '1px solid rgba(59,130,246,0.2)', borderRadius: '4px',
-                              fontSize: '0.82rem', fontWeight: '600', color: '#93c5fd'
-                            }}>{item.size}</span>
-                          ) : (
-                            <span style={{ color: '#6b7280', fontSize: '0.82rem' }}>One Size</span>
-                          )}
-                        </td>
-                        <td style={{ ...tdStyle, textAlign: 'center' }}>
-                          <span style={{
-                            display: 'inline-block', minWidth: '28px',
-                            padding: '0.2rem 0.5rem', background: 'rgba(59,130,246,0.1)',
-                            border: '1px solid rgba(59,130,246,0.25)', borderRadius: '6px',
-                            fontSize: '0.9rem', fontWeight: '800', color: '#93c5fd', textAlign: 'center'
-                          }}>×{item.quantity}</span>
-                        </td>
-                      </tr>
-                    ))}
+                    {(() => {
+                      let rowIdx = 0;
+                      return team.players.filter(p => p.additionalItems && p.additionalItems.length > 0).flatMap((player) =>
+                        player.additionalItems.map((item, iIdx) => {
+                          const ri = rowIdx++;
+                          return (
+                            <tr key={`${player.name}-${iIdx}`} style={{
+                              background: ri % 2 === 0 ? '#111827' : '#0f172a',
+                              borderBottom: '1px solid rgba(255,255,255,0.04)'
+                            }}>
+                              <td style={{ ...tdStyle, color: '#f1f5f9', fontWeight: '700' }}>
+                                {iIdx === 0 ? player.name : ''}
+                              </td>
+                              <td style={{ ...tdStyle, color: '#f1f5f9', fontWeight: '600' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {item.image && (
+                                    <img src={item.image} alt="" style={{
+                                      width: '28px', height: '28px', objectFit: 'cover',
+                                      borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', flexShrink: 0
+                                    }} />
+                                  )}
+                                  {item.name}
+                                  {item.isSupporter && (
+                                    <span style={{
+                                      fontSize: '0.65rem', background: 'rgba(168,85,247,0.3)',
+                                      padding: '0.1rem 0.35rem', borderRadius: '3px',
+                                      color: '#d8b4fe', fontWeight: '700'
+                                    }}>SUPPORTER</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={tdStyle}>
+                                {item.size && item.size !== 'One Size' ? (
+                                  <span style={{
+                                    padding: '0.2rem 0.5rem',
+                                    background: item.isSupporter ? 'rgba(168,85,247,0.1)' : 'rgba(59,130,246,0.1)',
+                                    border: `1px solid ${item.isSupporter ? 'rgba(168,85,247,0.2)' : 'rgba(59,130,246,0.2)'}`,
+                                    borderRadius: '4px', fontSize: '0.82rem', fontWeight: '600',
+                                    color: item.isSupporter ? '#c4b5fd' : '#93c5fd'
+                                  }}>{item.size}</span>
+                                ) : (
+                                  <span style={{ color: '#6b7280', fontSize: '0.82rem' }}>One Size</span>
+                                )}
+                              </td>
+                              <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                <span style={{
+                                  display: 'inline-block', minWidth: '28px',
+                                  padding: '0.2rem 0.5rem',
+                                  background: item.isSupporter ? 'rgba(168,85,247,0.1)' : 'rgba(59,130,246,0.1)',
+                                  border: `1px solid ${item.isSupporter ? 'rgba(168,85,247,0.25)' : 'rgba(59,130,246,0.25)'}`,
+                                  borderRadius: '6px', fontSize: '0.9rem', fontWeight: '800',
+                                  color: item.isSupporter ? '#c4b5fd' : '#93c5fd', textAlign: 'center'
+                                }}>×{item.quantity}</span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      );
+                    })()}
                   </tbody>
                 </table>
               </div>

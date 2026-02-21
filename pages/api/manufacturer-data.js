@@ -45,11 +45,12 @@ export default async function handler(req, res) {
     `);
 
     // ── ADDITIONAL ITEMS from paid registration orders ──
-    // Link orders to teams via parent-email → team_players.registration_data->>'parentEmail'
+    // Link orders to specific players via parent-email → team_players
     const additionalItemsResult = await pool.query(`
-      SELECT DISTINCT ON (o.id, item_idx)
+      SELECT
         tp.team_id,
-        o.customer_name,
+        tp.player_name,
+        o.customer_name as ordered_by,
         item.value->>'id' as item_id,
         item.value->>'name' as item_name,
         item.value->>'selectedSize' as item_size,
@@ -66,7 +67,7 @@ export default async function handler(req, res) {
         AND t.status NOT IN ('archived')
         AND tp.payment_status = 'paid'
         AND item.value->>'id' != 'basic-kit'
-      ORDER BY o.id, item_idx, tp.team_id
+      ORDER BY tp.team_id, tp.player_name, item.value->>'name'
     `);
 
     // ── Shirt design catalog for fallback images ──
@@ -85,28 +86,34 @@ export default async function handler(req, res) {
         name: p.player_name,
         shirtSize: p.jersey_size || '',
         pantsSize: p.pants_size || '',
-        shirtNumber: p.jersey_number
+        shirtNumber: p.jersey_number,
+        additionalItems: []  // will be populated below
       });
     }
 
-    // ── Group additional items by team ──
-    const additionalByTeam = {};
+    // ── Link additional items to their specific players ──
     for (const item of additionalItemsResult.rows) {
-      if (!additionalByTeam[item.team_id]) additionalByTeam[item.team_id] = [];
-      additionalByTeam[item.team_id].push({
+      const teamPlayers = playersByTeam[item.team_id] || [];
+      const player = teamPlayers.find(p => p.name === item.player_name);
+      const isSupporter = (item.item_id || '').startsWith('supporter_') || (item.item_name || '').toLowerCase().includes('supporter');
+      const itemObj = {
+        id: item.item_id || '',
         name: item.item_name || '',
         size: item.item_size || null,
         quantity: item.item_qty || 1,
-        orderedBy: item.customer_name || '',
-        image: item.item_image || ''
-      });
+        image: item.item_image || '',
+        orderedBy: item.ordered_by || '',
+        isSupporter
+      };
+      if (player) {
+        player.additionalItems.push(itemObj);
+      }
     }
 
     // ── Build team objects ──
     let totalPaidPlayers = 0;
     const teams = teamsResult.rows.map(t => {
       const players = playersByTeam[t.id] || [];
-      const additionalItems = additionalByTeam[t.id] || [];
       const kitDesignName = t.shirt_design || '';
       totalPaidPlayers += players.length;
 
@@ -131,12 +138,20 @@ export default async function handler(req, res) {
         pantsSizeSummary[ps] = (pantsSizeSummary[ps] || 0) + 1;
       }
 
-      // Aggregate additional items
+      // Collect all additional items across all players (for team-level summary)
+      const allAdditionalItems = [];
+      for (const p of players) {
+        for (const ai of p.additionalItems) {
+          allAdditionalItems.push(ai);
+        }
+      }
+
+      // Aggregate additional items for team summary
       const additionalSummary = {};
-      for (const ai of additionalItems) {
+      for (const ai of allAdditionalItems) {
         const key = `${ai.name}||${ai.size || 'One Size'}`;
         if (!additionalSummary[key]) {
-          additionalSummary[key] = { name: ai.name, size: ai.size || 'One Size', quantity: 0, image: ai.image };
+          additionalSummary[key] = { name: ai.name, size: ai.size || 'One Size', quantity: 0, image: ai.image, isSupporter: ai.isSupporter };
         }
         additionalSummary[key].quantity += ai.quantity;
       }
@@ -152,7 +167,8 @@ export default async function handler(req, res) {
         players,
         shirtSizeSummary,
         pantsSizeSummary,
-        additionalItems: Object.values(additionalSummary)
+        additionalItems: Object.values(additionalSummary),
+        totalAdditionalQty: allAdditionalItems.reduce((s, i) => s + i.quantity, 0)
       };
     });
 
