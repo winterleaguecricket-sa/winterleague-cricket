@@ -72,6 +72,43 @@ export default async function handler(req, res) {
       ORDER BY tp.team_id, tp.player_name, item.value->>'name'
     `);
 
+    // ── ADDITIONAL APPAREL REVENUE (cost-based) ──
+    // Query all non-basic-kit items from paid orders, join with products table for cost prices
+    // Includes both player registration items and supporter items
+    const apparelRevenueResult = await pool.query(`
+      SELECT
+        item.value->>'id' as item_id,
+        item.value->>'name' as item_name,
+        (item.value->>'price')::numeric as sale_price,
+        SUM((item.value->>'quantity')::int) as total_qty,
+        COALESCE(p.cost, 0) as unit_cost
+      FROM orders o
+      CROSS JOIN LATERAL jsonb_array_elements(o.items) AS item(value)
+      LEFT JOIN products p ON p.id::text = item.value->>'id'
+        OR (item.value->>'id' LIKE 'supporter_%' AND p.id::text = REPLACE(item.value->>'id', 'supporter_', ''))
+      WHERE o.payment_status = 'paid'
+        AND item.value->>'id' != 'basic-kit'
+      GROUP BY item.value->>'id', item.value->>'name', item.value->>'price', p.cost
+      ORDER BY item.value->>'name'
+    `);
+
+    // Build apparel revenue breakdown
+    let totalApparelRevenue = 0;
+    const apparelItems = apparelRevenueResult.rows.map(r => {
+      const qty = parseInt(r.total_qty) || 0;
+      const unitCost = parseFloat(r.unit_cost) || 0;
+      const lineTotal = qty * unitCost;
+      totalApparelRevenue += lineTotal;
+      return {
+        itemId: r.item_id,
+        itemName: r.item_name,
+        salePrice: parseFloat(r.sale_price) || 0,
+        unitCost,
+        qtySold: qty,
+        totalCostRevenue: lineTotal
+      };
+    });
+
     // ── Shirt design catalog for fallback images ──
     let shirtDesignCatalog = [];
     try {
@@ -186,7 +223,11 @@ export default async function handler(req, res) {
     return res.status(200).json({
       teams,
       totalTeams: teams.length,
-      totalPlayers: totalPaidPlayers
+      totalPlayers: totalPaidPlayers,
+      apparelRevenue: {
+        total: totalApparelRevenue,
+        items: apparelItems
+      }
     });
   } catch (err) {
     console.error('Manufacturer data error:', err);

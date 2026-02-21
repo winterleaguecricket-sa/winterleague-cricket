@@ -70,6 +70,7 @@ export default function ManufacturerPortal() {
   const [teamsData, setTeamsData] = useState([]);
   const [totalTeams, setTotalTeams] = useState(0);
   const [totalPlayers, setTotalPlayers] = useState(0);
+  const [apparelRevenue, setApparelRevenue] = useState({ total: 0, items: [] });
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState(null);
@@ -84,6 +85,7 @@ export default function ManufacturerPortal() {
       setTeamsData(data.teams || []);
       setTotalTeams(data.totalTeams || 0);
       setTotalPlayers(data.totalPlayers || 0);
+      setApparelRevenue(data.apparelRevenue || { total: 0, items: [] });
     } catch (err) {
       console.error('Failed to load manufacturer data:', err);
     } finally {
@@ -999,7 +1001,7 @@ export default function ManufacturerPortal() {
                     Revenue
                   </div>
                   <div style={{ fontSize: '0.9rem', color: '#9ca3af', fontWeight: '600' }}>
-                    {loading ? 'Loading...' : `R${(totalPlayers * 433.50).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} from ${totalPlayers} kits`}
+                    {loading ? 'Loading...' : `R${((totalPlayers * 433.50) + (apparelRevenue.total || 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} total revenue`}
                   </div>
                 </div>
 
@@ -1100,7 +1102,12 @@ export default function ManufacturerPortal() {
           {activeTab === 'teamDetail' && renderTeamDetail()}
 
           {/* ════════════════ REVENUE ════════════════ */}
-          {activeTab === 'revenue' && (
+          {activeTab === 'revenue' && (() => {
+            const kitRevenue = totalPlayers * 433.50;
+            const apparelTotal = apparelRevenue.total || 0;
+            const combinedRevenue = kitRevenue + apparelTotal;
+            const fmtR = (v) => `R${v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+            return (
             <div>
               {/* Revenue Summary Banner */}
               <div style={{
@@ -1117,45 +1124,62 @@ export default function ManufacturerPortal() {
                   }}>💰</div>
                   <div>
                     <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 900, color: '#f9fafb' }}>Revenue Overview</h2>
-                    <p style={{ margin: '0.25rem 0 0 0', color: '#9ca3af', fontSize: '0.9rem' }}>Kit manufacturing revenue overview</p>
+                    <p style={{ margin: '0.25rem 0 0 0', color: '#9ca3af', fontSize: '0.9rem' }}>Kit & additional apparel manufacturing revenue</p>
                   </div>
                 </div>
 
                 {/* Summary cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+                  {/* Combined Total */}
                   <div style={{
-                    background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
+                    background: 'rgba(16,185,129,0.12)', border: '2px solid rgba(16,185,129,0.35)',
                     borderRadius: '12px', padding: '1.25rem', textAlign: 'center'
                   }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Total Kit Revenue</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Total Revenue</div>
                     <div style={{ fontSize: '2rem', fontWeight: 900, color: '#34d399' }}>
-                      R{(totalPlayers * 433.50).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                      {fmtR(combinedRevenue)}
                     </div>
                   </div>
+                  {/* Kit Revenue */}
                   <div style={{
                     background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
                     borderRadius: '12px', padding: '1.25rem', textAlign: 'center'
                   }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Paid Players</div>
-                    <div style={{ fontSize: '2rem', fontWeight: 900, color: '#60a5fa' }}>{totalPlayers}</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Basic Kit Revenue</div>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#60a5fa' }}>
+                      {fmtR(kitRevenue)}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.25rem' }}>{totalPlayers} players × R433.50</div>
                   </div>
+                  {/* Apparel Revenue */}
+                  <div style={{
+                    background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)',
+                    borderRadius: '12px', padding: '1.25rem', textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#c4b5fd', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Additional Apparel</div>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#a78bfa' }}>
+                      {fmtR(apparelTotal)}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.25rem' }}>{(apparelRevenue.items || []).reduce((s, i) => s + i.qtySold, 0)} items sold</div>
+                  </div>
+                  {/* Paid Players */}
                   <div style={{
                     background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)',
                     borderRadius: '12px', padding: '1.25rem', textAlign: 'center'
                   }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fcd34d', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Per Kit Rate</div>
-                    <div style={{ fontSize: '2rem', fontWeight: 900, color: '#fbbf24' }}>R433.50</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fcd34d', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Paid Players</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 900, color: '#fbbf24' }}>{totalPlayers}</div>
                   </div>
                 </div>
               </div>
 
-              {/* Per-team breakdown */}
+              {/* Per-team kit breakdown */}
               <div style={{
                 background: '#111827', borderRadius: '12px', padding: '1.5rem',
-                border: '1px solid rgba(255,255,255,0.08)'
+                border: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem'
               }}>
                 <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: 800, color: '#f9fafb' }}>
-                  Revenue by Team
+                  Basic Kit Revenue by Team
                 </h3>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
@@ -1185,7 +1209,7 @@ export default function ManufacturerPortal() {
                               }}>{team.playerCount}</span>
                             </td>
                             <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#34d399', fontWeight: 700 }}>
-                              R{(team.playerCount * 433.50).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                              {fmtR(team.playerCount * 433.50)}
                             </td>
                           </tr>
                         ))}
@@ -1198,7 +1222,7 @@ export default function ManufacturerPortal() {
                           {totalPlayers}
                         </td>
                         <td style={{ padding: '0.85rem 1rem', textAlign: 'right', color: '#34d399', fontWeight: 900, fontSize: '1.05rem' }}>
-                          R{(totalPlayers * 433.50).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                          {fmtR(kitRevenue)}
                         </td>
                       </tr>
                     </tbody>
@@ -1206,9 +1230,77 @@ export default function ManufacturerPortal() {
                 </div>
               </div>
 
+              {/* Additional Apparel Revenue Breakdown */}
+              {(apparelRevenue.items || []).length > 0 && (
+                <div style={{
+                  background: '#111827', borderRadius: '12px', padding: '1.5rem',
+                  border: '1px solid rgba(168,85,247,0.15)'
+                }}>
+                  <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: 800, color: '#f9fafb' }}>
+                    Additional Apparel Revenue
+                  </h3>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                          <th style={{ textAlign: 'left', padding: '0.75rem 1rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Item</th>
+                          <th style={{ textAlign: 'center', padding: '0.75rem 1rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Qty Sold</th>
+                          <th style={{ textAlign: 'right', padding: '0.75rem 1rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cost / Unit</th>
+                          <th style={{ textAlign: 'right', padding: '0.75rem 1rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Due</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(apparelRevenue.items || [])
+                          .filter(item => item.qtySold > 0 && item.unitCost > 0)
+                          .sort((a, b) => b.totalCostRevenue - a.totalCostRevenue)
+                          .map((item, idx) => (
+                            <tr key={item.itemId} style={{
+                              borderBottom: '1px solid rgba(255,255,255,0.05)',
+                              background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'
+                            }}>
+                              <td style={{ padding: '0.75rem 1rem', color: '#f1f5f9', fontWeight: 600 }}>
+                                {item.itemName}
+                                {(item.itemId || '').startsWith('supporter_') && (
+                                  <span style={{ fontSize: '0.7rem', color: '#a78bfa', marginLeft: '0.5rem', background: 'rgba(168,85,247,0.15)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>Supporter</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                <span style={{
+                                  background: 'rgba(168,85,247,0.12)', color: '#c4b5fd',
+                                  padding: '0.2rem 0.6rem', borderRadius: '6px', fontWeight: 700, fontSize: '0.82rem'
+                                }}>{item.qtySold}</span>
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>
+                                {fmtR(item.unitCost)}
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#a78bfa', fontWeight: 700 }}>
+                                {fmtR(item.totalCostRevenue)}
+                              </td>
+                            </tr>
+                          ))}
+                        {/* Totals row */}
+                        <tr style={{ borderTop: '2px solid rgba(168,85,247,0.3)', background: 'rgba(168,85,247,0.05)' }}>
+                          <td style={{ padding: '0.85rem 1rem', color: '#f9fafb', fontWeight: 800, fontSize: '0.92rem' }}>
+                            TOTAL APPAREL
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', textAlign: 'center', color: '#f9fafb', fontWeight: 800 }}>
+                            {(apparelRevenue.items || []).filter(i => i.unitCost > 0).reduce((s, i) => s + i.qtySold, 0)}
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem' }}></td>
+                          <td style={{ padding: '0.85rem 1rem', textAlign: 'right', color: '#a78bfa', fontWeight: 900, fontSize: '1.05rem' }}>
+                            {fmtR(apparelTotal)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
 
             </div>
-          )}
+            );
+          })()}
 
           {/* ════════════════ ACCOUNT SETTINGS ════════════════ */}
           {activeTab === 'settings' && (
