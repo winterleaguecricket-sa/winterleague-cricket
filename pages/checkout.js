@@ -25,7 +25,7 @@ export default function Checkout() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState('');
   const [formBackground, setFormBackground] = useState('');
-  const [activeGateway, setActiveGateway] = useState('payfast');
+  const [activeGateway, setActiveGateway] = useState(null);
   const [formSubmissionVerified, setFormSubmissionVerified] = useState(false);
 
   // Load active payment gateway
@@ -370,6 +370,10 @@ export default function Checkout() {
   };
 
   const handlePayment = async () => {
+    if (!activeGateway) {
+      setError('Payment gateway is still loading. Please wait a moment and try again.');
+      return;
+    }
     if (!customerProfile) {
       setError('Customer profile not found. Please go back and complete the registration form.');
       return;
@@ -734,19 +738,26 @@ export default function Checkout() {
                     <button 
                       type="button"
                       onClick={handlePayment}
+                      disabled={!activeGateway}
                       style={{ 
                         width: '100%',
                         padding: '1.25rem', 
-                        background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                        background: !activeGateway
+                          ? '#6b7280'
+                          : 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
                         color: 'white',
                         border: 'none',
                         borderRadius: '10px',
                         fontSize: '1.1rem',
                         fontWeight: 700,
-                        cursor: 'pointer'
+                        cursor: !activeGateway ? 'wait' : 'pointer',
+                        opacity: !activeGateway ? 0.7 : 1
                       }}
                     >
-                      Pay with {activeGateway === 'yoco' ? 'Yoco' : 'PayFast'} — R{getCartTotal().toFixed(2)}
+                      {!activeGateway
+                        ? 'Loading payment gateway...'
+                        : `Pay with ${activeGateway === 'yoco' ? 'Yoco' : 'PayFast'} — R${getCartTotal().toFixed(2)}`
+                      }
                     </button>
                   </>
                 ) : (
