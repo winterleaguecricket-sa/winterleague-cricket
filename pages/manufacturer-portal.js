@@ -978,6 +978,31 @@ export default function ManufacturerPortal() {
                   </div>
                 </div>
 
+                <div className="mfgDashboardCard" onClick={() => setActiveTab('revenue')}
+                  onMouseEnter={applyHover} onMouseLeave={removeHover}
+                  style={{
+                    background: '#111827', padding: '1.5rem', borderRadius: '12px',
+                    border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                    textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s', position: 'relative', overflow: 'hidden'
+                  }}>
+                  <ShineEffect />
+                  <div style={{
+                    width: '48px', height: '48px', marginBottom: '1rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    borderRadius: '12px', color: '#34d399', background: 'rgba(16, 185, 129, 0.14)', border: '1px solid rgba(16, 185, 129, 0.35)'
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                    </svg>
+                  </div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f9fafb', marginBottom: '0.25rem' }}>
+                    Revenue
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: '#9ca3af', fontWeight: '600' }}>
+                    {loading ? 'Loading...' : `R${(totalPlayers * 433.50).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} from ${totalPlayers} kits`}
+                  </div>
+                </div>
+
                 <div className="mfgDashboardCard" onClick={() => setActiveTab('settings')}
                   onMouseEnter={applyHover} onMouseLeave={removeHover}
                   style={{
@@ -1073,6 +1098,126 @@ export default function ManufacturerPortal() {
 
           {/* ════════════════ TEAM DETAIL PAGE ════════════════ */}
           {activeTab === 'teamDetail' && renderTeamDetail()}
+
+          {/* ════════════════ REVENUE ════════════════ */}
+          {activeTab === 'revenue' && (
+            <div>
+              {/* Revenue Summary Banner */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(17,24,39,0.95) 50%, rgba(16,185,129,0.08) 100%)',
+                borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem',
+                border: '1px solid rgba(16,185,129,0.2)', boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{
+                    width: '56px', height: '56px', borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                    border: '2px solid rgba(16,185,129,0.6)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0
+                  }}>💰</div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 900, color: '#f9fafb' }}>Revenue Overview</h2>
+                    <p style={{ margin: '0.25rem 0 0 0', color: '#9ca3af', fontSize: '0.9rem' }}>Kit manufacturing revenue — R433.50 per player kit</p>
+                  </div>
+                </div>
+
+                {/* Summary cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                  <div style={{
+                    background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
+                    borderRadius: '12px', padding: '1.25rem', textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Total Kit Revenue</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 900, color: '#34d399' }}>
+                      R{(totalPlayers * 433.50).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    </div>
+                  </div>
+                  <div style={{
+                    background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
+                    borderRadius: '12px', padding: '1.25rem', textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Paid Players</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 900, color: '#60a5fa' }}>{totalPlayers}</div>
+                  </div>
+                  <div style={{
+                    background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)',
+                    borderRadius: '12px', padding: '1.25rem', textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fcd34d', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Per Kit Rate</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 900, color: '#fbbf24' }}>R433.50</div>
+                    <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.25rem' }}>out of R550.00 kit fee</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Per-team breakdown */}
+              <div style={{
+                background: '#111827', borderRadius: '12px', padding: '1.5rem',
+                border: '1px solid rgba(255,255,255,0.08)'
+              }}>
+                <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: 800, color: '#f9fafb' }}>
+                  Revenue by Team
+                </h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                        <th style={{ textAlign: 'left', padding: '0.75rem 1rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Team</th>
+                        <th style={{ textAlign: 'center', padding: '0.75rem 1rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Paid Players</th>
+                        <th style={{ textAlign: 'right', padding: '0.75rem 1rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Kit Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teamsData
+                        .filter(t => t.playerCount > 0)
+                        .sort((a, b) => b.playerCount - a.playerCount)
+                        .map((team, idx) => (
+                          <tr key={team.id} style={{
+                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                            background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'
+                          }}>
+                            <td style={{ padding: '0.75rem 1rem', color: '#f1f5f9', fontWeight: 600 }}>
+                              {team.teamName}
+                            </td>
+                            <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                              <span style={{
+                                background: 'rgba(59,130,246,0.12)', color: '#60a5fa',
+                                padding: '0.2rem 0.6rem', borderRadius: '6px', fontWeight: 700, fontSize: '0.82rem'
+                              }}>{team.playerCount}</span>
+                            </td>
+                            <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#34d399', fontWeight: 700 }}>
+                              R{(team.playerCount * 433.50).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            </td>
+                          </tr>
+                        ))}
+                      {/* Totals row */}
+                      <tr style={{ borderTop: '2px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.05)' }}>
+                        <td style={{ padding: '0.85rem 1rem', color: '#f9fafb', fontWeight: 800, fontSize: '0.92rem' }}>
+                          TOTAL
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', textAlign: 'center', color: '#f9fafb', fontWeight: 800 }}>
+                          {totalPlayers}
+                        </td>
+                        <td style={{ padding: '0.85rem 1rem', textAlign: 'right', color: '#34d399', fontWeight: 900, fontSize: '1.05rem' }}>
+                          R{(totalPlayers * 433.50).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Rate breakdown info */}
+              <div style={{
+                marginTop: '1rem', padding: '1rem 1.25rem',
+                background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)',
+                borderRadius: '10px', fontSize: '0.82rem', color: '#93c5fd', lineHeight: 1.6
+              }}>
+                <strong>ℹ️ Kit Fee Breakdown:</strong> Each player registration kit fee is R550.00 — of which <strong>R433.50 (78.8%)</strong> goes to the manufacturer for kit production.
+                The remaining R116.50 covers league administration and platform fees.
+              </div>
+            </div>
+          )}
 
           {/* ════════════════ ACCOUNT SETTINGS ════════════════ */}
           {activeTab === 'settings' && (
