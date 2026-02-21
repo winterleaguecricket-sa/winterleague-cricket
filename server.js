@@ -148,6 +148,31 @@ app.prepare().then(() => {
     })
     .listen(port, () => {
       logWithTimestamp('INFO', `Winter League Cricket ready on http://${hostname}:${port}`)
+
+      // ============================================================
+      // Automatic Payment Reconciliation (every 5 minutes)
+      // Catches orphaned payments when server restarts during checkout
+      // ============================================================
+      const RECONCILE_INTERVAL = 5 * 60 * 1000 // 5 minutes
+      const reconcileUrl = `http://${hostname}:${port}/api/cron/reconcile-payments?secret=wlc-reconcile-2024`
+
+      // Wait 30 seconds after startup before first reconciliation
+      // (gives the server time to fully warm up)
+      setTimeout(() => {
+        logWithTimestamp('INFO', 'Starting payment reconciliation scheduler (every 5 min)')
+
+        // Run immediately on first tick (catches anything missed during downtime)
+        fetch(reconcileUrl).catch(err => {
+          logWithTimestamp('ERROR', `Initial reconciliation failed: ${err.message}`)
+        })
+
+        // Then run every 5 minutes
+        setInterval(() => {
+          fetch(reconcileUrl).catch(err => {
+            logWithTimestamp('ERROR', `Scheduled reconciliation failed: ${err.message}`)
+          })
+        }, RECONCILE_INTERVAL)
+      }, 30000)
     })
 }).catch((err) => {
   logWithTimestamp('FATAL', `Failed to prepare Next.js app: ${err.message}`, err)

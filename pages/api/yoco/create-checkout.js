@@ -3,6 +3,7 @@
 // SECURITY: Amount is read from DB order, not trusted from client
 import { getYocoConfig } from './config';
 import { query } from '../../../lib/db';
+import { logPaymentEvent, logApiError } from '../../../lib/logger';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,6 +14,7 @@ export default async function handler(req, res) {
     const config = await getYocoConfig();
 
     if (!config.secretKey) {
+      logPaymentEvent({ orderId: orderId || 'unknown', email: req.body?.email, amount: null, gateway: 'yoco', status: 'config_error', details: 'Yoco secret key not configured' });
       return res.status(400).json({
         success: false,
         error: 'Yoco payment gateway not configured. Please contact administrator.'
@@ -108,6 +110,8 @@ export default async function handler(req, res) {
 
     if (!yocoResponse.ok) {
       console.error('Yoco API error:', yocoData);
+      logPaymentEvent({ orderId, email, amount: serverAmount, gateway: 'yoco', status: 'checkout_api_error', details: `Yoco API ${yocoResponse.status}: ${yocoData.message || yocoData.error || 'Unknown'}` });
+      logApiError({ method: 'POST', url: '/api/yoco/create-checkout', statusCode: 400, error: `Yoco API error: ${JSON.stringify(yocoData)}`, body: { orderId, email } });
       return res.status(400).json({
         success: false,
         error: yocoData.message || yocoData.error || 'Failed to create Yoco checkout'
@@ -116,6 +120,8 @@ export default async function handler(req, res) {
 
     console.log('Yoco checkout created:', yocoData.id);
     console.log('Redirect URL:', yocoData.redirectUrl);
+
+    logPaymentEvent({ orderId, email, amount: serverAmount, gateway: 'yoco', status: 'checkout_created', details: `Checkout ID: ${yocoData.id}, Amount: R${serverAmount}` });
 
     // Store the Yoco checkout ID in the order record for later verification
     try {
@@ -138,6 +144,8 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Yoco create-checkout error:', error);
+    logApiError({ method: 'POST', url: '/api/yoco/create-checkout', statusCode: 500, error, body: req.body });
+    logPaymentEvent({ orderId: req.body?.orderId || 'unknown', email: req.body?.email, amount: null, gateway: 'yoco', status: 'checkout_exception', details: error.message });
     return res.status(500).json({
       success: false,
       error: 'Failed to create payment session'

@@ -21,6 +21,8 @@ export default function ErrorLogs() {
   const [loading, setLoading] = useState(true);
   const [limit, setLimit] = useState(50);
   const [expandedEntry, setExpandedEntry] = useState(null);
+  const [reconciling, setReconciling] = useState(false);
+  const [reconcileResult, setReconcileResult] = useState(null);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -47,6 +49,24 @@ export default function ErrorLogs() {
       console.error('Failed to fetch stats:', err);
     }
   }, []);
+
+  const runReconciliation = async () => {
+    setReconciling(true);
+    setReconcileResult(null);
+    try {
+      const res = await fetch('/api/cron/reconcile-payments', { method: 'POST' });
+      const data = await res.json();
+      setReconcileResult(data);
+      // If any payments were confirmed, refresh the payment-events log
+      if (data.confirmed > 0) {
+        setActiveLog('payment-events');
+        setTimeout(fetchLogs, 500);
+      }
+    } catch (err) {
+      setReconcileResult({ error: err.message });
+    }
+    setReconciling(false);
+  };
 
   useEffect(() => {
     fetchLogs();
@@ -97,6 +117,74 @@ export default function ErrorLogs() {
           <Link href="/admin" style={{ color: '#64b5f6', textDecoration: 'none' }}>
             ← Back to Admin
           </Link>
+        </div>
+
+        {/* Payment Reconciliation Panel */}
+        <div style={{
+          background: '#16213e',
+          border: '1px solid #333',
+          borderRadius: 8,
+          padding: '14px 18px',
+          marginBottom: 20,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontWeight: 'bold', fontSize: '0.9rem', marginBottom: 4 }}>
+              🔄 Payment Reconciliation
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#888' }}>
+              Auto-runs every 5 min. Checks pending Yoco orders against Yoco API and auto-confirms paid ones.
+            </div>
+          </div>
+          <button
+            onClick={runReconciliation}
+            disabled={reconciling}
+            style={{
+              padding: '10px 20px',
+              background: reconciling ? '#555' : '#4caf50',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              cursor: reconciling ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold',
+              fontSize: '0.85rem',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {reconciling ? '⏳ Checking...' : '🔍 Reconcile Now'}
+          </button>
+          {reconcileResult && (
+            <div style={{
+              width: '100%',
+              background: reconcileResult.error ? '#3e1a1a' : '#1a3e1a',
+              border: `1px solid ${reconcileResult.error ? '#ff4444' : '#4caf50'}`,
+              borderRadius: 6,
+              padding: '10px 14px',
+              fontSize: '0.8rem',
+              marginTop: 4
+            }}>
+              {reconcileResult.error ? (
+                <span style={{ color: '#ff6b6b' }}>❌ Error: {reconcileResult.error}</span>
+              ) : (
+                <>
+                  <div style={{ fontWeight: 'bold', marginBottom: 4 }}>
+                    ✅ Checked {reconcileResult.checked || 0} pending orders —
+                    {reconcileResult.confirmed > 0 ? ` ${reconcileResult.confirmed} AUTO-CONFIRMED!` : ' none needed confirmation'}
+                    {reconcileResult.expired > 0 ? `, ${reconcileResult.expired} expired/cancelled` : ''}
+                    {reconcileResult.errors > 0 ? `, ${reconcileResult.errors} errors` : ''}
+                  </div>
+                  {reconcileResult.details?.length > 0 && (
+                    <div style={{ color: '#aaa', fontSize: '0.75rem' }}>
+                      {reconcileResult.details.map((d, i) => <div key={i}>{d}</div>)}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Stats Bar */}

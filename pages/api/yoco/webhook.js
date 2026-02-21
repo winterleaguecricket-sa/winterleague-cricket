@@ -2,6 +2,7 @@
 // SECURITY: Validates event structure, verifies amounts, prevents double-processing
 import { query } from '../../../lib/db';
 import { sendParentPaymentSuccessEmail } from '../../../lib/parentEmailHelper';
+import { logPaymentEvent, logApiError } from '../../../lib/logger';
 
 // Yoco sends JSON webhooks
 export const config = {
@@ -22,9 +23,12 @@ export default async function handler(req, res) {
 
     console.log(`Yoco webhook received — type: ${eventType}, id: ${event.id || 'N/A'}`);
 
+    logPaymentEvent({ orderId: event.payload?.metadata?.orderId || 'unknown', email: null, amount: null, gateway: 'yoco', status: 'webhook_received', details: `Event type: ${eventType}, Event ID: ${event.id || 'N/A'}` });
+
     // Basic event structure validation
     if (!eventType || typeof eventType !== 'string' || !payload || typeof payload !== 'object') {
       console.error('Yoco webhook: invalid event structure');
+      logApiError({ method: 'POST', url: '/api/yoco/webhook', statusCode: 200, error: 'Invalid event structure from Yoco webhook', body: event });
       return res.status(200).json({ received: true });
     }
 
@@ -56,6 +60,7 @@ export default async function handler(req, res) {
         // SECURITY: Don't re-process already paid orders (idempotency)
         if (order.payment_status === 'paid') {
           console.log(`Yoco webhook: order ${orderId} already paid — skipping duplicate`);
+          logPaymentEvent({ orderId, email: order.customer_email, amount: order.total_amount, gateway: 'yoco', status: 'webhook_duplicate', details: 'Order already paid — duplicate webhook skipped' });
           return res.status(200).json({ received: true });
         }
 
@@ -64,6 +69,8 @@ export default async function handler(req, res) {
           const expectedCents = Math.round(parseFloat(order.total_amount) * 100);
           if (expectedCents !== amountInCents) {
             console.error(`SECURITY: Yoco amount mismatch for ${orderId}: expected ${expectedCents} cents, got ${amountInCents} cents — NOT marking as paid`);
+            logPaymentEvent({ orderId, email: order.customer_email, amount: order.total_amount, gateway: 'yoco', status: 'webhook_amount_mismatch', details: `SECURITY: expected ${expectedCents} cents, got ${amountInCents} cents` });
+            logApiError({ method: 'POST', url: '/api/yoco/webhook', statusCode: 200, error: `Amount mismatch: expected ${expectedCents}, got ${amountInCents}`, body: { orderId, eventType } });
             return res.status(200).json({ received: true });
           }
         }
@@ -92,6 +99,8 @@ export default async function handler(req, res) {
           ]
         );
         console.log(`Order ${orderId} marked as PAID and CONFIRMED via Yoco`);
+
+        logPaymentEvent({ orderId, email: order.customer_email, amount: order.total_amount, gateway: 'yoco', status: 'paid', details: `Confirmed via Yoco webhook. Payment ID: ${yocoPaymentId}` });
 
         // Mark team players as paid for this customer
         try {
@@ -139,6 +148,8 @@ export default async function handler(req, res) {
         }
       } else {
         console.warn(`Yoco webhook: order ${orderId} not found in database`);
+        logPaymentEvent({ orderId, email: null, amount: null, gateway: 'yoco', status: 'webhook_order_not_found', details: 'Order not found in database during webhook processing' });
+        logApiError({ method: 'POST', url: '/api/yoco/webhook', statusCode: 200, error: `Order ${orderId} not found in database`, body: { eventType, orderId } });
       }
     } else if (eventType === 'payment.failed' || eventType === 'checkout.expired') {
       console.log(`Yoco ${eventType} — Order: ${orderId}`);
@@ -163,6 +174,8 @@ export default async function handler(req, res) {
         ]
       );
       console.log(`Order ${orderId} marked as CANCELLED via Yoco`);
+
+      logPaymentEvent({ orderId, email: null, amount: null, gateway: 'yoco', status: 'cancelled', details: `Order cancelled via Yoco webhook: ${eventType}` });
     } else {
       console.log(`Yoco webhook: unhandled event type "${eventType}" — no action taken`);
     }
@@ -172,6 +185,8 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Yoco webhook error:', error);
+    logApiError({ method: 'POST', url: '/api/yoco/webhook', statusCode: 500, error, body: req.body });
+    logPaymentEvent({ orderId: req.body?.payload?.metadata?.orderId || 'unknown', email: null, amount: null, gateway: 'yoco', status: 'webhook_exception', details: error.message });
     // Return 200 even on error to prevent Yoco from retrying indefinitely
     return res.status(200).json({ received: true, error: 'Internal processing error' });
   }

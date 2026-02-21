@@ -4,6 +4,7 @@
 import { query } from '../../../lib/db';
 import { getYocoConfig } from './config';
 import { sendParentPaymentSuccessEmail } from '../../../lib/parentEmailHelper';
+import { logPaymentEvent, logApiError } from '../../../lib/logger';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -30,6 +31,7 @@ export default async function handler(req, res) {
 
     if (orderResult.rows.length === 0) {
       console.warn(`Yoco verify: order ${orderId} not found in database`);
+      logPaymentEvent({ orderId, email: null, amount: null, gateway: 'yoco', status: 'verify_order_not_found', details: 'Order not found in database during verification' });
       return res.status(404).json({ success: false, error: 'Order not found' });
     }
 
@@ -48,6 +50,7 @@ export default async function handler(req, res) {
     // Without it, we cannot confirm payment — refuse to mark as paid
     if (!order.gateway_checkout_id) {
       console.warn(`Yoco verify: order ${orderId} has no gateway_checkout_id — cannot verify`);
+      logPaymentEvent({ orderId, email: order.customer_email, amount: order.total_amount, gateway: 'yoco', status: 'verify_no_checkout_id', details: 'Order has no gateway_checkout_id — cannot verify with Yoco API' });
       return res.status(200).json({
         success: true,
         status: 'pending',
@@ -60,6 +63,7 @@ export default async function handler(req, res) {
 
     if (!config.secretKey) {
       console.error('Yoco verify: no secret key configured — cannot verify payment');
+      logPaymentEvent({ orderId, email: order.customer_email, amount: order.total_amount, gateway: 'yoco', status: 'verify_config_error', details: 'No Yoco secret key configured' });
       return res.status(200).json({
         success: true,
         status: 'pending',
@@ -86,6 +90,8 @@ export default async function handler(req, res) {
           
           if (yocoAmountCents && expectedCents !== yocoAmountCents) {
             console.error(`SECURITY: Amount mismatch for order ${orderId}: DB expects ${expectedCents} cents, Yoco reports ${yocoAmountCents} cents`);
+            logPaymentEvent({ orderId, email: order.customer_email, amount: order.total_amount, gateway: 'yoco', status: 'verify_amount_mismatch', details: `SECURITY: DB expects ${expectedCents} cents, Yoco reports ${yocoAmountCents} cents` });
+            logApiError({ method: 'POST', url: '/api/yoco/verify', statusCode: 200, error: `Amount mismatch: expected ${expectedCents}, got ${yocoAmountCents}`, body: { orderId } });
             return res.status(200).json({
               success: true,
               status: 'pending',
@@ -116,6 +122,8 @@ export default async function handler(req, res) {
           );
 
           console.log(`Order ${orderId} marked as PAID via Yoco API verification`);
+
+          logPaymentEvent({ orderId, email: order.customer_email, amount: order.total_amount, gateway: 'yoco', status: 'paid', details: `Verified via Yoco API. Checkout ${order.gateway_checkout_id} completed (${yocoAmountCents} cents)` });
 
           // Mark team players as paid for this customer
           try {
@@ -181,11 +189,14 @@ export default async function handler(req, res) {
       }
     } catch (apiErr) {
       console.error('Yoco API verification error:', apiErr.message);
+      logApiError({ method: 'POST', url: '/api/yoco/verify', statusCode: 500, error: apiErr, body: { orderId, checkoutId: order.gateway_checkout_id } });
+      logPaymentEvent({ orderId, email: order.customer_email, amount: order.total_amount, gateway: 'yoco', status: 'verify_api_error', details: `Yoco API error: ${apiErr.message}` });
     }
 
     // 3. If Yoco API call failed, do NOT mark as paid — return pending
     // SECURITY: Never trust the success redirect alone as proof of payment
     console.log(`Yoco verify: API check inconclusive for order ${orderId} — returning pending status`);
+    logPaymentEvent({ orderId, email: order.customer_email, amount: order.total_amount, gateway: 'yoco', status: 'verify_inconclusive', details: 'Yoco API call did not return completed status — order remains pending' });
     return res.status(200).json({
       success: true,
       status: 'pending',
@@ -194,6 +205,8 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Yoco verify error:', error);
+    logApiError({ method: 'POST', url: '/api/yoco/verify', statusCode: 500, error, body: { orderId } });
+    logPaymentEvent({ orderId, email: null, amount: null, gateway: 'yoco', status: 'verify_exception', details: error.message });
     return res.status(500).json({ success: false, error: 'Verification failed' });
   }
 }
