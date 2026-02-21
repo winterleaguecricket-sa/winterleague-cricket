@@ -5,6 +5,8 @@ import Link from 'next/link';
 
 // API helper functions for database operations
 const apiHelpers = {
+  _adminMode: false,
+
   async verifyCredentials(identifier, password) {
     const res = await fetch('/api/team-auth', {
       method: 'POST',
@@ -17,14 +19,16 @@ const apiHelpers = {
   },
   
   async getTeamById(teamId) {
-    const res = await fetch(`/api/teams?id=${teamId}`);
+    const showAll = this._adminMode ? '&showAll=true' : '';
+    const res = await fetch(`/api/teams?id=${teamId}${showAll}`);
     if (!res.ok) return null;
     const data = await res.json();
     return data.team || null;
   },
   
   async getAllTeams() {
-    const res = await fetch('/api/teams?linkedOnly=true');
+    const showAll = this._adminMode ? '&showAll=true' : '';
+    const res = await fetch(`/api/teams?linkedOnly=true${showAll}`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.teams || [];
@@ -299,6 +303,7 @@ export default function TeamPortal() {
         const adminBypass = urlParams.get('admin') === 'true';
         
         if (adminBypass) {
+          apiHelpers._adminMode = true;
           setIsAdminMode(true);
           setIsAuthenticated(true);
           setAdminViewTab('directory');
@@ -407,6 +412,7 @@ export default function TeamPortal() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setIsAdminMode(false);
+    apiHelpers._adminMode = false;
     setTeam(null);
     setIdentifier('');
     setPassword('');
@@ -2031,6 +2037,11 @@ export default function TeamPortal() {
                                     </td>
                                     <td style={{ padding: '0.75rem', fontSize: '0.95rem', color: '#f9fafb', fontWeight: '600' }}>
                                       {player.name || player.playerName || '-'}
+                                      {isAdminMode && player.paymentStatus === 'pending_payment' && (
+                                        <span style={{ marginLeft: '0.5rem', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.4)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '500' }}>
+                                          ⚠ Unpaid
+                                        </span>
+                                      )}
                                     </td>
                                     <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#e2e8f0' }}>
                                       {player.roles || player.registrationData?.roles ? (
@@ -2259,6 +2270,11 @@ export default function TeamPortal() {
                                 <tr key={player.id} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                                   <td style={{ padding: '0.75rem 1rem', color: '#f9fafb', fontWeight: '600' }}>
                                     {player.name || player.playerName}
+                                    {isAdminMode && player.paymentStatus === 'pending_payment' && (
+                                      <span style={{ marginLeft: '0.5rem', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.4)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '500' }}>
+                                        ⚠ Unpaid
+                                      </span>
+                                    )}
                                   </td>
                                   <td style={{ padding: '0.75rem 1rem', color: '#9ca3af' }}>{player.subTeam || '—'}</td>
                                   <td style={{ padding: '0.75rem 1rem', color: status === 'none' ? '#9ca3af' : statusColor, fontWeight: '700', textTransform: 'capitalize' }}>

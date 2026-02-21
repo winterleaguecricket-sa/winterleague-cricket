@@ -223,8 +223,8 @@ export default async function handler(req, res) {
               await query(
                 `INSERT INTO team_players (
                   team_id, sub_team, player_name, player_email, player_phone,
-                  jersey_size, jersey_number, registration_data
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                  jersey_size, jersey_number, registration_data, payment_status
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
                 [
                   matchedTeam.id,
                   subTeam || null,
@@ -233,7 +233,8 @@ export default async function handler(req, res) {
                   parentPhone || null,
                   jerseySize || null,
                   jerseyNumber || null,
-                  JSON.stringify(registrationData)
+                  JSON.stringify(registrationData),
+                  'pending_payment'
                 ]
               );
 

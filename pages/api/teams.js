@@ -7,7 +7,8 @@ export default async function handler(req, res) {
   // GET - Fetch teams
   if (req.method === 'GET') {
     try {
-      const { id, email, teamName, linkedOnly } = req.query;
+      const { id, email, teamName, linkedOnly, showAll } = req.query;
+      const formatOpts = { showAllPlayers: showAll === 'true' };
       
       // Get single team by ID
       if (id) {
@@ -20,7 +21,7 @@ export default async function handler(req, res) {
           return res.status(404).json({ error: 'Team not found' });
         }
         
-        const team = await formatTeam(result.rows[0]);
+        const team = await formatTeam(result.rows[0], formatOpts);
         return res.status(200).json({ team });
       }
       
@@ -35,7 +36,7 @@ export default async function handler(req, res) {
           return res.status(404).json({ error: 'Team not found' });
         }
         
-        const team = await formatTeam(result.rows[0]);
+        const team = await formatTeam(result.rows[0], formatOpts);
         return res.status(200).json({ team });
       }
       
@@ -50,7 +51,7 @@ export default async function handler(req, res) {
           return res.status(404).json({ error: 'Team not found' });
         }
         
-        const team = await formatTeam(result.rows[0]);
+        const team = await formatTeam(result.rows[0], formatOpts);
         return res.status(200).json({ team });
       }
       
@@ -72,7 +73,7 @@ export default async function handler(req, res) {
         );
       }
       
-      const teams = await Promise.all(result.rows.map(formatTeam));
+      const teams = await Promise.all(result.rows.map(row => formatTeam(row, formatOpts)));
       return res.status(200).json({ teams });
       
     } catch (error) {
@@ -277,10 +278,12 @@ function camelToSnake(str) {
 }
 
 // Helper to format database row to consistent team object
-async function formatTeam(row) {
+async function formatTeam(row, options = {}) {
+  const { showAllPlayers = false } = options;
+  const playerFilter = showAllPlayers ? '' : "AND payment_status = 'paid'";
   // Fetch related data
   const [playersResult, revenueResult, messagesResult] = await Promise.all([
-    query(`SELECT * FROM team_players WHERE team_id = $1 ORDER BY created_at`, [row.id]),
+    query(`SELECT * FROM team_players WHERE team_id = $1 ${playerFilter} ORDER BY created_at`, [row.id]),
     query(`SELECT tr.*, tp.player_name
            FROM team_revenue tr
            LEFT JOIN team_players tp 
@@ -328,6 +331,7 @@ async function formatTeam(row) {
       jerseyNumber: p.jersey_number,
       position: p.position,
       registrationData: typeof p.registration_data === 'string' ? JSON.parse(p.registration_data) : p.registration_data,
+      paymentStatus: p.payment_status || 'pending_payment',
       createdAt: p.created_at,
       addedAt: p.created_at
     })),

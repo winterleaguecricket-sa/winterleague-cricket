@@ -117,6 +117,21 @@ export default async function handler(req, res) {
 
           console.log(`Order ${orderId} marked as PAID via Yoco API verification`);
 
+          // Mark team players as paid for this customer
+          try {
+            const playerUpdate = await query(
+              `UPDATE team_players SET payment_status = 'paid'
+               WHERE payment_status = 'pending_payment'
+                 AND LOWER(player_email) = LOWER($1)`,
+              [order.customer_email]
+            );
+            if (playerUpdate.rowCount > 0) {
+              console.log(`Yoco verify: marked ${playerUpdate.rowCount} player(s) as paid for ${order.customer_email}`);
+            }
+          } catch (playerErr) {
+            console.error('Yoco verify: failed to update team_players payment status:', playerErr.message);
+          }
+
           // Send parent payment success email (non-blocking)
           try {
             await sendParentPaymentSuccessEmail(

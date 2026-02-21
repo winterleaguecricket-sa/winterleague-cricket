@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   // GET - Fetch players
   if (req.method === 'GET') {
     try {
-      const { teamId, id, email } = req.query;
+      const { teamId, id, email, showAll } = req.query;
       
       if (id) {
         const result = await query(
@@ -43,8 +43,9 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Team ID is required' });
       }
 
+      const playerFilter = showAll === 'true' ? '' : "AND payment_status = 'paid'";
       const result = await query(
-        `SELECT * FROM team_players WHERE team_id = $1 ORDER BY created_at`,
+        `SELECT * FROM team_players WHERE team_id = $1 ${playerFilter} ORDER BY created_at`,
         [teamId]
       );
       
@@ -68,8 +69,8 @@ export default async function handler(req, res) {
       }
 
       const result = await query(
-        `INSERT INTO team_players (team_id, sub_team, player_name, player_email, player_phone, id_number, jersey_size, jersey_number, position, registration_data)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `INSERT INTO team_players (team_id, sub_team, player_name, player_email, player_phone, id_number, jersey_size, jersey_number, position, registration_data, payment_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'paid')
          RETURNING *`,
         [teamId, subTeam, playerName, playerEmail, playerPhone, idNumber, jerseySize, jerseyNumber, position, JSON.stringify(registrationData || {})]
       );
@@ -205,6 +206,7 @@ function formatPlayer(row) {
     jerseyNumber: row.jersey_number,
     position: row.position,
     registrationData: typeof row.registration_data === 'string' ? JSON.parse(row.registration_data) : row.registration_data,
+    paymentStatus: row.payment_status || 'pending_payment',
     createdAt: row.created_at
   };
 }

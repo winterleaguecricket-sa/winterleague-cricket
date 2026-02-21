@@ -91,6 +91,21 @@ export default async function handler(req, res) {
         );
         console.log(`Order ${orderId} marked as PAID and CONFIRMED via Yoco`);
 
+        // Mark team players as paid for this customer
+        try {
+          const playerUpdate = await query(
+            `UPDATE team_players SET payment_status = 'paid'
+             WHERE payment_status = 'pending_payment'
+               AND LOWER(player_email) = LOWER($1)`,
+            [order.customer_email]
+          );
+          if (playerUpdate.rowCount > 0) {
+            console.log(`Yoco webhook: marked ${playerUpdate.rowCount} player(s) as paid for ${order.customer_email}`);
+          }
+        } catch (playerErr) {
+          console.error('Yoco webhook: failed to update team_players payment status:', playerErr.message);
+        }
+
         // Send parent payment success email (non-blocking)
         try {
           await sendParentPaymentSuccessEmail(

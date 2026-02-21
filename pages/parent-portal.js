@@ -1015,6 +1015,68 @@ export default function ParentPortal() {
 
         {/* DASHBOARD (card navigation) */}
         {activeTab === 'dashboard' && (
+          <div>
+            {/* Pending Payment Warning Banner */}
+            {(() => {
+              const unpaidPlayers = parentPlayers.filter(p => p.paymentStatus === 'pending_payment' && p.teamId);
+              if (unpaidPlayers.length === 0) return null;
+              return (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.08))',
+                  border: '1px solid rgba(245,158,11,0.4)',
+                  borderRadius: '12px',
+                  padding: '1.25rem 1.5rem',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+                    <div>
+                      <div style={{ fontWeight: 800, color: '#f59e0b', fontSize: '1rem' }}>
+                        Payment Required
+                      </div>
+                      <div style={{ color: '#fbbf24', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.25rem' }}>
+                        {unpaidPlayers.length} {unpaidPlayers.length === 1 ? 'player has' : 'players have'} not completed payment. 
+                        Players will only be added to their team roster once payment is confirmed.
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {unpaidPlayers.map(p => (
+                      <span key={p.id} style={{
+                        background: 'rgba(245,158,11,0.2)',
+                        color: '#fbbf24',
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '999px',
+                        fontSize: '0.8rem',
+                        fontWeight: 700
+                      }}>
+                        {p.playerName}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => { window.location.href = '/checkout'; }}
+                    style={{
+                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                      color: '#000',
+                      border: 'none',
+                      padding: '0.75rem 1.5rem',
+                      borderRadius: '8px',
+                      fontWeight: 800,
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      alignSelf: 'flex-start',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    Complete Payment →
+                  </button>
+                </div>
+              );
+            })()}
           <div className="parentDashboardGrid" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
@@ -1182,6 +1244,7 @@ export default function ParentPortal() {
               );
             })()}
           </div>
+          </div>
         )}
 
         {/* TEAM PORTAL VIEW */}
@@ -1235,6 +1298,53 @@ export default function ParentPortal() {
 
           return (
             <div>
+              {/* Pending payment banner in team view */}
+              {(() => {
+                const unpaid = myPlayers.filter(p => p.paymentStatus === 'pending_payment');
+                if (unpaid.length === 0) return null;
+                return (
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.08))',
+                    border: '1px solid rgba(245,158,11,0.4)',
+                    borderRadius: '12px',
+                    padding: '1.25rem 1.5rem',
+                    marginBottom: '1.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '1rem'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ fontSize: '1.3rem' }}>⚠️</span>
+                      <div>
+                        <div style={{ fontWeight: 800, color: '#f59e0b', fontSize: '0.95rem' }}>
+                          {unpaid.length} {unpaid.length === 1 ? 'player' : 'players'} awaiting payment
+                        </div>
+                        <div style={{ color: '#fbbf24', fontSize: '0.8rem', fontWeight: 600 }}>
+                          {unpaid.map(p => p.playerName).join(', ')} — not visible to coach until paid
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { window.location.href = '/checkout'; }}
+                      style={{
+                        background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                        color: '#000',
+                        border: 'none',
+                        padding: '0.6rem 1.25rem',
+                        borderRadius: '8px',
+                        fontWeight: 800,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      Complete Payment →
+                    </button>
+                  </div>
+                );
+              })()}
               {/* Player sub-tabs - one per child */}
               {myPlayers.length > 1 && (
                 <div style={{
@@ -1319,6 +1429,23 @@ export default function ParentPortal() {
                         <div style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: '600' }}>
                           {player.subTeam}
                         </div>
+                        {player.paymentStatus === 'pending_payment' && (
+                          <div style={{
+                            marginTop: '0.5rem',
+                            background: 'rgba(245,158,11,0.15)',
+                            border: '1px solid rgba(245,158,11,0.4)',
+                            color: '#f59e0b',
+                            padding: '0.35rem 0.75rem',
+                            borderRadius: '8px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem'
+                          }}>
+                            ⚠️ Payment Pending — Not on team roster yet
+                          </div>
+                        )}
                       </button>
                     );
                   })}
