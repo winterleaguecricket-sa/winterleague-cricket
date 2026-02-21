@@ -2911,6 +2911,37 @@ export default function AdminForms() {
                   // Get all form fields in order (handles multi-page forms)
                   const formFields = getAllFormFields(submissionForm);
                   
+                  // Build a comprehensive field ID → label map from ALL forms
+                  // This resolves numeric keys like "6" to "Player Name" etc.
+                  const fieldIdToLabel = {};
+                  forms.forEach(f => {
+                    const allFields = getAllFormFields(f);
+                    allFields.forEach(ff => {
+                      fieldIdToLabel[String(ff.id)] = ff.label;
+                    });
+                  });
+                  // Player-entry sub-fields (stored with numeric IDs but not in any form template)
+                  const playerEntryFieldLabels = {
+                    '6': 'Player Name',
+                    '7': 'Player Email',
+                    '10': 'Date of Birth',
+                    '34': 'Sub-Team Selection',
+                    '36': 'Jersey/Shirt Number',
+                    '43': 'Birth Certificate',
+                    '46': 'Profile Image',
+                    '25_shirtSize': 'Shirt Size',
+                    '25_pantsSize': 'Pants Size'
+                  };
+                  Object.assign(fieldIdToLabel, playerEntryFieldLabels);
+                  
+                  // Internal/system keys that should be hidden from admin view
+                  const hiddenKeys = new Set([
+                    '_cartItems', '_cartTotal',
+                    'checkout_email', 'checkout_firstName', 'checkout_lastName',
+                    'checkout_phone', 'checkout_password',
+                    'existingCricClubsProfile', 'existingCricClubsProfiles'
+                  ]);
+                  
                   // Create a comprehensive map of all submission data
                   const orderedData = [];
                   const processedKeys = new Set();
@@ -2919,6 +2950,7 @@ export default function AdminForms() {
                   formFields.forEach(field => {
                     // For regular fields, use the label as key
                     const value = viewingSubmission.data[field.label];
+                    const strId = String(field.id);
                     
                     // Handle special field types that save data differently
                     if (field.type === 'kit-pricing') {
@@ -2963,7 +2995,7 @@ export default function AdminForms() {
                           fromForm: true 
                         });
                         processedKeys.add(field.label);
-                        processedKeys.add(field.id);
+                        processedKeys.add(strId);
                         processedKeys.add(`${field.id}_primaryColor`);
                         processedKeys.add(`${field.id}_secondaryColor`);
                       } else {
@@ -2978,6 +3010,8 @@ export default function AdminForms() {
                         fromForm: true 
                       });
                       processedKeys.add(`${field.id}_size`);
+                      processedKeys.add(strId);
+                      processedKeys.add(field.label);
                     } else if (field.type === 'submission-dropdown') {
                       // Resolve team name from submission-dropdown value
                       const rawVal = viewingSubmission.data[field.label] !== undefined 
@@ -2999,7 +3033,7 @@ export default function AdminForms() {
                       }
                       orderedData.push({ label: field.label, value: teamName, fromForm: true });
                       processedKeys.add(field.label);
-                      processedKeys.add(field.id);
+                      processedKeys.add(strId);
                       // Also add sub-team info (team + age group) if available
                       for (const dk of Object.keys(viewingSubmission.data || {})) {
                         if (String(dk) === String(field.id) || dk === field.label) continue;
@@ -3013,20 +3047,34 @@ export default function AdminForms() {
                           break;
                         }
                       }
+                    } else if (field.type === 'player-entries') {
+                      // Player entries is a container field - mark it and its sub-fields as processed
+                      processedKeys.add(strId);
+                      processedKeys.add(field.label);
+                      // The actual player data is stored as individual fields (6, 10, 34, etc.)
+                      // These will be picked up and labeled in the extra fields section below
                     } else {
                       // Regular field - use label or field id
                       const fieldValue = value !== undefined ? value : viewingSubmission.data[field.id];
                       orderedData.push({ label: field.label, value: fieldValue, fromForm: true });
                       processedKeys.add(field.label);
-                      processedKeys.add(field.id);
+                      processedKeys.add(strId);
                     }
                   });
                   
                   // Then add any extra fields in submission data that weren't processed
+                  // Resolve numeric keys to human-readable labels using the field map
                   Object.entries(viewingSubmission.data).forEach(([key, value]) => {
-                    if (!processedKeys.has(key) && !formFields.some(field => field.label === key || field.id === key)) {
-                      orderedData.push({ label: key, value, fromForm: false });
-                    }
+                    // Skip hidden/internal fields
+                    if (hiddenKeys.has(key)) return;
+                    // Skip already-processed keys
+                    if (processedKeys.has(key)) return;
+                    // Skip if matched by any form field (using string comparison)
+                    if (formFields.some(field => field.label === key || String(field.id) === key)) return;
+                    
+                    // Resolve the label: use field map if available, otherwise use the key as-is
+                    const resolvedLabel = fieldIdToLabel[key] || key;
+                    orderedData.push({ label: resolvedLabel, value, fromForm: !!fieldIdToLabel[key] });
                   });
                   
                   return (
