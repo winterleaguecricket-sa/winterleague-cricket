@@ -1,5 +1,6 @@
 // API: Manufacturer Portal Data
-// Returns team + player + kit data for manufacturers - NO sensitive info
+// Returns team + player + kit data for manufacturers — NO sensitive info
+// Only PAID players are included. Pants sizes are resolved from form submissions.
 import pool from '../../lib/db';
 import { getShirtDesigns } from '../../data/shirtDesigns';
 
@@ -9,7 +10,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Get all non-archived teams — only fields relevant to kit manufacturing
+    // ── TEAMS ──────────────────────────────────────────────
     const teamsResult = await pool.query(`
       SELECT
         t.id,
@@ -25,20 +26,50 @@ export default async function handler(req, res) {
       ORDER BY t.team_name
     `);
 
-    // Get all players — ONLY name, jersey size, jersey number (no email/phone/ID)
+    // ── PAID PLAYERS ONLY — with pants size from form submissions ──
     const playersResult = await pool.query(`
       SELECT
         tp.team_id,
         tp.player_name,
         tp.jersey_size,
-        tp.jersey_number
+        tp.jersey_number,
+        tp.registration_data->>'formSubmissionId' as fs_id,
+        fs.data->>'25_pantsSize' as pants_size
       FROM team_players tp
       JOIN teams t ON tp.team_id = t.id
+      LEFT JOIN form_submissions fs
+        ON fs.id::text = tp.registration_data->>'formSubmissionId'
       WHERE t.status NOT IN ('archived')
+        AND tp.payment_status = 'paid'
       ORDER BY tp.team_id, tp.player_name
     `);
 
-    // Load shirt design catalog for fallback images
+    // ── ADDITIONAL ITEMS from paid registration orders ──
+    // Link orders to teams via parent-email → team_players.registration_data->>'parentEmail'
+    const additionalItemsResult = await pool.query(`
+      SELECT DISTINCT ON (o.id, item_idx)
+        tp.team_id,
+        o.customer_name,
+        item.value->>'id' as item_id,
+        item.value->>'name' as item_name,
+        item.value->>'selectedSize' as item_size,
+        (item.value->>'quantity')::int as item_qty,
+        item.value->>'image' as item_image
+      FROM orders o
+      JOIN team_players tp
+        ON (tp.registration_data->>'parentEmail' = o.customer_email
+            OR tp.player_email = o.customer_email)
+      JOIN teams t ON t.id = tp.team_id
+      CROSS JOIN LATERAL jsonb_array_elements(o.items) WITH ORDINALITY AS item(value, item_idx)
+      WHERE o.payment_status = 'paid'
+        AND o.order_type = 'registration'
+        AND t.status NOT IN ('archived')
+        AND tp.payment_status = 'paid'
+        AND item.value->>'id' != 'basic-kit'
+      ORDER BY o.id, item_idx, tp.team_id
+    `);
+
+    // ── Shirt design catalog for fallback images ──
     let shirtDesignCatalog = [];
     try {
       shirtDesignCatalog = getShirtDesigns() || [];
@@ -46,23 +77,40 @@ export default async function handler(req, res) {
       console.error('Could not load shirt designs catalog:', e.message);
     }
 
-    // Group players by team
+    // ── Group players by team ──
     const playersByTeam = {};
     for (const p of playersResult.rows) {
       if (!playersByTeam[p.team_id]) playersByTeam[p.team_id] = [];
       playersByTeam[p.team_id].push({
         name: p.player_name,
-        jerseySize: p.jersey_size || '',
-        jerseyNumber: p.jersey_number
+        shirtSize: p.jersey_size || '',
+        pantsSize: p.pants_size || '',
+        shirtNumber: p.jersey_number
       });
     }
 
-    // Build team objects
+    // ── Group additional items by team ──
+    const additionalByTeam = {};
+    for (const item of additionalItemsResult.rows) {
+      if (!additionalByTeam[item.team_id]) additionalByTeam[item.team_id] = [];
+      additionalByTeam[item.team_id].push({
+        name: item.item_name || '',
+        size: item.item_size || null,
+        quantity: item.item_qty || 1,
+        orderedBy: item.customer_name || '',
+        image: item.item_image || ''
+      });
+    }
+
+    // ── Build team objects ──
+    let totalPaidPlayers = 0;
     const teams = teamsResult.rows.map(t => {
       const players = playersByTeam[t.id] || [];
+      const additionalItems = additionalByTeam[t.id] || [];
       const kitDesignName = t.shirt_design || '';
+      totalPaidPlayers += players.length;
 
-      // Resolve kit design image: admin upload > fallback > catalog first image
+      // Resolve kit image: admin upload > fallback > catalog first image
       let kitDesignImage = t.kit_image_url || t.kit_image_fallback || '';
       if (!kitDesignImage && kitDesignName) {
         const catalogMatch = shirtDesignCatalog.find(
@@ -73,11 +121,24 @@ export default async function handler(req, res) {
         }
       }
 
-      // Build size summary
-      const sizeSummary = {};
+      // Build shirt size summary
+      const shirtSizeSummary = {};
+      const pantsSizeSummary = {};
       for (const p of players) {
-        const size = p.jerseySize || 'Not specified';
-        sizeSummary[size] = (sizeSummary[size] || 0) + 1;
+        const ss = p.shirtSize || 'Not specified';
+        shirtSizeSummary[ss] = (shirtSizeSummary[ss] || 0) + 1;
+        const ps = p.pantsSize || 'Not specified';
+        pantsSizeSummary[ps] = (pantsSizeSummary[ps] || 0) + 1;
+      }
+
+      // Aggregate additional items
+      const additionalSummary = {};
+      for (const ai of additionalItems) {
+        const key = `${ai.name}||${ai.size || 'One Size'}`;
+        if (!additionalSummary[key]) {
+          additionalSummary[key] = { name: ai.name, size: ai.size || 'One Size', quantity: 0, image: ai.image };
+        }
+        additionalSummary[key].quantity += ai.quantity;
       }
 
       return {
@@ -89,14 +150,16 @@ export default async function handler(req, res) {
         kitDesignImage,
         playerCount: players.length,
         players,
-        sizeSummary
+        shirtSizeSummary,
+        pantsSizeSummary,
+        additionalItems: Object.values(additionalSummary)
       };
     });
 
     return res.status(200).json({
       teams,
       totalTeams: teams.length,
-      totalPlayers: playersResult.rows.length
+      totalPlayers: totalPaidPlayers
     });
   } catch (err) {
     console.error('Manufacturer data error:', err);

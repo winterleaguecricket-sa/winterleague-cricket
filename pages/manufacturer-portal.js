@@ -20,16 +20,6 @@ const icons = {
       <path d="M12 1v2m0 18v2m-9-11h2m18 0h2m-3.3-6.7-1.4 1.4M6.7 17.3l-1.4 1.4m0-13.4 1.4 1.4m10.6 10.6 1.4 1.4" />
     </svg>
   ),
-  chevronDown: (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  ),
-  chevronUp: (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 15l-6-6-6 6" />
-    </svg>
-  ),
   search: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
@@ -38,6 +28,22 @@ const icons = {
   player: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8" r="3" /><path d="M5 20a7 7 0 0 1 14 0" />
+    </svg>
+  ),
+  back: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+    </svg>
+  ),
+  shirt: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 5l4 3 4-3 3 2-2 4v10H7V11L5 7l3-2Z" />
+    </svg>
+  ),
+  package: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" />
     </svg>
   )
 };
@@ -65,8 +71,8 @@ export default function ManufacturerPortal() {
   const [totalTeams, setTotalTeams] = useState(0);
   const [totalPlayers, setTotalPlayers] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [expandedTeams, setExpandedTeams] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTeamId, setSelectedTeamId] = useState(null);
 
   // ─── FETCH DATA ──────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -137,31 +143,38 @@ export default function ManufacturerPortal() {
     setEmail('');
     setPassword('');
     setActiveTab('dashboard');
+    setSelectedTeamId(null);
     localStorage.removeItem('manufacturerId');
     if (isAdminMode) setIsAdminMode(false);
   };
 
   // ─── HELPERS ─────────────────────────────────────────────
-  const toggleTeam = (teamId) => {
-    setExpandedTeams(prev => ({ ...prev, [teamId]: !prev[teamId] }));
-  };
-
-  const expandAll = () => {
-    const all = {};
-    filteredTeams.forEach(t => { all[t.id] = true; });
-    setExpandedTeams(all);
-  };
-
-  const collapseAll = () => setExpandedTeams({});
-
   const filteredTeams = teamsData.filter(t => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return t.teamName.toLowerCase().includes(q) || t.kitDesignName.toLowerCase().includes(q);
   });
 
-  // Jersey size sort order
+  const selectedTeam = selectedTeamId ? teamsData.find(t => t.id === selectedTeamId) : null;
+
   const sizeOrder = ['7/8 years', '9/10 years', '11/12 years', '13/14 years', 'Extra Small', 'Small', 'Medium', 'Large', 'Extra Large'];
+
+  const sortSizes = (entries) => entries.sort(([a], [b]) => {
+    const iA = sizeOrder.indexOf(a);
+    const iB = sizeOrder.indexOf(b);
+    return (iA === -1 ? 99 : iA) - (iB === -1 ? 99 : iB);
+  });
+
+  const navigateToTeam = (teamId) => {
+    setSelectedTeamId(teamId);
+    setActiveTab('teamDetail');
+    window.scrollTo(0, 0);
+  };
+
+  const backToTeamList = () => {
+    setSelectedTeamId(null);
+    setActiveTab('teams');
+  };
 
   // Dashboard card hover effects
   const applyHover = (e) => {
@@ -179,6 +192,18 @@ export default function ManufacturerPortal() {
     e.currentTarget.style.background = '#111827';
     const shine = e.currentTarget.querySelector('[data-card-shine]');
     if (shine) shine.style.left = '-120%';
+  };
+
+  // Team card hover
+  const applyTeamHover = (e) => {
+    e.currentTarget.style.transform = 'translateY(-3px)';
+    e.currentTarget.style.borderColor = 'rgba(220,0,0,0.4)';
+    e.currentTarget.style.boxShadow = '0 12px 28px rgba(220,0,0,0.15)';
+  };
+  const removeTeamHover = (e) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)';
   };
 
   // ─── LOGIN SCREEN ────────────────────────────────────────
@@ -240,253 +265,476 @@ export default function ManufacturerPortal() {
     );
   }
 
-  // ─── RENDER TEAM CARD ────────────────────────────────────
-  const renderTeamCard = (team) => {
-    const isExpanded = expandedTeams[team.id];
-    const hasPlayers = team.players.length > 0;
-
-    return (
-      <div key={team.id} style={{
+  // ─── RENDER: TEAM LIST CARD (clickable → navigates to detail page) ───
+  const renderTeamListCard = (team) => (
+    <div key={team.id}
+      onClick={() => navigateToTeam(team.id)}
+      onMouseEnter={applyTeamHover}
+      onMouseLeave={removeTeamHover}
+      style={{
         background: '#111827', borderRadius: '14px',
-        border: isExpanded ? '1px solid rgba(220,0,0,0.25)' : '1px solid rgba(255,255,255,0.08)',
-        overflow: 'hidden', marginBottom: '1rem',
+        border: '1px solid rgba(255,255,255,0.08)',
+        overflow: 'hidden', cursor: 'pointer',
         transition: 'all 0.25s ease',
-        boxShadow: isExpanded ? '0 8px 30px rgba(220,0,0,0.12)' : '0 1px 3px rgba(0,0,0,0.3)'
+        boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+      }}
+    >
+      {/* Kit image preview */}
+      <div style={{
+        height: '160px', background: '#0f172a',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderBottom: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden', position: 'relative'
       }}>
-        {/* ── CARD HEADER (always visible — clickable) ── */}
-        <div
-          onClick={() => toggleTeam(team.id)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '1rem',
-            padding: '1rem 1.25rem', cursor: 'pointer',
-            background: isExpanded ? 'rgba(220,0,0,0.06)' : 'transparent',
-            borderBottom: isExpanded ? '1px solid rgba(255,255,255,0.06)' : 'none',
-            transition: 'background 0.2s'
-          }}
-          className="mfgTeamHeader"
-        >
+        {team.kitDesignImage ? (
+          <img src={team.kitDesignImage} alt={`${team.teamName} kit`}
+            style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '0.75rem' }} />
+        ) : (
+          <div style={{ color: '#374151', textAlign: 'center' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.25rem' }}>👕</div>
+            <div style={{ fontSize: '0.75rem' }}>No kit image</div>
+          </div>
+        )}
+        {/* Player count badge */}
+        <div style={{
+          position: 'absolute', top: '0.6rem', right: '0.6rem',
+          background: 'rgba(220,0,0,0.85)', color: 'white',
+          padding: '0.2rem 0.55rem', borderRadius: '20px',
+          fontSize: '0.72rem', fontWeight: '800', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', gap: '0.25rem'
+        }}>
+          {icons.player} {team.playerCount}
+        </div>
+        {/* Additional items badge */}
+        {team.additionalItems && team.additionalItems.length > 0 && (
+          <div style={{
+            position: 'absolute', top: '0.6rem', left: '0.6rem',
+            background: 'rgba(59,130,246,0.85)', color: 'white',
+            padding: '0.2rem 0.55rem', borderRadius: '20px',
+            fontSize: '0.72rem', fontWeight: '800', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', gap: '0.25rem'
+          }}>
+            {icons.package} +{team.additionalItems.length} item{team.additionalItems.length !== 1 ? 's' : ''}
+          </div>
+        )}
+      </div>
+
+      {/* Card body */}
+      <div style={{ padding: '1rem 1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
           {/* Team logo thumbnail */}
           <div style={{
-            width: '44px', height: '44px', borderRadius: '10px', flexShrink: 0,
+            width: '38px', height: '38px', borderRadius: '8px', flexShrink: 0,
             border: '2px solid rgba(255,255,255,0.1)', overflow: 'hidden',
             background: '#1f2937', display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
             {team.teamLogo ? (
               <img src={team.teamLogo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
-              <span style={{ fontSize: '1.2rem' }}>🏏</span>
+              <span style={{ fontSize: '1rem' }}>🏏</span>
             )}
           </div>
-
-          {/* Team name + meta */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f9fafb', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: '1rem', fontWeight: '800', color: '#f9fafb', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {team.teamName}
             </div>
-            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.2rem' }}>
+            {team.kitDesignName && (
+              <span style={{
+                fontSize: '0.73rem', fontWeight: '700', color: '#f87171',
+                background: 'rgba(239,68,68,0.12)', padding: '0.12rem 0.45rem', borderRadius: '4px'
+              }}>
+                {team.kitDesignName}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Quick size summary (top 3) */}
+        {team.shirtSizeSummary && Object.keys(team.shirtSizeSummary).length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.5rem' }}>
+            {sortSizes(Object.entries(team.shirtSizeSummary)).slice(0, 4).map(([size, count]) => (
+              <span key={size} style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+                padding: '0.15rem 0.45rem', background: '#1e293b',
+                border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px',
+                fontSize: '0.72rem', color: '#94a3b8', fontWeight: '600'
+              }}>
+                {size} <span style={{ color: '#f87171', fontWeight: '800' }}>×{count}</span>
+              </span>
+            ))}
+            {Object.keys(team.shirtSizeSummary).length > 4 && (
+              <span style={{ fontSize: '0.72rem', color: '#6b7280', alignSelf: 'center' }}>
+                +{Object.keys(team.shirtSizeSummary).length - 4} more
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* View details arrow */}
+        <div style={{
+          marginTop: '0.75rem', paddingTop: '0.65rem',
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+        }}>
+          <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '600' }}>
+            {team.playerCount} player{team.playerCount !== 1 ? 's' : ''}{team.sponsorLogo ? ' · Sponsor' : ''}
+          </span>
+          <span style={{ fontSize: '0.8rem', color: '#f87171', fontWeight: '700' }}>
+            View Details →
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ─── RENDER: TEAM DETAIL PAGE ────────────────────────────
+  const renderTeamDetail = () => {
+    if (!selectedTeam) return (
+      <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
+        Team not found. <button onClick={backToTeamList} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>Go back</button>
+      </div>
+    );
+
+    const team = selectedTeam;
+    const hasPlayers = team.players.length > 0;
+    const hasAdditionalItems = team.additionalItems && team.additionalItems.length > 0;
+
+    return (
+      <div>
+        {/* ── BACK BUTTON ── */}
+        <button onClick={backToTeamList}
+          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+            padding: '0.5rem 1rem', background: 'transparent',
+            border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px',
+            color: '#d1d5db', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
+            transition: 'background 0.2s', marginBottom: '1.25rem'
+          }}
+        >
+          {icons.back} Back to All Teams
+        </button>
+
+        {/* ── TEAM HEADER BANNER ── */}
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(17,24,39,0.95) 0%, rgba(3,7,18,0.95) 55%, rgba(220,0,0,0.2) 100%)',
+          borderRadius: '16px', padding: '1.75rem', marginBottom: '1.5rem',
+          border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+          display: 'flex', alignItems: 'center', gap: '1.25rem'
+        }} className="mfgTeamBanner">
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '14px', flexShrink: 0,
+            border: '2px solid rgba(255,255,255,0.15)', overflow: 'hidden',
+            background: '#1f2937', display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            {team.teamLogo ? (
+              <img src={team.teamLogo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <span style={{ fontSize: '1.6rem' }}>🏏</span>
+            )}
+          </div>
+          <div style={{ flex: 1 }}>
+            <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 900, color: '#f9fafb' }}>
+              {team.teamName}
+            </h2>
+            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.3rem' }}>
               {team.kitDesignName && (
                 <span style={{
-                  fontSize: '0.76rem', fontWeight: '700', color: '#f87171',
-                  background: 'rgba(239,68,68,0.12)', padding: '0.15rem 0.5rem', borderRadius: '4px'
+                  fontSize: '0.8rem', fontWeight: '700', color: '#f87171',
+                  background: 'rgba(239,68,68,0.12)', padding: '0.2rem 0.6rem', borderRadius: '5px'
                 }}>
                   {team.kitDesignName}
                 </span>
               )}
-              <span style={{ fontSize: '0.76rem', color: '#9ca3af', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                {icons.player} {team.playerCount} player{team.playerCount !== 1 ? 's' : ''}
+              <span style={{ fontSize: '0.8rem', color: '#9ca3af', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                {icons.player} {team.playerCount} paid player{team.playerCount !== 1 ? 's' : ''}
               </span>
               {team.sponsorLogo && (
-                <span style={{ fontSize: '0.76rem', color: '#60a5fa', fontWeight: '600' }}>+ Sponsor</span>
+                <span style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: '600' }}>+ Sponsor</span>
+              )}
+              {hasAdditionalItems && (
+                <span style={{
+                  fontSize: '0.78rem', fontWeight: '700', color: '#60a5fa',
+                  background: 'rgba(59,130,246,0.12)', padding: '0.2rem 0.6rem', borderRadius: '5px'
+                }}>
+                  +{team.additionalItems.length} additional item{team.additionalItems.length !== 1 ? 's' : ''}
+                </span>
               )}
             </div>
           </div>
+        </div>
 
-          {/* Expand/collapse chevron */}
-          <div style={{ color: isExpanded ? '#f87171' : '#6b7280', flexShrink: 0, transition: 'color 0.2s' }}>
-            {isExpanded ? icons.chevronUp : icons.chevronDown}
+        {/* ── KIT DESIGN + BRANDING ROW ── */}
+        <div className="mfgKitRow" style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.5rem'
+        }}>
+          {/* Kit Design Image */}
+          <div style={{
+            background: '#0f172a', borderRadius: '12px', padding: '1.25rem',
+            border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.75rem',
+              textTransform: 'uppercase', letterSpacing: '0.08em'
+            }}>
+              Kit Design {team.kitDesignName ? `— ${team.kitDesignName}` : ''}
+            </div>
+            {team.kitDesignImage ? (
+              <img
+                src={team.kitDesignImage}
+                alt={`${team.teamName} kit design`}
+                style={{
+                  width: '100%', maxHeight: '400px', objectFit: 'contain',
+                  borderRadius: '8px', background: '#1e293b'
+                }}
+              />
+            ) : (
+              <div style={{
+                padding: '3rem 1rem', background: '#1e293b', borderRadius: '8px',
+                color: '#475569', textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>👕</div>
+                <div style={{ fontSize: '0.85rem' }}>No kit image uploaded yet</div>
+              </div>
+            )}
+          </div>
+
+          {/* Branding — Team Logo + Sponsor Logo */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{
+              background: '#0f172a', borderRadius: '12px', padding: '1.25rem',
+              border: '1px solid rgba(255,255,255,0.06)', flex: 1,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center'
+            }}>
+              <div style={{
+                fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.75rem',
+                textTransform: 'uppercase', letterSpacing: '0.08em'
+              }}>Team Logo</div>
+              {team.teamLogo ? (
+                <img src={team.teamLogo} alt={`${team.teamName} logo`}
+                  style={{ maxWidth: '100%', maxHeight: '150px', objectFit: 'contain', borderRadius: '6px' }} />
+              ) : (
+                <div style={{ color: '#475569', fontSize: '0.85rem', padding: '1rem' }}>No logo uploaded</div>
+              )}
+            </div>
+            <div style={{
+              background: '#0f172a', borderRadius: '12px', padding: '1.25rem',
+              border: '1px solid rgba(255,255,255,0.06)', flex: 1,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center'
+            }}>
+              <div style={{
+                fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.75rem',
+                textTransform: 'uppercase', letterSpacing: '0.08em'
+              }}>Sponsor Logo</div>
+              {team.sponsorLogo ? (
+                <img src={team.sponsorLogo} alt={`${team.teamName} sponsor`}
+                  style={{ maxWidth: '100%', maxHeight: '150px', objectFit: 'contain', borderRadius: '6px' }} />
+              ) : (
+                <div style={{ color: '#475569', fontSize: '0.85rem', padding: '1rem' }}>No sponsor logo</div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* ── EXPANDED CONTENT ── */}
-        {isExpanded && (
-          <div style={{ padding: '1.5rem' }} className="mfgTeamContent">
-
-            {/* ── KIT DESIGN + BRANDING ROW ── */}
-            <div className="mfgKitRow" style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.5rem'
-            }}>
-              {/* Kit Design Image */}
-              <div style={{
-                background: '#0f172a', borderRadius: '12px', padding: '1.25rem',
-                border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center'
-              }}>
-                <div style={{
-                  fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.75rem',
-                  textTransform: 'uppercase', letterSpacing: '0.08em'
-                }}>
-                  Kit Design {team.kitDesignName ? `— ${team.kitDesignName}` : ''}
-                </div>
-                {team.kitDesignImage ? (
-                  <img
-                    src={team.kitDesignImage}
-                    alt={`${team.teamName} kit design`}
-                    style={{
-                      width: '100%', maxHeight: '360px', objectFit: 'contain',
-                      borderRadius: '8px', background: '#1e293b'
-                    }}
-                  />
-                ) : (
-                  <div style={{
-                    padding: '3rem 1rem', background: '#1e293b', borderRadius: '8px',
-                    color: '#475569', textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>👕</div>
-                    <div style={{ fontSize: '0.85rem' }}>No kit image uploaded yet</div>
-                  </div>
-                )}
-              </div>
-
-              {/* Branding — Team Logo + Sponsor Logo */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {/* Team Logo */}
-                <div style={{
-                  background: '#0f172a', borderRadius: '12px', padding: '1.25rem',
-                  border: '1px solid rgba(255,255,255,0.06)', flex: 1,
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center'
-                }}>
-                  <div style={{
-                    fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.75rem',
-                    textTransform: 'uppercase', letterSpacing: '0.08em'
-                  }}>Team Logo</div>
-                  {team.teamLogo ? (
-                    <img src={team.teamLogo} alt={`${team.teamName} logo`}
-                      style={{ maxWidth: '100%', maxHeight: '150px', objectFit: 'contain', borderRadius: '6px' }} />
-                  ) : (
-                    <div style={{ color: '#475569', fontSize: '0.85rem', padding: '1rem' }}>No logo uploaded</div>
-                  )}
-                </div>
-
-                {/* Sponsor Logo */}
-                <div style={{
-                  background: '#0f172a', borderRadius: '12px', padding: '1.25rem',
-                  border: '1px solid rgba(255,255,255,0.06)', flex: 1,
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center'
-                }}>
-                  <div style={{
-                    fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.75rem',
-                    textTransform: 'uppercase', letterSpacing: '0.08em'
-                  }}>Sponsor Logo</div>
-                  {team.sponsorLogo ? (
-                    <img src={team.sponsorLogo} alt={`${team.teamName} sponsor`}
-                      style={{ maxWidth: '100%', maxHeight: '150px', objectFit: 'contain', borderRadius: '6px' }} />
-                  ) : (
-                    <div style={{ color: '#475569', fontSize: '0.85rem', padding: '1rem' }}>No sponsor logo</div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* ── SIZE SUMMARY ── */}
-            {hasPlayers && team.sizeSummary && Object.keys(team.sizeSummary).length > 0 && (
-              <div style={{
-                background: 'rgba(220,0,0,0.05)', border: '1px solid rgba(220,0,0,0.15)',
-                borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '1.25rem'
-              }}>
-                <div style={{
-                  fontSize: '0.75rem', fontWeight: '700', color: '#f87171', marginBottom: '0.6rem',
-                  textTransform: 'uppercase', letterSpacing: '0.08em'
-                }}>
-                  Size Summary — {team.playerCount} kit{team.playerCount !== 1 ? 's' : ''} required
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
-                  {Object.entries(team.sizeSummary)
-                    .sort(([a], [b]) => {
-                      const iA = sizeOrder.indexOf(a); const iB = sizeOrder.indexOf(b);
-                      return (iA === -1 ? 99 : iA) - (iB === -1 ? 99 : iB);
-                    })
-                    .map(([size, count]) => (
-                      <span key={size} style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                        padding: '0.3rem 0.65rem', background: '#1e293b',
-                        border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px',
-                        fontSize: '0.8rem', color: '#e2e8f0', fontWeight: '600'
-                      }}>
-                        {size} <span style={{ color: '#f87171', fontWeight: '800' }}>×{count}</span>
-                      </span>
-                    ))
-                  }
-                </div>
-              </div>
-            )}
-
-            {/* ── PLAYER ROSTER TABLE ── */}
+        {/* ── SHIRT SIZE SUMMARY ── */}
+        {hasPlayers && team.shirtSizeSummary && Object.keys(team.shirtSizeSummary).length > 0 && (
+          <div style={{
+            background: 'rgba(220,0,0,0.05)', border: '1px solid rgba(220,0,0,0.15)',
+            borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '1rem'
+          }}>
             <div style={{
-              fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.6rem',
+              fontSize: '0.75rem', fontWeight: '700', color: '#f87171', marginBottom: '0.6rem',
               textTransform: 'uppercase', letterSpacing: '0.08em'
             }}>
-              Player Roster — {team.playerCount} player{team.playerCount !== 1 ? 's' : ''}
+              Shirt Size Summary — {team.playerCount} kit{team.playerCount !== 1 ? 's' : ''} required
             </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+              {sortSizes(Object.entries(team.shirtSizeSummary)).map(([size, count]) => (
+                <span key={size} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                  padding: '0.3rem 0.65rem', background: '#1e293b',
+                  border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px',
+                  fontSize: '0.8rem', color: '#e2e8f0', fontWeight: '600'
+                }}>
+                  {size} <span style={{ color: '#f87171', fontWeight: '800' }}>×{count}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
-            {hasPlayers ? (
-              <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+        {/* ── PANTS SIZE SUMMARY ── */}
+        {hasPlayers && team.pantsSizeSummary && Object.keys(team.pantsSizeSummary).length > 0 && (
+          <div style={{
+            background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.15)',
+            borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '1.5rem'
+          }}>
+            <div style={{
+              fontSize: '0.75rem', fontWeight: '700', color: '#60a5fa', marginBottom: '0.6rem',
+              textTransform: 'uppercase', letterSpacing: '0.08em'
+            }}>
+              Pants Size Summary
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+              {sortSizes(Object.entries(team.pantsSizeSummary)).map(([size, count]) => (
+                <span key={size} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                  padding: '0.3rem 0.65rem', background: '#1e293b',
+                  border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px',
+                  fontSize: '0.8rem', color: '#e2e8f0', fontWeight: '600'
+                }}>
+                  {size} <span style={{ color: '#60a5fa', fontWeight: '800' }}>×{count}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── PLAYER ROSTER TABLE ── */}
+        <div style={{
+          fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.6rem',
+          textTransform: 'uppercase', letterSpacing: '0.08em'
+        }}>
+          Player Roster — {team.playerCount} paid player{team.playerCount !== 1 ? 's' : ''}
+        </div>
+
+        {hasPlayers ? (
+          <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', minWidth: '520px' }}>
+                <thead>
+                  <tr style={{ background: '#1e293b' }}>
+                    <th style={thStyle}>#</th>
+                    <th style={{ ...thStyle, textAlign: 'left' }}>Player Name</th>
+                    <th style={{ ...thStyle, textAlign: 'left' }}>Shirt Size</th>
+                    <th style={{ ...thStyle, textAlign: 'left' }}>Pants Size</th>
+                    <th style={{ ...thStyle, textAlign: 'center' }}>Shirt No.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {team.players.map((player, idx) => (
+                    <tr key={idx} style={{
+                      background: idx % 2 === 0 ? '#111827' : '#0f172a',
+                      borderBottom: '1px solid rgba(255,255,255,0.04)'
+                    }}>
+                      <td style={{ ...tdStyle, color: '#6b7280', fontWeight: '600', fontSize: '0.82rem', width: '40px' }}>
+                        {idx + 1}
+                      </td>
+                      <td style={{ ...tdStyle, color: '#f1f5f9', fontWeight: '700' }}>
+                        {player.name}
+                      </td>
+                      <td style={tdStyle}>
+                        {player.shirtSize ? (
+                          <span style={{
+                            padding: '0.2rem 0.5rem', background: 'rgba(96,165,250,0.1)',
+                            border: '1px solid rgba(96,165,250,0.2)', borderRadius: '4px',
+                            fontSize: '0.82rem', fontWeight: '600', color: '#93c5fd'
+                          }}>{player.shirtSize}</span>
+                        ) : (
+                          <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
+                        )}
+                      </td>
+                      <td style={tdStyle}>
+                        {player.pantsSize ? (
+                          <span style={{
+                            padding: '0.2rem 0.5rem', background: 'rgba(34,197,94,0.1)',
+                            border: '1px solid rgba(34,197,94,0.2)', borderRadius: '4px',
+                            fontSize: '0.82rem', fontWeight: '600', color: '#86efac'
+                          }}>{player.pantsSize}</span>
+                        ) : (
+                          <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        {player.shirtNumber != null ? (
+                          <span style={{
+                            display: 'inline-block', minWidth: '32px',
+                            padding: '0.2rem 0.5rem', background: 'rgba(239,68,68,0.1)',
+                            border: '1px solid rgba(239,68,68,0.25)', borderRadius: '6px',
+                            fontSize: '0.9rem', fontWeight: '800', color: '#fca5a5', textAlign: 'center'
+                          }}>{player.shirtNumber}</span>
+                        ) : (
+                          <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            padding: '2rem', textAlign: 'center', background: '#0f172a',
+            borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '1.5rem'
+          }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📋</div>
+            <div style={{ color: '#475569', fontSize: '0.9rem' }}>No paid players registered for this team yet</div>
+          </div>
+        )}
+
+        {/* ── ADDITIONAL MANUFACTURED ITEMS ── */}
+        {hasAdditionalItems && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{
+              fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.6rem',
+              textTransform: 'uppercase', letterSpacing: '0.08em',
+              display: 'flex', alignItems: 'center', gap: '0.4rem'
+            }}>
+              {icons.package} Additional Items — {team.additionalItems.reduce((s, i) => s + i.quantity, 0)} item{team.additionalItems.reduce((s, i) => s + i.quantity, 0) !== 1 ? 's' : ''} ordered
+            </div>
+            <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(59,130,246,0.2)' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', minWidth: '400px' }}>
                   <thead>
-                    <tr style={{ background: '#1e293b' }}>
-                      <th style={thStyle}>#</th>
-                      <th style={{ ...thStyle, textAlign: 'left' }}>Player Name</th>
-                      <th style={{ ...thStyle, textAlign: 'left' }}>Jersey Size</th>
-                      <th style={{ ...thStyle, textAlign: 'center' }}>Jersey No.</th>
+                    <tr style={{ background: 'rgba(59,130,246,0.08)' }}>
+                      <th style={{ ...thStyle, color: '#60a5fa' }}>Item</th>
+                      <th style={{ ...thStyle, color: '#60a5fa', textAlign: 'left' }}>Size</th>
+                      <th style={{ ...thStyle, color: '#60a5fa', textAlign: 'center' }}>Qty</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {team.players.map((player, idx) => (
+                    {team.additionalItems.map((item, idx) => (
                       <tr key={idx} style={{
                         background: idx % 2 === 0 ? '#111827' : '#0f172a',
                         borderBottom: '1px solid rgba(255,255,255,0.04)'
                       }}>
-                        <td style={{ ...tdStyle, color: '#6b7280', fontWeight: '600', fontSize: '0.82rem', width: '40px' }}>
-                          {idx + 1}
-                        </td>
                         <td style={{ ...tdStyle, color: '#f1f5f9', fontWeight: '700' }}>
-                          {player.name}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                            {item.image && (
+                              <img src={item.image} alt="" style={{
+                                width: '32px', height: '32px', objectFit: 'cover',
+                                borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', flexShrink: 0
+                              }} />
+                            )}
+                            {item.name}
+                          </div>
                         </td>
                         <td style={tdStyle}>
-                          {player.jerseySize ? (
+                          {item.size && item.size !== 'One Size' ? (
                             <span style={{
-                              padding: '0.2rem 0.5rem', background: 'rgba(96,165,250,0.1)',
-                              border: '1px solid rgba(96,165,250,0.2)', borderRadius: '4px',
+                              padding: '0.2rem 0.5rem', background: 'rgba(59,130,246,0.1)',
+                              border: '1px solid rgba(59,130,246,0.2)', borderRadius: '4px',
                               fontSize: '0.82rem', fontWeight: '600', color: '#93c5fd'
-                            }}>{player.jerseySize}</span>
+                            }}>{item.size}</span>
                           ) : (
-                            <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
+                            <span style={{ color: '#6b7280', fontSize: '0.82rem' }}>One Size</span>
                           )}
                         </td>
                         <td style={{ ...tdStyle, textAlign: 'center' }}>
-                          {player.jerseyNumber != null ? (
-                            <span style={{
-                              display: 'inline-block', minWidth: '32px',
-                              padding: '0.2rem 0.5rem', background: 'rgba(239,68,68,0.1)',
-                              border: '1px solid rgba(239,68,68,0.25)', borderRadius: '6px',
-                              fontSize: '0.9rem', fontWeight: '800', color: '#fca5a5', textAlign: 'center'
-                            }}>{player.jerseyNumber}</span>
-                          ) : (
-                            <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
-                          )}
+                          <span style={{
+                            display: 'inline-block', minWidth: '28px',
+                            padding: '0.2rem 0.5rem', background: 'rgba(59,130,246,0.1)',
+                            border: '1px solid rgba(59,130,246,0.25)', borderRadius: '6px',
+                            fontSize: '0.9rem', fontWeight: '800', color: '#93c5fd', textAlign: 'center'
+                          }}>×{item.quantity}</span>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            ) : (
-              <div style={{
-                padding: '2rem', textAlign: 'center', background: '#0f172a',
-                borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)'
-              }}>
-                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📋</div>
-                <div style={{ color: '#475569', fontSize: '0.9rem' }}>No players registered for this team yet</div>
-              </div>
-            )}
+            </div>
           </div>
         )}
       </div>
@@ -524,7 +772,7 @@ export default function ManufacturerPortal() {
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
               {activeTab !== 'dashboard' && (
-                <button onClick={() => setActiveTab('dashboard')}
+                <button onClick={() => { setActiveTab('dashboard'); setSelectedTeamId(null); }}
                   onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
                   style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', transition: 'background 0.2s' }}
@@ -542,12 +790,9 @@ export default function ManufacturerPortal() {
         {/* ── CONTENT AREA ── */}
         <div className="mfgContent" style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem' }}>
 
-          {/* ════════════════════════════════════════════════
-              DASHBOARD TAB
-              ════════════════════════════════════════════════ */}
+          {/* ════════════════ DASHBOARD ════════════════ */}
           {activeTab === 'dashboard' && (
             <div>
-              {/* Welcome banner */}
               <div className="mfgBanner" style={{
                 background: 'linear-gradient(135deg, rgba(17,24,39,0.95) 0%, rgba(3,7,18,0.95) 55%, rgba(220,0,0,0.25) 100%)',
                 borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem',
@@ -565,18 +810,15 @@ export default function ManufacturerPortal() {
                     Welcome, {manufacturer.companyName}
                   </h2>
                   <p style={{ margin: '0.5rem 0 0 0', color: '#9ca3af', fontSize: '0.95rem' }}>
-                    {loading ? 'Loading data...' : `${totalTeams} teams · ${totalPlayers} players registered`}
+                    {loading ? 'Loading data...' : `${totalTeams} teams · ${totalPlayers} paid players`}
                   </p>
                 </div>
               </div>
 
-              {/* Dashboard summary cards */}
               <div className="mfgDashboardGrid" style={{
                 display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
                 gap: '1.5rem', marginBottom: '2rem'
               }}>
-
-                {/* Card: Teams & Kits */}
                 <div className="mfgDashboardCard" onClick={() => setActiveTab('teams')}
                   onMouseEnter={applyHover} onMouseLeave={removeHover}
                   style={{
@@ -598,7 +840,6 @@ export default function ManufacturerPortal() {
                   </div>
                 </div>
 
-                {/* Card: Account Settings */}
                 <div className="mfgDashboardCard" onClick={() => setActiveTab('settings')}
                   onMouseEnter={applyHover} onMouseLeave={removeHover}
                   style={{
@@ -623,12 +864,9 @@ export default function ManufacturerPortal() {
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════
-              TEAMS & KITS TAB
-              ════════════════════════════════════════════════ */}
+          {/* ════════════════ TEAMS LIST ════════════════ */}
           {activeTab === 'teams' && (
             <div>
-              {/* Header row */}
               <div className="mfgTeamsHeaderRow" style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem'
@@ -639,31 +877,13 @@ export default function ManufacturerPortal() {
                   </h2>
                   <p style={{ margin: '0.25rem 0 0 0', color: '#6b7280', fontSize: '0.85rem' }}>
                     {filteredTeams.length} team{filteredTeams.length !== 1 ? 's' : ''}
-                    {searchQuery ? ` matching "${searchQuery}"` : ''} · {totalPlayers} players total
+                    {searchQuery ? ` matching "${searchQuery}"` : ''} · {totalPlayers} paid players total
                   </p>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <button onClick={expandAll}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
-                    style={{
-                      padding: '0.45rem 0.85rem', background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px',
-                      color: '#d1d5db', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s'
-                    }}>Expand All</button>
-                  <button onClick={collapseAll}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
-                    style={{
-                      padding: '0.45rem 0.85rem', background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px',
-                      color: '#d1d5db', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s'
-                    }}>Collapse All</button>
                 </div>
               </div>
 
               {/* Search bar */}
-              <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
+              <div style={{ position: 'relative', marginBottom: '1.5rem' }}>
                 <div style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }}>
                   {icons.search}
                 </div>
@@ -681,7 +901,6 @@ export default function ManufacturerPortal() {
                 />
               </div>
 
-              {/* Loading state */}
               {loading && (
                 <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
                   <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⏳</div>
@@ -689,10 +908,17 @@ export default function ManufacturerPortal() {
                 </div>
               )}
 
-              {/* Team cards */}
-              {!loading && filteredTeams.length > 0 && filteredTeams.map(team => renderTeamCard(team))}
+              {/* Team cards grid */}
+              {!loading && filteredTeams.length > 0 && (
+                <div className="mfgTeamGrid" style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                  gap: '1.25rem'
+                }}>
+                  {filteredTeams.map(team => renderTeamListCard(team))}
+                </div>
+              )}
 
-              {/* No results */}
               {!loading && filteredTeams.length === 0 && (
                 <div style={{
                   padding: '3rem', textAlign: 'center', background: '#111827',
@@ -707,9 +933,10 @@ export default function ManufacturerPortal() {
             </div>
           )}
 
-          {/* ════════════════════════════════════════════════
-              ACCOUNT SETTINGS TAB
-              ════════════════════════════════════════════════ */}
+          {/* ════════════════ TEAM DETAIL PAGE ════════════════ */}
+          {activeTab === 'teamDetail' && renderTeamDetail()}
+
+          {/* ════════════════ ACCOUNT SETTINGS ════════════════ */}
           {activeTab === 'settings' && (
             <div style={{ background: '#111827', borderRadius: '12px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.08)' }}>
               <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.3rem', fontWeight: 900, color: '#f9fafb' }}>
@@ -749,6 +976,8 @@ export default function ManufacturerPortal() {
           .mfgContent { padding: 1rem !important; }
           .mfgKitRow { grid-template-columns: 1fr !important; }
           .mfgTeamsHeaderRow { flex-direction: column !important; align-items: flex-start !important; }
+          .mfgTeamBanner { flex-direction: column !important; text-align: center !important; }
+          .mfgTeamGrid { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 600px) {
           .mfgDashboardCard {
@@ -756,8 +985,6 @@ export default function ManufacturerPortal() {
             border: 1px solid rgba(239,68,68,0.55) !important;
             box-shadow: 0 14px 34px rgba(220,0,0,0.35), 0 0 20px rgba(255,255,255,0.2) !important;
           }
-          .mfgTeamContent { padding: 1rem !important; }
-          .mfgTeamHeader { padding: 0.75rem 1rem !important; }
         }
         @media (max-width: 480px) {
           table { font-size: 0.78rem !important; }
