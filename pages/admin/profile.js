@@ -63,6 +63,14 @@ export default function AdminProfile() {
         <path d="M17 10h4m-2-2v4" />
       </svg>
     ),
+    'manufacturer-portal': (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="10" width="18" height="11" rx="1" />
+        <path d="M3 10l9-7 9 7" />
+        <path d="M9 21v-5h6v5" />
+        <circle cx="12" cy="15" r="1" />
+      </svg>
+    ),
     'parent-emails': (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 6h16v12H4z" />
@@ -356,6 +364,7 @@ export default function AdminProfile() {
             <option value="submission-data">📊︎ Submission Data</option>
             <option value="team-portal">👥︎ Team Portal</option>
             <option value="parent-portal">👤︎ Parent Portal</option>
+            <option value="manufacturer-portal">🏭︎ Manufacturer Portal</option>
             <option value="email-config">⚙︎ Email Config</option>
           </select>
         </div>
@@ -971,6 +980,119 @@ export default function AdminProfile() {
                   Open Parent Portal (Admin Mode) →
                 </a>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Manufacturer Portal Tab */}
+        {activeTab === 'manufacturer-portal' && (
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Manufacturer Portal Management</h2>
+
+            <div style={{
+              padding: '1.25rem',
+              background: '#f0f9ff',
+              border: '2px solid #0ea5e9',
+              borderRadius: '10px',
+              marginBottom: '1.5rem'
+            }}>
+              <p style={{ fontSize: '0.95rem', color: '#0c4a6e', marginBottom: '0.75rem', fontWeight: '600' }}>
+                🏭 Manufacturer Portal Overview
+              </p>
+              <p style={{ fontSize: '0.85rem', color: '#075985', marginBottom: 0 }}>
+                The Manufacturer Portal is a private dashboard for kit manufacturers to manage kit orders, view team information, track production progress, and manage their account settings. Manufacturers log in with their registered email and password.
+              </p>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gap: '1rem',
+              marginBottom: '1.5rem'
+            }}>
+              <div style={{
+                background: 'white',
+                padding: '1.25rem',
+                border: '2px solid #e5e7eb',
+                borderRadius: '10px'
+              }}>
+                <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#111827', fontWeight: '700' }}>
+                  🔗 Portal URL
+                </h3>
+                <div style={{
+                  padding: '0.75rem',
+                  background: '#f9fafb',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontFamily: 'monospace',
+                  fontSize: '0.9rem',
+                  color: '#374151',
+                  marginBottom: '0.75rem'
+                }}>
+                  /manufacturer-portal
+                </div>
+                <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0 }}>
+                  Share this link with registered kit manufacturers so they can access their dashboard
+                </p>
+              </div>
+
+              <div style={{
+                background: 'white',
+                padding: '1.25rem',
+                border: '2px solid #e5e7eb',
+                borderRadius: '10px'
+              }}>
+                <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#111827', fontWeight: '700' }}>
+                  🏭 Access Manufacturer Portal
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '1rem' }}>
+                  Click below to access the manufacturer portal directly from the admin panel. You can preview the portal as manufacturers see it and test the functionality.
+                </p>
+                <a
+                  href="/manufacturer-portal?admin=true"
+                  style={{
+                    display: 'inline-block',
+                    padding: '0.75rem 1.5rem',
+                    background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                    color: 'white',
+                    textDecoration: 'none',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s',
+                    boxShadow: '0 4px 12px rgba(220, 0, 0, 0.2)'
+                  }}
+                >
+                  Open Manufacturer Portal (Admin Mode) →
+                </a>
+              </div>
+            </div>
+
+            <div style={{
+              background: '#fef3c7',
+              border: '2px solid #f59e0b',
+              borderRadius: '10px',
+              padding: '1.25rem'
+            }}>
+              <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#92400e', fontWeight: '700' }}>
+                💡 Portal Features
+              </h3>
+              <ul style={{ 
+                fontSize: '0.85rem', 
+                color: '#78350f', 
+                margin: 0,
+                paddingLeft: '1.5rem',
+                lineHeight: '1.8'
+              }}>
+                <li>Manufacturer login with email + password</li>
+                <li>Dashboard with overview cards (Kit Orders, Teams, Production, Settings)</li>
+                <li>View and manage incoming kit orders from teams</li>
+                <li>Browse registered teams and their requirements</li>
+                <li>Track production progress and delivery status</li>
+                <li>Update account details and change password</li>
+                <li>Admin bypass mode via ?admin=true parameter</li>
+              </ul>
             </div>
           </div>
         )}
