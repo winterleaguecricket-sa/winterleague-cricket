@@ -532,6 +532,16 @@ export default function ManufacturerPortal() {
               ) : (
                 <div style={{ color: '#475569', fontSize: '0.85rem', padding: '1rem' }}>No sponsor logo</div>
               )}
+              {team.sponsorLogo && (
+                <div style={{
+                  marginTop: '0.6rem', padding: '0.45rem 0.7rem',
+                  background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+                  borderRadius: '6px', fontSize: '0.75rem', color: '#fbbf24', fontWeight: '600',
+                  lineHeight: 1.4, textAlign: 'left'
+                }}>
+                  ⚠️ Sponsor logo should be printed on the <strong>sleeve</strong> of the shirt.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -601,11 +611,12 @@ export default function ManufacturerPortal() {
         {hasPlayers ? (
           <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem' }}>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', minWidth: '520px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', minWidth: '640px' }}>
                 <thead>
                   <tr style={{ background: '#1e293b' }}>
                     <th style={thStyle}>#</th>
                     <th style={{ ...thStyle, textAlign: 'left' }}>Player Name</th>
+                    <th style={{ ...thStyle, textAlign: 'left' }}>DOB</th>
                     <th style={{ ...thStyle, textAlign: 'left' }}>Shirt Size</th>
                     <th style={{ ...thStyle, textAlign: 'left' }}>Pants Size</th>
                     <th style={{ ...thStyle, textAlign: 'center' }}>Shirt No.</th>
@@ -623,6 +634,17 @@ export default function ManufacturerPortal() {
                         </td>
                         <td style={{ ...tdStyle, color: '#f1f5f9', fontWeight: '700' }}>
                           {player.name}
+                        </td>
+                        <td style={tdStyle}>
+                          {player.dateOfBirth ? (
+                            <span style={{
+                              padding: '0.2rem 0.5rem', background: 'rgba(251,191,36,0.1)',
+                              border: '1px solid rgba(251,191,36,0.2)', borderRadius: '4px',
+                              fontSize: '0.78rem', fontWeight: '600', color: '#fcd34d', whiteSpace: 'nowrap'
+                            }}>{new Date(player.dateOfBirth + 'T00:00:00').toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                          ) : (
+                            <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
+                          )}
                         </td>
                         <td style={tdStyle}>
                           {player.shirtSize ? (
@@ -664,37 +686,49 @@ export default function ManufacturerPortal() {
                           background: idx % 2 === 0 ? '#111827' : '#0f172a',
                           borderBottom: '1px solid rgba(255,255,255,0.04)'
                         }}>
-                          <td colSpan={5} style={{ padding: '0 1rem 0.6rem 3.2rem' }}>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
-                              <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600', marginRight: '0.15rem' }}>
-                                Additional:
+                          <td colSpan={6} style={{ padding: '0.15rem 1rem 0.65rem 3.2rem' }}>
+                            <div style={{
+                              display: 'flex', flexDirection: 'column', gap: '0.35rem'
+                            }}>
+                              <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Additional Items
                               </span>
                               {player.additionalItems.map((ai, aiIdx) => (
-                                <span key={aiIdx} style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                                  padding: '0.2rem 0.55rem',
-                                  background: ai.isSupporter ? 'rgba(168,85,247,0.1)' : 'rgba(59,130,246,0.1)',
-                                  border: `1px solid ${ai.isSupporter ? 'rgba(168,85,247,0.25)' : 'rgba(59,130,246,0.25)'}`,
-                                  borderRadius: '5px', fontSize: '0.78rem', fontWeight: '600',
-                                  color: ai.isSupporter ? '#c4b5fd' : '#93c5fd'
+                                <div key={aiIdx} style={{
+                                  display: 'flex', alignItems: 'center', gap: '0.6rem',
+                                  padding: '0.35rem 0.7rem',
+                                  background: ai.isSupporter ? 'rgba(168,85,247,0.06)' : 'rgba(59,130,246,0.06)',
+                                  border: `1px solid ${ai.isSupporter ? 'rgba(168,85,247,0.18)' : 'rgba(59,130,246,0.18)'}`,
+                                  borderRadius: '6px', fontSize: '0.82rem'
                                 }}>
                                   {ai.image && (
                                     <img src={ai.image} alt="" style={{
-                                      width: '18px', height: '18px', objectFit: 'cover',
-                                      borderRadius: '3px', border: '1px solid rgba(255,255,255,0.1)'
+                                      width: '24px', height: '24px', objectFit: 'cover',
+                                      borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', flexShrink: 0
                                     }} />
                                   )}
-                                  {ai.name}
+                                  <span style={{ fontWeight: '700', color: ai.isSupporter ? '#c4b5fd' : '#93c5fd', minWidth: '120px' }}>
+                                    {ai.name}
+                                  </span>
                                   {ai.size && ai.size !== 'One Size' && (
-                                    <span style={{ color: ai.isSupporter ? '#a78bfa' : '#60a5fa', fontWeight: '700' }}>({ai.size})</span>
+                                    <span style={{
+                                      padding: '0.1rem 0.4rem',
+                                      background: ai.isSupporter ? 'rgba(168,85,247,0.15)' : 'rgba(59,130,246,0.15)',
+                                      borderRadius: '4px', fontSize: '0.78rem', fontWeight: '600',
+                                      color: ai.isSupporter ? '#a78bfa' : '#60a5fa'
+                                    }}>Size: {ai.size}</span>
                                   )}
                                   {ai.quantity > 1 && (
-                                    <span style={{ fontWeight: '800' }}>×{ai.quantity}</span>
+                                    <span style={{ fontWeight: '800', color: '#94a3b8', fontSize: '0.78rem' }}>×{ai.quantity}</span>
                                   )}
                                   {ai.isSupporter && (
-                                    <span style={{ fontSize: '0.65rem', background: 'rgba(168,85,247,0.25)', padding: '0.08rem 0.3rem', borderRadius: '3px', color: '#d8b4fe', fontWeight: '700', marginLeft: '0.1rem' }}>SUPPORTER</span>
+                                    <span style={{
+                                      fontSize: '0.65rem', background: 'rgba(168,85,247,0.25)',
+                                      padding: '0.12rem 0.4rem', borderRadius: '3px',
+                                      color: '#d8b4fe', fontWeight: '700', marginLeft: 'auto'
+                                    }}>SUPPORTER</span>
                                   )}
-                                </span>
+                                </div>
                               ))}
                             </div>
                           </td>

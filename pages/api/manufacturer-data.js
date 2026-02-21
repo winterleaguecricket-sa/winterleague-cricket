@@ -34,7 +34,8 @@ export default async function handler(req, res) {
         tp.jersey_size,
         tp.jersey_number,
         tp.registration_data->>'formSubmissionId' as fs_id,
-        fs.data->>'25_pantsSize' as pants_size
+        fs.data->>'25_pantsSize' as pants_size,
+        fs.data->>'10' as date_of_birth
       FROM team_players tp
       JOIN teams t ON tp.team_id = t.id
       LEFT JOIN form_submissions fs
@@ -87,6 +88,7 @@ export default async function handler(req, res) {
         shirtSize: p.jersey_size || '',
         pantsSize: p.pants_size || '',
         shirtNumber: p.jersey_number,
+        dateOfBirth: p.date_of_birth || '',
         additionalItems: []  // will be populated below
       });
     }
