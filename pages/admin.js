@@ -116,6 +116,12 @@ const dashboardIcons = {
       <path d="M10 11v6" />
       <path d="M14 11v6" />
     </svg>
+  ),
+  ageVerify: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
   )
 };
 
@@ -345,6 +351,11 @@ export default function Admin() {
             <div className={styles.cardIcon}>{dashboardIcons.team}</div>
             <h3 className={styles.cardTitle}>Player Management</h3>
             <p className={styles.cardDescription}>New players to upload to CricClubs</p>
+          </Link>
+          <Link href="/admin/age-verification" className={styles.card}>
+            <div className={styles.cardIcon}>{dashboardIcons.ageVerify}</div>
+            <h3 className={styles.cardTitle}>Age Verification</h3>
+            <p className={styles.cardDescription}>Verify player DOB against age group cutoffs</p>
           </Link>
           <Link href="/admin/error-logs" className={styles.card}>
             <div className={styles.cardIcon}>
