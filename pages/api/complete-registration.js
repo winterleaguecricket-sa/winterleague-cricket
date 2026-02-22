@@ -411,7 +411,7 @@ export default async function handler(req, res) {
         }
       }
 
-      // 6. Handle additional product purchases (append to original order + create payment)
+      // 6. Handle additional product purchases (create standalone addon order + payment)
       let paymentRequired = false;
       let paymentUrl = null;
       let addonOrderNumber = null;

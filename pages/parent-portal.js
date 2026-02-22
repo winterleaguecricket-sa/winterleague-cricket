@@ -470,7 +470,6 @@ export default function ParentPortal() {
       if (!res.ok) throw new Error(result.error || 'Failed to submit correction');
       setAgeCorrectionSuccess(submissionId);
       setShowAgeCorrectionForm(null);
-      setAgeFlaggedPlayers(prev => prev.filter(p => p.submissionId !== submissionId));
     } catch (err) {
       setAgeCorrectionError(err.message);
     } finally {
@@ -514,7 +513,6 @@ export default function ParentPortal() {
       if (!res.ok) throw new Error(result.error || 'Failed to complete registration');
       setIncompleteSuccess(submissionId);
       setShowIncompleteForm(null);
-      setAgeIncomplete(prev => prev.filter(p => p.submissionId !== submissionId));
     } catch (err) {
       setIncompleteError(err.message);
     } finally {

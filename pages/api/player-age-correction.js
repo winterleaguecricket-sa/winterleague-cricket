@@ -243,7 +243,7 @@ export default async function handler(req, res) {
         // Also update team_players sub_team label
         const subTeamLabel = `${teamName} (${subTeamObj.gender} - ${ageGroup})`;
         await query(
-          `UPDATE team_players SET sub_team = $1 WHERE LOWER(player_email) = LOWER($2) AND player_name = $3`,
+          `UPDATE team_players SET sub_team = $1 WHERE LOWER(player_email) = LOWER($2) AND LOWER(player_name) = LOWER($3)`,
           [subTeamLabel, customerEmail, submissionData['6'] || playerName || '']
         );
 
@@ -331,14 +331,17 @@ export default async function handler(req, res) {
           [subTeamLabel, teamId, customerEmail, plName, shirtNumber ? parseInt(shirtNumber) : null, parentPhone || null]
         );
 
-        // If no record was updated (name mismatch from manual entry), try by email only
+        // If no record was updated (name mismatch from manual entry), try by email only — limit 1 to avoid updating siblings
         if (updateResult.rows.length === 0) {
           await query(
             `UPDATE team_players 
              SET sub_team = $1, team_id = COALESCE($2, team_id), player_name = $3,
                  jersey_number = COALESCE($5, jersey_number),
                  player_phone = COALESCE($6, player_phone)
-             WHERE LOWER(player_email) = LOWER($4)`,
+             WHERE id = (
+               SELECT id FROM team_players WHERE LOWER(player_email) = LOWER($4) 
+               ORDER BY created_at DESC LIMIT 1
+             )`,
             [subTeamLabel, teamId, plName, customerEmail, shirtNumber ? parseInt(shirtNumber) : null, parentPhone || null]
           );
         }
