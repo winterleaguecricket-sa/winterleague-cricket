@@ -46,8 +46,9 @@ export default async function handler(req, res) {
       ORDER BY tp.team_id, tp.player_name
     `);
 
-    // ── ADDITIONAL ITEMS from paid registration orders ──
+    // ── ADDITIONAL ITEMS from paid registration + additional-apparel orders ──
     // Link orders to specific players via parent-email → team_players
+    // Excludes items pending payment (_pendingPayment flag from addon merges)
     const additionalItemsResult = await pool.query(`
       SELECT
         tp.team_id,
@@ -65,9 +66,10 @@ export default async function handler(req, res) {
       JOIN teams t ON t.id = tp.team_id
       CROSS JOIN LATERAL jsonb_array_elements(o.items) WITH ORDINALITY AS item(value, item_idx)
       WHERE o.payment_status = 'paid'
-        AND o.order_type = 'registration'
+        AND o.order_type IN ('registration', 'additional-apparel')
         AND t.status NOT IN ('archived')
         AND tp.payment_status = 'paid'
+        AND COALESCE(item.value->>'_pendingPayment', 'false') != 'true'
         AND item.value->>'id' != 'basic-kit'
       ORDER BY tp.team_id, tp.player_name, item.value->>'name'
     `);

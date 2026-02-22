@@ -218,9 +218,25 @@ export default async function handler(req, res) {
       }
 
       // Build full form submission data (matching the structure of a normal form_id=2 submission)
+      // Retrieve original order items/total for _cartItems/_cartTotal fields
+      let origCartItems = [];
+      let origCartTotal = 0;
+      try {
+        const origOrderData = await query(
+          `SELECT items, total_amount FROM orders WHERE LOWER(customer_email) = LOWER($1) AND payment_status = 'paid' ORDER BY created_at ASC LIMIT 1`,
+          [email]
+        );
+        if (origOrderData.rows.length > 0) {
+          origCartItems = typeof origOrderData.rows[0].items === 'string' ? JSON.parse(origOrderData.rows[0].items) : (origOrderData.rows[0].items || []);
+          origCartTotal = parseFloat(origOrderData.rows[0].total_amount) || 0;
+        }
+      } catch (cartErr) {
+        console.log('Could not retrieve original order items for form data:', cartErr.message);
+      }
+
       const formData = {
         '6': playerName,
-        '8': teamFormSubmissionUuid,
+        '8': { id: teamFormSubmissionUuid, teamName: matchedTeam.team_name },
         '10': dob || '',
         '34': subTeam || '',
         '36': shirtNumber || '',
@@ -240,6 +256,8 @@ export default async function handler(req, res) {
         'checkout_phone': parentPhone || '',
         'checkout_password': password || '',
         'existingCricClubsProfile': cricClubsProfile || null,
+        '_cartItems': origCartItems,
+        '_cartTotal': origCartTotal,
         '_recoveredRegistration': true,
         '_recoveredAt': new Date().toISOString()
       };
@@ -342,20 +360,33 @@ export default async function handler(req, res) {
         console.log('Could not record kit markup revenue during recovery:', revenueError.message);
       }
 
-      // 4. Update customer profile team_id if not set
+      // 4. Update customer profile team_id (or create customer if missing)
       try {
         const customerResult = await query(
           `SELECT id, team_id FROM customers WHERE LOWER(email) = LOWER($1) LIMIT 1`,
           [email]
         );
-        if (customerResult.rows.length > 0 && !customerResult.rows[0].team_id) {
+        if (customerResult.rows.length > 0) {
+          if (!customerResult.rows[0].team_id) {
+            await query(
+              `UPDATE customers SET team_id = $1, updated_at = NOW() WHERE id = $2`,
+              [matchedTeam.id, customerResult.rows[0].id]
+            );
+          }
+        } else {
+          // Customer profile missing — create one (defensive recovery)
+          const firstName = (parentName || '').split(' ')[0] || '';
+          const lastName = (parentName || '').split(' ').slice(1).join(' ') || '';
           await query(
-            `UPDATE customers SET team_id = $1, updated_at = NOW() WHERE id = $2`,
-            [matchedTeam.id, customerResult.rows[0].id]
+            `INSERT INTO customers (email, password_hash, first_name, last_name, phone, team_id, country)
+             VALUES ($1, $2, $3, $4, $5, $6, 'South Africa')
+             ON CONFLICT (email) DO NOTHING`,
+            [email, password || '', firstName, lastName, parentPhone || '', matchedTeam.id]
           );
+          console.log(`Recovery: Created missing customer profile for ${email}`);
         }
       } catch (updateError) {
-        console.log('Could not update customer team_id during recovery:', updateError.message);
+        console.log('Could not update/create customer during recovery:', updateError.message);
       }
 
       // 5. Handle new player recording for CricClubs (if no existing profile)

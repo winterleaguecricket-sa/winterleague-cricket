@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   try {
     // 1. Look up order in database
     const orderResult = await query(
-      'SELECT id, order_number, total_amount, status, payment_status, payment_method, gateway_checkout_id, customer_email, customer_name FROM orders WHERE order_number = $1',
+      'SELECT id, order_number, total_amount, status, payment_status, payment_method, gateway_checkout_id, customer_email, customer_name, order_type FROM orders WHERE order_number = $1',
       [orderId]
     );
 
@@ -124,6 +124,39 @@ export default async function handler(req, res) {
           console.log(`Order ${orderId} marked as PAID via Yoco API verification`);
 
           logPaymentEvent({ orderId, email: order.customer_email, amount: order.total_amount, gateway: 'yoco', status: 'paid', details: `Verified via Yoco API. Checkout ${order.gateway_checkout_id} completed (${yocoAmountCents} cents)` });
+
+          // If this is an addon order, clear _pendingPayment flags on merged items in the original order
+          if (order.order_type === 'additional-apparel') {
+            try {
+              const origOrders = await query(
+                `SELECT order_number, items FROM orders
+                 WHERE LOWER(customer_email) = LOWER($1)
+                   AND payment_status = 'paid'
+                   AND order_type = 'registration'
+                 ORDER BY created_at ASC`,
+                [order.customer_email]
+              );
+              for (const orig of origOrders.rows) {
+                const items = typeof orig.items === 'string' ? JSON.parse(orig.items) : (orig.items || []);
+                let updated = false;
+                for (const item of items) {
+                  if (item._addonOrder === orderId && item._pendingPayment) {
+                    item._pendingPayment = false;
+                    updated = true;
+                  }
+                }
+                if (updated) {
+                  await query(
+                    `UPDATE orders SET items = $1, updated_at = NOW() WHERE order_number = $2`,
+                    [JSON.stringify(items), orig.order_number]
+                  );
+                  console.log(`Yoco verify: cleared _pendingPayment flags on merged addon items in ${orig.order_number}`);
+                }
+              }
+            } catch (addonCleanupErr) {
+              console.error('Yoco verify: failed to clear addon _pendingPayment flags:', addonCleanupErr.message);
+            }
+          }
 
           // Mark team players as paid for this customer
           try {
