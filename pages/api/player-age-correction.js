@@ -97,8 +97,9 @@ export default async function handler(req, res) {
           continue;
         }
 
-        // Check for future/invalid DOB (with valid age group — these aren't incomplete, just wrong DOB)
-        if (dob && ageGroup && hasFutureDob) {
+        // Check for invalid/impossible DOB (with valid age group — these aren't incomplete, just wrong DOB)
+        // hasBadDob catches: no DOB, future DOB, or birth year within last 4 years (impossibly young)
+        if (dob && ageGroup && hasBadDob) {
           flaggedPlayers.push({
             submissionId: row.id,
             playerName,
@@ -106,7 +107,7 @@ export default async function handler(req, res) {
             birthYear: parseInt(dob.substring(0, 4), 10),
             ageGroup,
             teamName,
-            flagType: 'futureDob',
+            flagType: 'invalidDob',
             hasBirthCertificate: !!row.birth_certificate,
             approvalStatus: row.approval_status,
           });

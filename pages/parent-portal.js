@@ -1602,10 +1602,10 @@ export default function ParentPortal() {
                       <div style={{ fontWeight: 800, color: '#ef4444', fontSize: '1rem' }}>
                         Age Verification Required — {fp.playerName}
                       </div>
-                      {fp.flagType === 'futureDob' ? (
+                      {fp.flagType === 'invalidDob' ? (
                         <>
                           <div style={{ color: '#fca5a5', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.35rem', lineHeight: 1.6 }}>
-                            Our records indicate that <strong>{fp.playerName}</strong>&apos;s date of birth is recorded as <strong>{fp.dob}</strong>, which appears to be incorrect (future date).
+                            Our records indicate that <strong>{fp.playerName}</strong>&apos;s date of birth is recorded as <strong>{fp.dob}</strong>, which appears to be incorrect.
                             This player is registered in the <strong>{fp.ageGroup}</strong> age group for <strong>{fp.teamName}</strong>.
                           </div>
                           <div style={{ color: '#f87171', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.5rem', lineHeight: 1.6 }}>
@@ -1639,7 +1639,7 @@ export default function ParentPortal() {
                     }}>
                       Correct Date of Birth
                     </button>
-                    {fp.flagType !== 'futureDob' && (
+                    {fp.flagType !== 'invalidDob' && (
                       <button onClick={() => {
                         setShowAgeCorrectionForm(fp.submissionId);
                         setAgeCorrectionMode('correct_age_group');
