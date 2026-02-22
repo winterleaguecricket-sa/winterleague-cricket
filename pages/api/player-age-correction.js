@@ -97,7 +97,23 @@ export default async function handler(req, res) {
           continue;
         }
 
-        // Standard age verification check
+        // Check for future/invalid DOB (with valid age group — these aren't incomplete, just wrong DOB)
+        if (dob && ageGroup && hasFutureDob) {
+          flaggedPlayers.push({
+            submissionId: row.id,
+            playerName,
+            dob,
+            birthYear: parseInt(dob.substring(0, 4), 10),
+            ageGroup,
+            teamName,
+            flagType: 'futureDob',
+            hasBirthCertificate: !!row.birth_certificate,
+            approvalStatus: row.approval_status,
+          });
+          continue;
+        }
+
+        // Standard age verification check — player too old for their age group
         if (dob && ageGroup && ageGroup !== 'Senior') {
           const birthYear = parseInt(dob.substring(0, 4), 10);
           const cutoff = AGE_CUTOFFS[ageGroup];
@@ -109,6 +125,7 @@ export default async function handler(req, res) {
               birthYear,
               ageGroup,
               teamName,
+              flagType: 'tooOld',
               cutoffYear: cutoff,
               tooOldBy: cutoff - birthYear,
               hasBirthCertificate: !!row.birth_certificate,

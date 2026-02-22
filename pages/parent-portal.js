@@ -1602,14 +1602,29 @@ export default function ParentPortal() {
                       <div style={{ fontWeight: 800, color: '#ef4444', fontSize: '1rem' }}>
                         Age Verification Required — {fp.playerName}
                       </div>
-                      <div style={{ color: '#fca5a5', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.35rem', lineHeight: 1.6 }}>
-                        Our records indicate that <strong>{fp.playerName}</strong>&apos;s date of birth ({fp.dob}) does not align with the <strong>{fp.ageGroup}</strong> age group. 
-                        Players in {fp.ageGroup} must be born in <strong>{fp.cutoffYear} or later</strong>, however {fp.playerName} is recorded as born in <strong>{fp.birthYear}</strong>.
-                      </div>
-                      <div style={{ color: '#f87171', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.5rem', lineHeight: 1.6 }}>
-                        To proceed with your registration, please either <strong>correct the date of birth</strong> or <strong>select the appropriate age group</strong> below. 
-                        A <strong>birth certificate</strong> must be uploaded as proof of age. We are unable to approve this player&apos;s profile until this has been resolved.
-                      </div>
+                      {fp.flagType === 'futureDob' ? (
+                        <>
+                          <div style={{ color: '#fca5a5', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.35rem', lineHeight: 1.6 }}>
+                            Our records indicate that <strong>{fp.playerName}</strong>&apos;s date of birth is recorded as <strong>{fp.dob}</strong>, which appears to be incorrect (future date).
+                            This player is registered in the <strong>{fp.ageGroup}</strong> age group for <strong>{fp.teamName}</strong>.
+                          </div>
+                          <div style={{ color: '#f87171', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.5rem', lineHeight: 1.6 }}>
+                            Please <strong>correct the date of birth</strong> below and upload a <strong>birth certificate</strong> as proof of age.
+                            We are unable to approve this player&apos;s profile until this has been resolved.
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ color: '#fca5a5', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.35rem', lineHeight: 1.6 }}>
+                            Our records indicate that <strong>{fp.playerName}</strong>&apos;s date of birth ({fp.dob}) does not align with the <strong>{fp.ageGroup}</strong> age group. 
+                            Players in {fp.ageGroup} must be born in <strong>{fp.cutoffYear} or later</strong>, however {fp.playerName} is recorded as born in <strong>{fp.birthYear}</strong>.
+                          </div>
+                          <div style={{ color: '#f87171', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.5rem', lineHeight: 1.6 }}>
+                            To proceed with your registration, please either <strong>correct the date of birth</strong> or <strong>select the appropriate age group</strong> below. 
+                            A <strong>birth certificate</strong> must be uploaded as proof of age. We are unable to approve this player&apos;s profile until this has been resolved.
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
@@ -1624,17 +1639,19 @@ export default function ParentPortal() {
                     }}>
                       Correct Date of Birth
                     </button>
-                    <button onClick={() => {
-                      setShowAgeCorrectionForm(fp.submissionId);
-                      setAgeCorrectionMode('correct_age_group');
-                      setAgeCorrectionData({ dob: fp.dob, ageGroup: '', teamName: '', gender: 'Male', coachName: '', coachContact: '', birthCertificate: '', teamFormSubmissionUuid: '', playerName: fp.playerName });
-                      setAgeCorrectionError('');
-                    }} style={{
-                      background: 'rgba(255,255,255,0.1)', color: '#f9fafb', border: '1px solid rgba(255,255,255,0.2)',
-                      padding: '0.65rem 1.25rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer'
-                    }}>
-                      Change Age Group
-                    </button>
+                    {fp.flagType !== 'futureDob' && (
+                      <button onClick={() => {
+                        setShowAgeCorrectionForm(fp.submissionId);
+                        setAgeCorrectionMode('correct_age_group');
+                        setAgeCorrectionData({ dob: fp.dob, ageGroup: '', teamName: '', gender: 'Male', coachName: '', coachContact: '', birthCertificate: '', teamFormSubmissionUuid: '', playerName: fp.playerName });
+                        setAgeCorrectionError('');
+                      }} style={{
+                        background: 'rgba(255,255,255,0.1)', color: '#f9fafb', border: '1px solid rgba(255,255,255,0.2)',
+                        padding: '0.65rem 1.25rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer'
+                      }}>
+                        Change Age Group
+                      </button>
+                    )}
                   </div>
                 </div>
               )
@@ -3135,7 +3152,7 @@ export default function ParentPortal() {
                                       color: '#f9fafb',
                                       border: '1px solid rgba(255,255,255,0.08)'
                                     }}>
-                                      #{player.shirtNumber || player.jerseyNumber || '-'}
+                                      #{player.jerseyNumber || player.shirtNumber || '-'}
                                     </span>
                                   </td>
                                   <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#94a3b8' }}>
@@ -3188,7 +3205,7 @@ export default function ParentPortal() {
                                   color: '#f9fafb',
                                   fontSize: '0.8rem',
                                   border: '1px solid rgba(255,255,255,0.08)'
-                                }}>#{player.shirtNumber || player.jerseyNumber || '-'}</span>
+                                }}>#{player.jerseyNumber || player.shirtNumber || '-'}</span>
                               </div>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
                                 {(player.roles || player.registrationData?.roles) ? (
