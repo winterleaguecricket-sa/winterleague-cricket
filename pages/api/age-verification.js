@@ -41,6 +41,7 @@ export default async function handler(req, res) {
     `);
 
     const currentYear = new Date().getFullYear();
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     const players = result.rows.map(row => {
       const playerName = (row.player_name || 'Unknown').trim();
       const dob = row.dob || null;
@@ -61,9 +62,12 @@ export default async function handler(req, res) {
         birthYear = parseInt(dob.substring(0, 4), 10);
 
         // Check for future/invalid birth dates
-        if (birthYear > currentYear) {
+        if (dob > today) {
           status = 'error';
-          reason = `Future birth year (${birthYear}) — likely data entry error`;
+          reason = `Future date of birth (${dob}) — likely data entry error`;
+        } else if (birthYear > currentYear - 4) {
+          status = 'error';
+          reason = `Birth year ${birthYear} — player too young for any league`;
         } else if (birthYear < 1990) {
           status = 'error';
           reason = `Unusually old birth year (${birthYear})`;
