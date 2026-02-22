@@ -122,6 +122,11 @@ const dashboardIcons = {
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
       <path d="M9 12l2 2 4-4" />
     </svg>
+  ),
+  revenue: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
   )
 };
 
@@ -356,6 +361,11 @@ export default function Admin() {
             <div className={styles.cardIcon}>{dashboardIcons.ageVerify}</div>
             <h3 className={styles.cardTitle}>Age Verification</h3>
             <p className={styles.cardDescription}>Verify player DOB against age group cutoffs</p>
+          </Link>
+          <Link href="/admin/revenue" className={styles.card}>
+            <div className={styles.cardIcon}>{dashboardIcons.revenue}</div>
+            <h3 className={styles.cardTitle}>Revenue</h3>
+            <p className={styles.cardDescription}>Admin revenue accounting — kit margins &amp; apparel profit</p>
           </Link>
           <Link href="/admin/error-logs" className={styles.card}>
             <div className={styles.cardIcon}>
