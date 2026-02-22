@@ -34,6 +34,27 @@ export default function ParentPortal() {
   const [parentPlayersLoaded, setParentPlayersLoaded] = useState(false);
   const [parentTeams, setParentTeams] = useState({});
 
+  // Recovery state for incomplete registrations
+  const [recoveryData, setRecoveryData] = useState(null);
+  const [showRecoveryForm, setShowRecoveryForm] = useState(false);
+  const [recoveryStep, setRecoveryStep] = useState(1);
+  const [recoverySubmitting, setRecoverySubmitting] = useState(false);
+  const [recoverySuccess, setRecoverySuccess] = useState(false);
+  const [recoveryError, setRecoveryError] = useState('');
+  const [recoveryForm, setRecoveryForm] = useState({
+    teamFormSubmissionUuid: '',
+    selectedTeam: null,
+    subTeam: null,
+    playerName: '',
+    dob: '',
+    shirtNumber: '',
+    shirtSize: '',
+    pantsSize: '',
+    profileImage: '',
+    birthCertificate: '',
+    parentPhoneSecondary: ''
+  });
+
   const statusColors = {
     pending: '#f59e0b',
     confirmed: '#3b82f6',
@@ -122,6 +143,80 @@ export default function ParentPortal() {
     if (shine) shine.style.left = '-120%';
   };
 
+  // Handle recovery form file uploads
+  const handleRecoveryFileUpload = (field, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setRecoveryForm(prev => ({ ...prev, [field]: ev.target.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle recovery form submission
+  const handleRecoverySubmit = async () => {
+    setRecoveryError('');
+    setRecoverySubmitting(true);
+    
+    try {
+      if (!recoveryForm.teamFormSubmissionUuid) {
+        throw new Error('Please select your team');
+      }
+      if (!recoveryForm.subTeam) {
+        throw new Error('Please select the age group team');
+      }
+      if (!recoveryForm.playerName) {
+        throw new Error('Player name is required');
+      }
+
+      const res = await fetch('/api/complete-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: profile.email,
+          parentName: `${profile.firstName || ''} ${profile.lastName || ''}`.trim(),
+          parentPhone: profile.phone || '',
+          parentPhoneSecondary: recoveryForm.parentPhoneSecondary,
+          password: '',
+          teamFormSubmissionUuid: recoveryForm.teamFormSubmissionUuid,
+          playerName: recoveryForm.playerName,
+          subTeam: recoveryForm.subTeam,
+          dob: recoveryForm.dob,
+          shirtNumber: recoveryForm.shirtNumber,
+          shirtSize: recoveryForm.shirtSize,
+          pantsSize: recoveryForm.pantsSize,
+          profileImage: recoveryForm.profileImage,
+          birthCertificate: recoveryForm.birthCertificate
+        })
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.error || 'Failed to complete registration');
+      }
+
+      setRecoverySuccess(true);
+      setRecoveryData(null);
+      
+      // Refresh parent players data
+      setTimeout(async () => {
+        try {
+          const playersRes = await fetch(`/api/team-players?email=${encodeURIComponent(profile.email)}`);
+          if (playersRes.ok) {
+            const playersData = await playersRes.json();
+            setParentPlayers(playersData.players || []);
+          }
+        } catch (e) { /* ignore */ }
+      }, 1000);
+      
+    } catch (err) {
+      setRecoveryError(err.message);
+    } finally {
+      setRecoverySubmitting(false);
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
@@ -205,6 +300,35 @@ export default function ParentPortal() {
       }
     };
     fetchParentPlayers();
+  }, [profile?.email]);
+
+  // Check for incomplete registration (paid order but no form_submission/team_player)
+  useEffect(() => {
+    if (!profile?.email) {
+      setRecoveryData(null);
+      return;
+    }
+    const checkRecovery = async () => {
+      try {
+        const res = await fetch(`/api/complete-registration?email=${encodeURIComponent(profile.email)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.needsRecovery) {
+            setRecoveryData(data);
+            // Pre-fill known data
+            setRecoveryForm(prev => ({
+              ...prev,
+              playerName: data.knownData.playerNames?.[0] || '',
+              shirtSize: data.knownData.sizes?.shirtSize || '',
+              pantsSize: data.knownData.sizes?.pantsSize || ''
+            }));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check registration recovery:', err);
+      }
+    };
+    checkRecovery();
   }, [profile?.email]);
 
   useEffect(() => {
@@ -1188,6 +1312,486 @@ export default function ParentPortal() {
                 </div>
               );
             })()}
+
+            {/* Registration Recovery Banner */}
+            {recoveryData && !recoverySuccess && !showRecoveryForm && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.08))',
+                border: '1px solid rgba(239,68,68,0.4)',
+                borderRadius: '12px',
+                padding: '1.25rem 1.5rem',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ fontSize: '1.5rem' }}>🔔</span>
+                  <div>
+                    <div style={{ fontWeight: 800, color: '#ef4444', fontSize: '1rem' }}>
+                      Action Required — Complete Your Registration
+                    </div>
+                    <div style={{ color: '#fca5a5', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.25rem' }}>
+                      We experienced a technical issue during your registration and need a few details to finalise your player registration.
+                      Your payment of R{recoveryData.knownData.totalPaid.toFixed(0)} has been received — thank you!
+                      Please complete the short form below so we can add {recoveryData.knownData.playerNames[0] || 'your player'} to their team.
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowRecoveryForm(true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '8px',
+                    fontWeight: 800,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    alignSelf: 'flex-start',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Complete Registration →
+                </button>
+              </div>
+            )}
+
+            {/* Recovery Success Message */}
+            {recoverySuccess && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.08))',
+                border: '1px solid rgba(16,185,129,0.4)',
+                borderRadius: '12px',
+                padding: '1.25rem 1.5rem',
+                marginBottom: '1.5rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ fontSize: '1.5rem' }}>✅</span>
+                  <div>
+                    <div style={{ fontWeight: 800, color: '#10b981', fontSize: '1rem' }}>
+                      Registration Complete!
+                    </div>
+                    <div style={{ color: '#6ee7b7', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.25rem' }}>
+                      Your player has been successfully registered and added to their team. You can view their details in the Team Portal tab.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Registration Recovery Form (fullscreen overlay) */}
+            {showRecoveryForm && recoveryData && (
+              <div style={{
+                background: '#111827',
+                border: '1px solid rgba(239,68,68,0.3)',
+                borderRadius: '16px',
+                padding: '2rem',
+                marginBottom: '1.5rem',
+                position: 'relative'
+              }}>
+                <button
+                  onClick={() => { setShowRecoveryForm(false); setRecoveryStep(1); setRecoveryError(''); }}
+                  style={{
+                    position: 'absolute', top: '1rem', right: '1rem',
+                    background: 'rgba(255,255,255,0.1)', border: 'none', color: '#9ca3af',
+                    width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer',
+                    fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}
+                >×</button>
+
+                <h3 style={{ margin: '0 0 0.25rem 0', color: '#f9fafb', fontSize: '1.3rem', fontWeight: 800 }}>
+                  Complete Your Player Registration
+                </h3>
+                <p style={{ color: '#9ca3af', fontSize: '0.85rem', margin: '0 0 1.5rem 0' }}>
+                  We already have some of your details from your order. Please fill in the remaining information below.
+                </p>
+
+                {recoveryError && (
+                  <div style={{
+                    background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                    borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1rem',
+                    color: '#fca5a5', fontSize: '0.85rem', fontWeight: 600
+                  }}>
+                    {recoveryError}
+                  </div>
+                )}
+
+                {/* Step indicator */}
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                  {[1, 2, 3].map(step => (
+                    <div key={step} style={{
+                      flex: 1, height: '4px', borderRadius: '2px',
+                      background: step <= recoveryStep ? 'linear-gradient(90deg, #ef4444, #f97316)' : 'rgba(255,255,255,0.1)'
+                    }} />
+                  ))}
+                </div>
+
+                {/* Step 1: Team Selection */}
+                {recoveryStep === 1 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <h4 style={{ color: '#f9fafb', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
+                      Step 1: Select Your Team
+                    </h4>
+
+                    {/* Pre-filled info display */}
+                    <div style={{
+                      background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)',
+                      borderRadius: '8px', padding: '1rem',
+                    }}>
+                      <div style={{ color: '#93c5fd', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                        INFORMATION WE HAVE
+                      </div>
+                      <div style={{ color: '#d1d5db', fontSize: '0.9rem', lineHeight: 1.6 }}>
+                        <strong>Parent:</strong> {recoveryData.knownData.parentName}<br />
+                        <strong>Player:</strong> {recoveryData.knownData.playerNames[0] || 'N/A'}<br />
+                        <strong>Kit Sizes:</strong> Shirt: {recoveryData.knownData.sizes.shirtSize || 'N/A'} / Pants: {recoveryData.knownData.sizes.pantsSize || 'N/A'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                        Select Your Team *
+                      </label>
+                      <select
+                        value={recoveryForm.teamFormSubmissionUuid}
+                        onChange={(e) => {
+                          const uuid = e.target.value;
+                          const team = recoveryData.teams.find(t => t.formSubmissionUuid === uuid);
+                          setRecoveryForm(prev => ({ ...prev, teamFormSubmissionUuid: uuid, selectedTeam: team, subTeam: null }));
+                        }}
+                        style={{
+                          width: '100%', padding: '0.75rem', background: '#1f2937', color: '#f9fafb',
+                          border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '0.95rem'
+                        }}
+                      >
+                        <option value="">— Choose a team —</option>
+                        {recoveryData.teams.map(t => (
+                          <option key={t.formSubmissionUuid} value={t.formSubmissionUuid}>
+                            {t.teamName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Age Group / Sub-Team Selection */}
+                    {recoveryForm.selectedTeam && recoveryForm.selectedTeam.ageGroups.length > 0 && (
+                      <div>
+                        <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                          Select Age Group Team *
+                        </label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {recoveryForm.selectedTeam.ageGroups.map((ag, idx) => (
+                            <label key={idx} style={{
+                              display: 'flex', alignItems: 'center', gap: '0.75rem',
+                              padding: '0.75rem 1rem', background: recoveryForm.subTeam === ag ? 'rgba(239,68,68,0.15)' : '#1f2937',
+                              border: `1px solid ${recoveryForm.subTeam === ag ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                              borderRadius: '8px', cursor: 'pointer', transition: 'all 0.15s'
+                            }}>
+                              <input
+                                type="radio"
+                                name="ageGroup"
+                                checked={recoveryForm.subTeam === ag}
+                                onChange={() => setRecoveryForm(prev => ({ ...prev, subTeam: ag }))}
+                                style={{ accentColor: '#ef4444' }}
+                              />
+                              <div>
+                                <div style={{ color: '#f9fafb', fontWeight: 700, fontSize: '0.95rem' }}>
+                                  {ag.teamName} ({ag.gender} - {ag.ageGroup})
+                                </div>
+                                {ag.coachName && (
+                                  <div style={{ color: '#9ca3af', fontSize: '0.8rem' }}>
+                                    Coach: {ag.coachName} {ag.coachContact ? `(${ag.coachContact})` : ''}
+                                  </div>
+                                )}
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* If team has no age groups, just select the team directly */}
+                    {recoveryForm.selectedTeam && recoveryForm.selectedTeam.ageGroups.length === 0 && (
+                      <div style={{
+                        background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+                        borderRadius: '8px', padding: '0.75rem 1rem',
+                        color: '#fbbf24', fontSize: '0.85rem'
+                      }}>
+                        This team has no specific age group sub-teams. Your player will be registered directly under {recoveryForm.selectedTeam.teamName}.
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        if (!recoveryForm.teamFormSubmissionUuid) {
+                          setRecoveryError('Please select a team');
+                          return;
+                        }
+                        if (recoveryForm.selectedTeam?.ageGroups?.length > 0 && !recoveryForm.subTeam) {
+                          setRecoveryError('Please select an age group team');
+                          return;
+                        }
+                        // If no age groups, set subTeam to a simple object with team name
+                        if (!recoveryForm.subTeam && recoveryForm.selectedTeam) {
+                          setRecoveryForm(prev => ({
+                            ...prev,
+                            subTeam: { teamName: recoveryForm.selectedTeam.teamName, gender: '', ageGroup: '' }
+                          }));
+                        }
+                        setRecoveryError('');
+                        setRecoveryStep(2);
+                      }}
+                      style={{
+                        background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: '#fff',
+                        border: 'none', padding: '0.75rem 1.5rem', borderRadius: '8px',
+                        fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', alignSelf: 'flex-end'
+                      }}
+                    >
+                      Next: Player Details →
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 2: Player Details */}
+                {recoveryStep === 2 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <h4 style={{ color: '#f9fafb', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
+                      Step 2: Player Details
+                    </h4>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div>
+                        <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                          Player Full Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={recoveryForm.playerName}
+                          onChange={(e) => setRecoveryForm(prev => ({ ...prev, playerName: e.target.value }))}
+                          style={{
+                            width: '100%', padding: '0.75rem', background: '#1f2937', color: '#f9fafb',
+                            border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '0.95rem'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                          Date of Birth
+                        </label>
+                        <input
+                          type="date"
+                          value={recoveryForm.dob}
+                          onChange={(e) => setRecoveryForm(prev => ({ ...prev, dob: e.target.value }))}
+                          style={{
+                            width: '100%', padding: '0.75rem', background: '#1f2937', color: '#f9fafb',
+                            border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '0.95rem'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                      <div>
+                        <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                          Shirt Number
+                        </label>
+                        <input
+                          type="number"
+                          value={recoveryForm.shirtNumber}
+                          onChange={(e) => setRecoveryForm(prev => ({ ...prev, shirtNumber: e.target.value }))}
+                          placeholder="e.g. 7"
+                          style={{
+                            width: '100%', padding: '0.75rem', background: '#1f2937', color: '#f9fafb',
+                            border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '0.95rem'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                          Shirt Size
+                        </label>
+                        <input
+                          type="text"
+                          value={recoveryForm.shirtSize}
+                          readOnly
+                          style={{
+                            width: '100%', padding: '0.75rem', background: '#0f172a', color: '#9ca3af',
+                            border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '0.95rem'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                          Pants Size
+                        </label>
+                        <input
+                          type="text"
+                          value={recoveryForm.pantsSize}
+                          readOnly
+                          style={{
+                            width: '100%', padding: '0.75rem', background: '#0f172a', color: '#9ca3af',
+                            border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '0.95rem'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                        Secondary Emergency Contact Number (Optional)
+                      </label>
+                      <input
+                        type="tel"
+                        value={recoveryForm.parentPhoneSecondary}
+                        onChange={(e) => setRecoveryForm(prev => ({ ...prev, parentPhoneSecondary: e.target.value }))}
+                        placeholder="0821234567"
+                        style={{
+                          width: '100%', padding: '0.75rem', background: '#1f2937', color: '#f9fafb',
+                          border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '0.95rem'
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'space-between' }}>
+                      <button
+                        onClick={() => { setRecoveryStep(1); setRecoveryError(''); }}
+                        style={{
+                          background: 'transparent', color: '#9ca3af',
+                          border: '1px solid rgba(255,255,255,0.15)', padding: '0.75rem 1.5rem',
+                          borderRadius: '8px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer'
+                        }}
+                      >
+                        ← Back
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (!recoveryForm.playerName.trim()) {
+                            setRecoveryError('Player name is required');
+                            return;
+                          }
+                          setRecoveryError('');
+                          setRecoveryStep(3);
+                        }}
+                        style={{
+                          background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: '#fff',
+                          border: 'none', padding: '0.75rem 1.5rem', borderRadius: '8px',
+                          fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer'
+                        }}
+                      >
+                        Next: Documents →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Documents & Submit */}
+                {recoveryStep === 3 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <h4 style={{ color: '#f9fafb', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
+                      Step 3: Documents & Submit
+                    </h4>
+                    <p style={{ color: '#9ca3af', fontSize: '0.85rem', margin: 0 }}>
+                      Upload your player&apos;s profile photo and birth certificate. These are optional but recommended.
+                    </p>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div>
+                        <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                          Player Profile Photo
+                        </label>
+                        <div style={{
+                          border: '2px dashed rgba(255,255,255,0.15)', borderRadius: '8px',
+                          padding: '1.5rem', textAlign: 'center', cursor: 'pointer',
+                          background: recoveryForm.profileImage ? 'rgba(16,185,129,0.1)' : 'transparent',
+                          borderColor: recoveryForm.profileImage ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.15)'
+                        }}>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleRecoveryFileUpload('profileImage', e)}
+                            style={{ display: 'none' }}
+                            id="recovery-profile-img"
+                          />
+                          <label htmlFor="recovery-profile-img" style={{ cursor: 'pointer', color: '#9ca3af', fontSize: '0.85rem' }}>
+                            {recoveryForm.profileImage ? '✅ Photo uploaded' : '📷 Click to upload'}
+                          </label>
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                          Birth Certificate
+                        </label>
+                        <div style={{
+                          border: '2px dashed rgba(255,255,255,0.15)', borderRadius: '8px',
+                          padding: '1.5rem', textAlign: 'center', cursor: 'pointer',
+                          background: recoveryForm.birthCertificate ? 'rgba(16,185,129,0.1)' : 'transparent',
+                          borderColor: recoveryForm.birthCertificate ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.15)'
+                        }}>
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleRecoveryFileUpload('birthCertificate', e)}
+                            style={{ display: 'none' }}
+                            id="recovery-birth-cert"
+                          />
+                          <label htmlFor="recovery-birth-cert" style={{ cursor: 'pointer', color: '#9ca3af', fontSize: '0.85rem' }}>
+                            {recoveryForm.birthCertificate ? '✅ Document uploaded' : '📄 Click to upload'}
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Summary before submit */}
+                    <div style={{
+                      background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)',
+                      borderRadius: '8px', padding: '1rem', marginTop: '0.5rem'
+                    }}>
+                      <div style={{ color: '#93c5fd', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                        REGISTRATION SUMMARY
+                      </div>
+                      <div style={{ color: '#d1d5db', fontSize: '0.9rem', lineHeight: 1.6 }}>
+                        <strong>Player:</strong> {recoveryForm.playerName}<br />
+                        <strong>Team:</strong> {recoveryForm.selectedTeam?.teamName || 'N/A'}<br />
+                        {recoveryForm.subTeam && recoveryForm.subTeam.ageGroup && (
+                          <><strong>Age Group:</strong> {recoveryForm.subTeam.teamName} ({recoveryForm.subTeam.gender} - {recoveryForm.subTeam.ageGroup})<br /></>
+                        )}
+                        {recoveryForm.dob && <><strong>DOB:</strong> {recoveryForm.dob}<br /></>}
+                        {recoveryForm.shirtNumber && <><strong>Shirt #:</strong> {recoveryForm.shirtNumber}<br /></>}
+                        <strong>Kit:</strong> Shirt: {recoveryForm.shirtSize || 'N/A'} / Pants: {recoveryForm.pantsSize || 'N/A'}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'space-between' }}>
+                      <button
+                        onClick={() => { setRecoveryStep(2); setRecoveryError(''); }}
+                        style={{
+                          background: 'transparent', color: '#9ca3af',
+                          border: '1px solid rgba(255,255,255,0.15)', padding: '0.75rem 1.5rem',
+                          borderRadius: '8px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer'
+                        }}
+                      >
+                        ← Back
+                      </button>
+                      <button
+                        onClick={handleRecoverySubmit}
+                        disabled={recoverySubmitting}
+                        style={{
+                          background: recoverySubmitting ? '#374151' : 'linear-gradient(135deg, #10b981, #059669)',
+                          color: '#fff', border: 'none', padding: '0.75rem 2rem', borderRadius: '8px',
+                          fontWeight: 800, fontSize: '0.95rem', cursor: recoverySubmitting ? 'not-allowed' : 'pointer',
+                          opacity: recoverySubmitting ? 0.7 : 1
+                        }}
+                      >
+                        {recoverySubmitting ? 'Submitting...' : 'Complete Registration ✓'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
           <div className="parentDashboardGrid" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
