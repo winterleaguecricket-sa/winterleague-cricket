@@ -125,38 +125,7 @@ export default async function handler(req, res) {
 
           logPaymentEvent({ orderId, email: order.customer_email, amount: order.total_amount, gateway: 'yoco', status: 'paid', details: `Verified via Yoco API. Checkout ${order.gateway_checkout_id} completed (${yocoAmountCents} cents)` });
 
-          // If this is an addon order, clear _pendingPayment flags on merged items in the original order
-          if (order.order_type === 'additional-apparel') {
-            try {
-              const origOrders = await query(
-                `SELECT order_number, items FROM orders
-                 WHERE LOWER(customer_email) = LOWER($1)
-                   AND payment_status = 'paid'
-                   AND order_type = 'registration'
-                 ORDER BY created_at ASC`,
-                [order.customer_email]
-              );
-              for (const orig of origOrders.rows) {
-                const items = typeof orig.items === 'string' ? JSON.parse(orig.items) : (orig.items || []);
-                let updated = false;
-                for (const item of items) {
-                  if (item._addonOrder === orderId && item._pendingPayment) {
-                    item._pendingPayment = false;
-                    updated = true;
-                  }
-                }
-                if (updated) {
-                  await query(
-                    `UPDATE orders SET items = $1, updated_at = NOW() WHERE order_number = $2`,
-                    [JSON.stringify(items), orig.order_number]
-                  );
-                  console.log(`Yoco verify: cleared _pendingPayment flags on merged addon items in ${orig.order_number}`);
-                }
-              }
-            } catch (addonCleanupErr) {
-              console.error('Yoco verify: failed to clear addon _pendingPayment flags:', addonCleanupErr.message);
-            }
-          }
+          // Addon orders now stand alone — no merged items to clean up in original orders
 
           // Mark team players as paid for this customer
           try {

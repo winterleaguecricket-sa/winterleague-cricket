@@ -452,27 +452,9 @@ export default async function handler(req, res) {
 
             console.log(`Recovery: Created addon order ${addonOrderNumber} for ${email}, total: R${addonTotal}`);
 
-            // Also append items to the original paid order so admin sees everything in one place
-            try {
-              const origOrderResult = await query(
-                `SELECT order_number, items, total_amount FROM orders 
-                 WHERE LOWER(customer_email) = LOWER($1) AND payment_status = 'paid'
-                 ORDER BY created_at ASC LIMIT 1`,
-                [email]
-              );
-              if (origOrderResult.rows.length > 0) {
-                const origOrder = origOrderResult.rows[0];
-                const existingItems = typeof origOrder.items === 'string' ? JSON.parse(origOrder.items) : (origOrder.items || []);
-                const mergedItems = [...existingItems, ...addonItems.map(ai => ({ ...ai, _addon: true, _addonOrder: addonOrderNumber, _pendingPayment: true }))];
-                await query(
-                  `UPDATE orders SET items = $1, updated_at = NOW() WHERE order_number = $2`,
-                  [JSON.stringify(mergedItems), origOrder.order_number]
-                );
-                console.log(`Recovery: Appended ${addonItems.length} addon items to original order ${origOrder.order_number}`);
-              }
-            } catch (mergeErr) {
-              console.log('Could not merge addon items to original order:', mergeErr.message);
-            }
+            // NOTE: Addon items are NOT merged into the original order.
+            // The addon order stands alone to prevent double-counting of items and revenue.
+            // Admin/manufacturer views query both registration and additional-apparel orders.
 
             // Create Yoco checkout for the addon order
             const config = await getYocoConfig();

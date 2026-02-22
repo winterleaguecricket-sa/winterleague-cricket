@@ -302,22 +302,26 @@ export default async function handler(req, res) {
         const subTeamLabel = `${teamName} (${subTeamObj.gender} - ${ageGroup})`;
         const plName = playerName || submissionData['6'] || '';
         
-        // Update existing record
+        // Update existing record — also update jersey_number and player_phone
         const updateResult = await query(
           `UPDATE team_players 
-           SET sub_team = $1, team_id = COALESCE($2, team_id)
+           SET sub_team = $1, team_id = COALESCE($2, team_id),
+               jersey_number = COALESCE($5, jersey_number),
+               player_phone = COALESCE($6, player_phone)
            WHERE LOWER(player_email) = LOWER($3) AND player_name = $4
            RETURNING id`,
-          [subTeamLabel, teamId, customerEmail, plName]
+          [subTeamLabel, teamId, customerEmail, plName, shirtNumber ? parseInt(shirtNumber) : null, parentPhone || null]
         );
 
         // If no record was updated (name mismatch from manual entry), try by email only
         if (updateResult.rows.length === 0) {
           await query(
             `UPDATE team_players 
-             SET sub_team = $1, team_id = COALESCE($2, team_id), player_name = $3
+             SET sub_team = $1, team_id = COALESCE($2, team_id), player_name = $3,
+                 jersey_number = COALESCE($5, jersey_number),
+                 player_phone = COALESCE($6, player_phone)
              WHERE LOWER(player_email) = LOWER($4)`,
-            [subTeamLabel, teamId, plName, customerEmail]
+            [subTeamLabel, teamId, plName, customerEmail, shirtNumber ? parseInt(shirtNumber) : null, parentPhone || null]
           );
         }
 

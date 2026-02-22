@@ -187,6 +187,9 @@ export default function ParentPortal() {
       if (!recoveryForm.playerName) {
         throw new Error('Player name is required');
       }
+      if (!recoveryForm.shirtNumber) {
+        throw new Error('Preferred shirt number is required');
+      }
 
       const res = await fetch('/api/complete-registration', {
         method: 'POST',
@@ -482,6 +485,8 @@ export default function ParentPortal() {
     try {
       if (!incompleteFormData.dob) throw new Error('Date of birth is required');
       if (!incompleteFormData.subTeam) throw new Error('Please select a team and age group');
+      if (!incompleteFormData.shirtNumber) throw new Error('Preferred shirt number is required');
+      if (!incompleteFormData.parentPhone) throw new Error('Parent / emergency contact number is required');
 
       const payload = {
         submissionId,
@@ -1882,7 +1887,7 @@ export default function ParentPortal() {
 
                   {/* Shirt / Jersey Number */}
                   <div style={{ marginBottom: '1.25rem' }}>
-                    <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>Preferred Shirt Number</label>
+                    <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>Preferred Shirt Number *</label>
                     <input type="text" placeholder="e.g. 7" value={incompleteFormData.shirtNumber} onChange={e => setIncompleteFormData(prev => ({ ...prev, shirtNumber: e.target.value }))}
                       style={{
                         width: '100%', padding: '0.65rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)',
@@ -2176,10 +2181,11 @@ export default function ParentPortal() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
                       <div>
                         <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-                          Shirt Number
+                          Shirt Number *
                         </label>
                         <input
                           type="number"
+                          required
                           value={recoveryForm.shirtNumber}
                           onChange={(e) => setRecoveryForm(prev => ({ ...prev, shirtNumber: e.target.value }))}
                           placeholder="e.g. 7"

@@ -70,6 +70,7 @@ export default async function handler(req, res) {
         AND t.status NOT IN ('archived')
         AND tp.payment_status = 'paid'
         AND COALESCE(item.value->>'_pendingPayment', 'false') != 'true'
+        AND COALESCE(item.value->>'_addon', 'false') != 'true'
         AND item.value->>'id' != 'basic-kit'
       ORDER BY tp.team_id, tp.player_name, item.value->>'name'
     `);
@@ -90,6 +91,7 @@ export default async function handler(req, res) {
         OR (item.value->>'id' LIKE 'supporter_%' AND p.id::text = REPLACE(item.value->>'id', 'supporter_', ''))
       WHERE o.payment_status = 'paid'
         AND item.value->>'id' != 'basic-kit'
+        AND COALESCE(item.value->>'_addon', 'false') != 'true'
       GROUP BY item.value->>'id', item.value->>'name', item.value->>'price', p.cost
       ORDER BY item.value->>'name'
     `);
