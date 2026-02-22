@@ -255,33 +255,6 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Team not found' });
       }
 
-      // Sync denormalized columns when key submission_data fields are patched
-      // This keeps the dedicated columns in sync with submission_data
-      const fieldSyncMap = {
-        '33': { column: 'age_group_teams', transform: (v) => JSON.stringify(v) },
-        '1':  { column: 'team_name', transform: (v) => String(v || '') },
-        '23': { column: 'shirt_design', transform: (v) => String(v || '') },
-        '22': { column: 'team_logo', transform: (v) => String(v || '') },
-        '30': { column: 'sponsor_logo', transform: (v) => String(v || '') },
-        '32': { column: 'number_of_teams', transform: (v) => parseInt(v) || 1 },
-        '2':  { column: 'manager_name', transform: (v) => String(v || '') },
-        '35': { column: 'manager_phone', transform: (v) => String(v || '') },
-        '5':  { column: 'suburb', transform: (v) => String(v || '') },
-      };
-
-      if (fieldSyncMap[field]) {
-        const { column, transform } = fieldSyncMap[field];
-        try {
-          await query(
-            `UPDATE teams SET ${column} = $1, updated_at = NOW() WHERE id = $2`,
-            [transform(value), id]
-          );
-          console.log(`PATCH sync: updated teams.${column} for team ${id} (field ${field})`);
-        } catch (syncErr) {
-          console.error(`PATCH sync failed for teams.${column}:`, syncErr.message);
-        }
-      }
-
       // Also update the linked form_submission if it exists
       const row = result.rows[0];
       const formSubmissionId = row.form_submission_id || row.form_submission_uuid;
