@@ -1,6 +1,7 @@
 // API endpoint for completing incomplete registrations
 // For users who paid but whose form_submission/team_player records were lost
 import { query } from '../../lib/db';
+import { getYocoConfig } from './yoco/config';
 
 export const config = {
   api: {
@@ -86,7 +87,7 @@ export default async function handler(req, res) {
 
       // Get list of all teams with their age group details for the dropdown
       const teamsResult = await query(
-        `SELECT t.id, t.team_name, t.form_submission_uuid, t.age_group_teams, t.submission_data
+        `SELECT t.id, t.team_name, t.form_submission_uuid, t.age_group_teams, t.submission_data, t.shirt_design
          FROM teams t 
          WHERE t.status != 'rejected'
          ORDER BY t.team_name`
@@ -117,6 +118,7 @@ export default async function handler(req, res) {
           id: t.id,
           teamName: t.team_name,
           formSubmissionUuid: t.form_submission_uuid,
+          shirtDesign: t.shirt_design || '',
           ageGroups: ageGroups.map(ag => ({
             teamName: (ag.teamName || t.team_name || '').trim(),
             gender: ag.gender || '',
@@ -127,6 +129,23 @@ export default async function handler(req, res) {
           }))
         };
       });
+
+      // Get available additional-apparel products
+      const productsResult = await query(
+        `SELECT id, name, price, image, sizes, design_id
+         FROM products
+         WHERE category = 'additional-apparel' AND active = true
+         ORDER BY name`
+      );
+
+      const availableProducts = productsResult.rows.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: parseFloat(p.price),
+        image: p.image || '',
+        sizes: typeof p.sizes === 'string' ? JSON.parse(p.sizes) : (p.sizes || []),
+        designId: p.design_id
+      }));
 
       return res.status(200).json({
         needsRecovery: true,
@@ -140,7 +159,8 @@ export default async function handler(req, res) {
           orderItems: allItems,
           totalPaid: orders.reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0)
         },
-        teams
+        teams,
+        availableProducts
       });
 
     } catch (error) {
@@ -167,7 +187,8 @@ export default async function handler(req, res) {
         pantsSize,
         profileImage,     // base64 data URI (optional)
         birthCertificate, // base64 data URI (optional)
-        cricClubsProfile  // { id, name, profileUrl } (optional)
+        cricClubsProfile, // { id, name, profileUrl } (optional)
+        additionalItems   // [{ id, name, price, selectedSize, quantity, image }] (optional)
       } = req.body;
 
       if (!email || !teamFormSubmissionUuid || !playerName) {
@@ -359,13 +380,131 @@ export default async function handler(req, res) {
         }
       }
 
+      // 6. Handle additional product purchases (append to original order + create payment)
+      let paymentRequired = false;
+      let paymentUrl = null;
+      let addonOrderNumber = null;
+
+      if (Array.isArray(additionalItems) && additionalItems.length > 0) {
+        try {
+          const addonTotal = additionalItems.reduce((sum, item) => sum + (parseFloat(item.price) * (item.quantity || 1)), 0);
+          
+          if (addonTotal > 0) {
+            // Build items array for the addon order
+            const addonItems = additionalItems.map(item => ({
+              id: item.id,
+              name: item.name,
+              price: parseFloat(item.price),
+              quantity: item.quantity || 1,
+              selectedSize: item.selectedSize || null,
+              image: item.image || null,
+              category: 'additional-apparel'
+            }));
+
+            // Create addon order
+            addonOrderNumber = `ORD_ADDON_${Date.now()}`;
+            const fullName = parentName || email;
+            
+            await query(
+              `INSERT INTO orders (order_number, customer_email, customer_name, customer_phone, total_amount, items, status, payment_status, order_type, notes)
+               VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'pending', 'additional-apparel', $7)`,
+              [
+                addonOrderNumber,
+                email,
+                fullName,
+                parentPhone || '',
+                addonTotal,
+                JSON.stringify(addonItems),
+                `Additional apparel purchase from recovery form. Original order(s): ${(await query(`SELECT order_number FROM orders WHERE LOWER(customer_email) = LOWER($1) AND payment_status = 'paid' ORDER BY created_at ASC`, [email])).rows.map(r => r.order_number).join(', ')}`
+              ]
+            );
+
+            console.log(`Recovery: Created addon order ${addonOrderNumber} for ${email}, total: R${addonTotal}`);
+
+            // Also append items to the original paid order so admin sees everything in one place
+            try {
+              const origOrderResult = await query(
+                `SELECT order_number, items, total_amount FROM orders 
+                 WHERE LOWER(customer_email) = LOWER($1) AND payment_status = 'paid'
+                 ORDER BY created_at ASC LIMIT 1`,
+                [email]
+              );
+              if (origOrderResult.rows.length > 0) {
+                const origOrder = origOrderResult.rows[0];
+                const existingItems = typeof origOrder.items === 'string' ? JSON.parse(origOrder.items) : (origOrder.items || []);
+                const mergedItems = [...existingItems, ...addonItems.map(ai => ({ ...ai, _addon: true, _addonOrder: addonOrderNumber, _pendingPayment: true }))];
+                await query(
+                  `UPDATE orders SET items = $1, updated_at = NOW() WHERE order_number = $2`,
+                  [JSON.stringify(mergedItems), origOrder.order_number]
+                );
+                console.log(`Recovery: Appended ${addonItems.length} addon items to original order ${origOrder.order_number}`);
+              }
+            } catch (mergeErr) {
+              console.log('Could not merge addon items to original order:', mergeErr.message);
+            }
+
+            // Create Yoco checkout for the addon order
+            const config = await getYocoConfig();
+            if (config.secretKey) {
+              const protocol = req.headers['x-forwarded-proto'] || 'https';
+              const host = req.headers['x-forwarded-host'] || req.headers.host;
+              const origin = `${protocol}://${host}`;
+              const amountInCents = Math.round(addonTotal * 100);
+
+              const yocoResponse = await fetch('https://payments.yoco.com/api/checkouts', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${config.secretKey}`
+                },
+                body: JSON.stringify({
+                  amount: amountInCents,
+                  currency: 'ZAR',
+                  successUrl: `${origin}/checkout/success?order=${addonOrderNumber}&gateway=yoco`,
+                  cancelUrl: `${origin}/parent-portal?payment=cancelled`,
+                  failureUrl: `${origin}/parent-portal?payment=failed`,
+                  metadata: {
+                    orderId: addonOrderNumber,
+                    customerEmail: email,
+                    customerName: fullName,
+                    itemDescription: `Additional apparel (${additionalItems.length} item${additionalItems.length > 1 ? 's' : ''})`
+                  }
+                })
+              });
+
+              const yocoData = await yocoResponse.json();
+
+              if (yocoResponse.ok && yocoData.redirectUrl) {
+                paymentRequired = true;
+                paymentUrl = yocoData.redirectUrl;
+
+                // Store checkout ID on the addon order
+                await query(
+                  `UPDATE orders SET gateway_checkout_id = $1, updated_at = NOW() WHERE order_number = $2`,
+                  [yocoData.id, addonOrderNumber]
+                );
+                console.log(`Recovery: Yoco checkout created for addon order ${addonOrderNumber}, checkout: ${yocoData.id}`);
+              } else {
+                console.error('Failed to create Yoco checkout for addon:', yocoData);
+              }
+            }
+          }
+        } catch (addonError) {
+          console.error('Error processing additional items:', addonError);
+          // Don't fail the whole registration — products are optional
+        }
+      }
+
       return res.status(200).json({
         success: true,
         formSubmissionId: submission.id,
         teamPlayerId: playerInsertResult.rows[0].id,
         teamName: matchedTeam.team_name,
         subTeam: subTeamLabel,
-        playerName
+        playerName,
+        paymentRequired,
+        paymentUrl,
+        addonOrderNumber
       });
 
     } catch (error) {

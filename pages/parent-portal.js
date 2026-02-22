@@ -41,6 +41,7 @@ export default function ParentPortal() {
   const [recoverySubmitting, setRecoverySubmitting] = useState(false);
   const [recoverySuccess, setRecoverySuccess] = useState(false);
   const [recoveryError, setRecoveryError] = useState('');
+  const [recoveryCart, setRecoveryCart] = useState([]); // Additional products cart
   const [recoveryForm, setRecoveryForm] = useState({
     teamFormSubmissionUuid: '',
     selectedTeam: null,
@@ -187,13 +188,21 @@ export default function ParentPortal() {
           shirtSize: recoveryForm.shirtSize,
           pantsSize: recoveryForm.pantsSize,
           profileImage: recoveryForm.profileImage,
-          birthCertificate: recoveryForm.birthCertificate
+          birthCertificate: recoveryForm.birthCertificate,
+          additionalItems: recoveryCart.length > 0 ? recoveryCart : undefined
         })
       });
 
       const result = await res.json();
       if (!res.ok) {
         throw new Error(result.error || 'Failed to complete registration');
+      }
+
+      // If additional products need payment, redirect to Yoco
+      if (result.paymentRequired && result.paymentUrl) {
+        // Registration is complete — now redirect to pay for additional items
+        window.location.href = result.paymentUrl;
+        return;
       }
 
       setRecoverySuccess(true);
@@ -215,6 +224,52 @@ export default function ParentPortal() {
     } finally {
       setRecoverySubmitting(false);
     }
+  };
+
+  // Helper: get team's kit number from shirt_design (e.g., "Kit 17" → "17")
+  const getTeamKitNumber = (team) => {
+    if (!team?.shirtDesign) return null;
+    const match = team.shirtDesign.match(/Kit\s*(\d+)/i);
+    return match ? match[1] : null;
+  };
+
+  // Helper: get products matching the selected team's kit
+  const getTeamProducts = () => {
+    if (!recoveryData?.availableProducts || !recoveryForm.selectedTeam) return [];
+    const kitNum = getTeamKitNumber(recoveryForm.selectedTeam);
+    if (!kitNum) return [];
+    // Match products by kit number in name (e.g., "Kit 17" or "Kits 17")
+    const kitPattern = new RegExp(`Kits?\\s+${kitNum}\\b`, 'i');
+    return recoveryData.availableProducts.filter(p => kitPattern.test(p.name));
+  };
+
+  // Helper: get generic products (no kit-specific design)
+  const getGenericProducts = () => {
+    if (!recoveryData?.availableProducts) return [];
+    // Generic products: Cap, Beanie, Limited Hoodie — they don't have "Kit X" in name
+    return recoveryData.availableProducts.filter(p => !/Kits?\s+\d+/i.test(p.name));
+  };
+
+  // Helper: add product to recovery cart
+  const addToRecoveryCart = (product, selectedSize) => {
+    setRecoveryCart(prev => {
+      const existing = prev.find(p => p.id === product.id && p.selectedSize === selectedSize);
+      if (existing) {
+        return prev.map(p => p.id === product.id && p.selectedSize === selectedSize
+          ? { ...p, quantity: p.quantity + 1 } : p);
+      }
+      return [...prev, { id: product.id, name: product.name, price: product.price, image: product.image, selectedSize, quantity: 1 }];
+    });
+  };
+
+  // Helper: remove product from recovery cart
+  const removeFromRecoveryCart = (productId, selectedSize) => {
+    setRecoveryCart(prev => prev.filter(p => !(p.id === productId && p.selectedSize === selectedSize)));
+  };
+
+  // Helper: get recovery cart total
+  const getRecoveryCartTotal = () => {
+    return recoveryCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   };
 
   const handleLogin = async (e) => {
@@ -1420,7 +1475,7 @@ export default function ParentPortal() {
 
                 {/* Step indicator */}
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                  {[1, 2, 3].map(step => (
+                  {[1, 2, 3, 4].map(step => (
                     <div key={step} style={{
                       flex: 1, height: '4px', borderRadius: '2px',
                       background: step <= recoveryStep ? 'linear-gradient(90deg, #ef4444, #f97316)' : 'rgba(255,255,255,0.1)'
@@ -1686,11 +1741,11 @@ export default function ParentPortal() {
                   </div>
                 )}
 
-                {/* Step 3: Documents & Submit */}
+                {/* Step 3: Documents */}
                 {recoveryStep === 3 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <h4 style={{ color: '#f9fafb', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
-                      Step 3: Documents & Submit
+                      Step 3: Documents
                     </h4>
                     <p style={{ color: '#9ca3af', fontSize: '0.85rem', margin: 0 }}>
                       Upload your player&apos;s profile photo and birth certificate. These are optional but recommended.
@@ -1743,7 +1798,215 @@ export default function ParentPortal() {
                       </div>
                     </div>
 
-                    {/* Summary before submit */}
+                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'space-between' }}>
+                      <button
+                        onClick={() => { setRecoveryStep(2); setRecoveryError(''); }}
+                        style={{
+                          background: 'transparent', color: '#9ca3af',
+                          border: '1px solid rgba(255,255,255,0.15)', padding: '0.75rem 1.5rem',
+                          borderRadius: '8px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer'
+                        }}
+                      >
+                        ← Back
+                      </button>
+                      <button
+                        onClick={() => { setRecoveryError(''); setRecoveryStep(4); }}
+                        style={{
+                          background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: '#fff',
+                          border: 'none', padding: '0.75rem 1.5rem', borderRadius: '8px',
+                          fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer'
+                        }}
+                      >
+                        Next: Additional Products →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4: Additional Products & Submit */}
+                {recoveryStep === 4 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <h4 style={{ color: '#f9fafb', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
+                      Step 4: Additional Products & Submit
+                    </h4>
+                    <p style={{ color: '#9ca3af', fontSize: '0.85rem', margin: 0 }}>
+                      Would you like to purchase any additional team apparel? This is optional — you can skip and complete your registration.
+                    </p>
+
+                    {/* Team-specific products */}
+                    {(() => {
+                      const teamProducts = getTeamProducts();
+                      const genericProducts = getGenericProducts();
+                      const kitNum = getTeamKitNumber(recoveryForm.selectedTeam);
+
+                      return (
+                        <>
+                          {kitNum && teamProducts.length > 0 && (
+                            <div>
+                              <div style={{ color: '#f59e0b', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.75rem', textTransform: 'uppercase' }}>
+                                Your Team Apparel (Kit {kitNum})
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                                {teamProducts.map(product => (
+                                  <div key={product.id} style={{
+                                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                                    borderRadius: '10px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem'
+                                  }}>
+                                    {product.image && (
+                                      <img src={product.image} alt={product.name} style={{
+                                        width: '100%', height: '120px', objectFit: 'contain', borderRadius: '6px',
+                                        background: 'rgba(255,255,255,0.08)'
+                                      }} />
+                                    )}
+                                    <div style={{ color: '#f9fafb', fontSize: '0.85rem', fontWeight: 700 }}>{product.name}</div>
+                                    <div style={{ color: '#10b981', fontSize: '0.9rem', fontWeight: 800 }}>R{product.price.toFixed(2)}</div>
+                                    {product.sizes && product.sizes.length > 0 ? (
+                                      <select
+                                        id={`prod-size-${product.id}`}
+                                        onChange={() => {}}
+                                        defaultValue=""
+                                        style={{
+                                          background: '#1e293b', color: '#f9fafb', border: '1px solid rgba(255,255,255,0.15)',
+                                          borderRadius: '6px', padding: '0.4rem', fontSize: '0.8rem'
+                                        }}
+                                      >
+                                        <option value="" disabled>Select size</option>
+                                        {product.sizes.map(sz => (
+                                          <option key={sz} value={sz}>{sz}</option>
+                                        ))}
+                                      </select>
+                                    ) : null}
+                                    <button
+                                      onClick={() => {
+                                        const sizeEl = document.getElementById(`prod-size-${product.id}`);
+                                        const size = sizeEl ? sizeEl.value : null;
+                                        if (product.sizes && product.sizes.length > 0 && !size) {
+                                          setRecoveryError('Please select a size for ' + product.name);
+                                          return;
+                                        }
+                                        setRecoveryError('');
+                                        addToRecoveryCart(product, size);
+                                      }}
+                                      style={{
+                                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff',
+                                        border: 'none', padding: '0.5rem', borderRadius: '6px',
+                                        fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer'
+                                      }}
+                                    >
+                                      + Add to Cart
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Generic products */}
+                          {genericProducts.length > 0 && (
+                            <div style={{ marginTop: teamProducts.length > 0 ? '0.5rem' : 0 }}>
+                              <div style={{ color: '#93c5fd', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.75rem', textTransform: 'uppercase' }}>
+                                General Merchandise
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                                {genericProducts.map(product => (
+                                  <div key={product.id} style={{
+                                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                                    borderRadius: '10px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem'
+                                  }}>
+                                    {product.image && (
+                                      <img src={product.image} alt={product.name} style={{
+                                        width: '100%', height: '120px', objectFit: 'contain', borderRadius: '6px',
+                                        background: 'rgba(255,255,255,0.08)'
+                                      }} />
+                                    )}
+                                    <div style={{ color: '#f9fafb', fontSize: '0.85rem', fontWeight: 700 }}>{product.name}</div>
+                                    <div style={{ color: '#10b981', fontSize: '0.9rem', fontWeight: 800 }}>R{product.price.toFixed(2)}</div>
+                                    {product.sizes && product.sizes.length > 0 ? (
+                                      <select
+                                        id={`gen-size-${product.id}`}
+                                        onChange={() => {}}
+                                        defaultValue=""
+                                        style={{
+                                          background: '#1e293b', color: '#f9fafb', border: '1px solid rgba(255,255,255,0.15)',
+                                          borderRadius: '6px', padding: '0.4rem', fontSize: '0.8rem'
+                                        }}
+                                      >
+                                        <option value="" disabled>Select size</option>
+                                        {product.sizes.map(sz => (
+                                          <option key={sz} value={sz}>{sz}</option>
+                                        ))}
+                                      </select>
+                                    ) : null}
+                                    <button
+                                      onClick={() => {
+                                        const sizeEl = document.getElementById(`gen-size-${product.id}`);
+                                        const size = sizeEl ? sizeEl.value : null;
+                                        if (product.sizes && product.sizes.length > 0 && !size) {
+                                          setRecoveryError('Please select a size for ' + product.name);
+                                          return;
+                                        }
+                                        setRecoveryError('');
+                                        addToRecoveryCart(product, size);
+                                      }}
+                                      style={{
+                                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff',
+                                        border: 'none', padding: '0.5rem', borderRadius: '6px',
+                                        fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer'
+                                      }}
+                                    >
+                                      + Add to Cart
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Cart */}
+                          {recoveryCart.length > 0 && (
+                            <div style={{
+                              background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)',
+                              borderRadius: '10px', padding: '1rem', marginTop: '0.5rem'
+                            }}>
+                              <div style={{ color: '#10b981', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem', textTransform: 'uppercase' }}>
+                                Your Additional Items
+                              </div>
+                              {recoveryCart.map((item, idx) => (
+                                <div key={idx} style={{
+                                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                  padding: '0.4rem 0', borderBottom: idx < recoveryCart.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none'
+                                }}>
+                                  <div style={{ color: '#d1d5db', fontSize: '0.85rem' }}>
+                                    {item.name} {item.selectedSize ? `(${item.selectedSize})` : ''} × {item.quantity}
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <span style={{ color: '#10b981', fontWeight: 700, fontSize: '0.85rem' }}>R{(item.price * item.quantity).toFixed(2)}</span>
+                                    <button
+                                      onClick={() => removeFromRecoveryCart(item.id, item.selectedSize)}
+                                      style={{
+                                        background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)',
+                                        borderRadius: '4px', padding: '0.2rem 0.5rem', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 700
+                                      }}
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                              <div style={{
+                                display: 'flex', justifyContent: 'space-between', marginTop: '0.75rem',
+                                paddingTop: '0.5rem', borderTop: '1px solid rgba(16,185,129,0.3)'
+                              }}>
+                                <span style={{ color: '#f9fafb', fontWeight: 800, fontSize: '0.95rem' }}>Total Additional</span>
+                                <span style={{ color: '#10b981', fontWeight: 800, fontSize: '1.1rem' }}>R{getRecoveryCartTotal().toFixed(2)}</span>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+
+                    {/* Summary */}
                     <div style={{
                       background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)',
                       borderRadius: '8px', padding: '1rem', marginTop: '0.5rem'
@@ -1760,12 +2023,15 @@ export default function ParentPortal() {
                         {recoveryForm.dob && <><strong>DOB:</strong> {recoveryForm.dob}<br /></>}
                         {recoveryForm.shirtNumber && <><strong>Shirt #:</strong> {recoveryForm.shirtNumber}<br /></>}
                         <strong>Kit:</strong> Shirt: {recoveryForm.shirtSize || 'N/A'} / Pants: {recoveryForm.pantsSize || 'N/A'}
+                        {recoveryCart.length > 0 && (
+                          <><br /><strong>Additional Items:</strong> {recoveryCart.length} item{recoveryCart.length > 1 ? 's' : ''} — R{getRecoveryCartTotal().toFixed(2)}</>
+                        )}
                       </div>
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'space-between' }}>
                       <button
-                        onClick={() => { setRecoveryStep(2); setRecoveryError(''); }}
+                        onClick={() => { setRecoveryStep(3); setRecoveryError(''); }}
                         style={{
                           background: 'transparent', color: '#9ca3af',
                           border: '1px solid rgba(255,255,255,0.15)', padding: '0.75rem 1.5rem',
@@ -1784,7 +2050,11 @@ export default function ParentPortal() {
                           opacity: recoverySubmitting ? 0.7 : 1
                         }}
                       >
-                        {recoverySubmitting ? 'Submitting...' : 'Complete Registration ✓'}
+                        {recoverySubmitting ? 'Submitting...' : (
+                          recoveryCart.length > 0 
+                            ? `Complete Registration & Pay R${getRecoveryCartTotal().toFixed(2)} →`
+                            : 'Complete Registration ✓'
+                        )}
                       </button>
                     </div>
                   </div>
