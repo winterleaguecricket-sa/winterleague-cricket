@@ -33,7 +33,12 @@ export default async function handler(req, res) {
           fs.data->>'6' as player_name,
           fs.data->>'10' as dob,
           fs.data->>'34' as sub_team_raw,
+          fs.data->>'36' as shirt_number,
+          fs.data->>'40' as parent_phone,
           fs.data->>'43' as birth_certificate,
+          fs.data->>'46' as profile_image,
+          fs.data->>'25_shirtSize' as shirt_size,
+          fs.data->>'25_pantsSize' as pants_size,
           fs.approval_status
         FROM form_submissions fs
         WHERE LOWER(fs.customer_email) = LOWER($1)
@@ -81,7 +86,12 @@ export default async function handler(req, res) {
             dob,
             ageGroup: ageGroup || null,
             teamName: teamName || null,
+            shirtNumber: row.shirt_number || '',
+            parentPhone: row.parent_phone || '',
             hasBirthCertificate: !!row.birth_certificate,
+            hasProfileImage: !!row.profile_image,
+            shirtSize: row.shirt_size || '',
+            pantsSize: row.pants_size || '',
             approvalStatus: row.approval_status,
           });
           continue;
@@ -154,7 +164,7 @@ export default async function handler(req, res) {
   // POST: Apply corrections
   if (req.method === 'POST') {
     try {
-      const { submissionId, action, dob, ageGroup, teamName, gender, coachName, coachContact, birthCertificate, teamFormSubmissionUuid, playerName } = req.body;
+      const { submissionId, action, dob, ageGroup, teamName, gender, coachName, coachContact, birthCertificate, teamFormSubmissionUuid, playerName, shirtNumber, profileImage, parentPhone } = req.body;
 
       if (!submissionId) {
         return res.status(400).json({ error: 'Submission ID is required' });
@@ -223,7 +233,7 @@ export default async function handler(req, res) {
       }
 
       if (action === 'complete_registration') {
-        // Full data recovery — update DOB, age group, team assignment, birth certificate
+        // Full data recovery — update DOB, age group, team assignment, birth certificate, and other missing fields
         if (!dob) return res.status(400).json({ error: 'Date of birth is required' });
         if (!ageGroup || !teamName) return res.status(400).json({ error: 'Age group and team are required' });
 
@@ -249,6 +259,29 @@ export default async function handler(req, res) {
         if (playerName) {
           submissionData['6'] = playerName;
         }
+
+        // Set shirt/jersey number
+        if (shirtNumber) {
+          submissionData['36'] = shirtNumber;
+        }
+
+        // Set profile image
+        if (profileImage) {
+          submissionData['46'] = profileImage;
+        }
+
+        // Set parent phone
+        if (parentPhone) {
+          submissionData['40'] = parentPhone;
+        }
+
+        // Fix field 8 — set proper team UUID reference
+        if (teamFormSubmissionUuid) {
+          submissionData['8'] = teamFormSubmissionUuid;
+        }
+
+        // Set consent flag
+        submissionData['44'] = 1;
 
         await query(
           `UPDATE form_submissions SET data = $1, updated_at = NOW() WHERE id = $2`,

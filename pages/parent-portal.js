@@ -68,7 +68,7 @@ export default function ParentPortal() {
   const [ageCorrectionError, setAgeCorrectionError] = useState('');
   // Incomplete registration correction state
   const [showIncompleteForm, setShowIncompleteForm] = useState(null); // submissionId
-  const [incompleteFormData, setIncompleteFormData] = useState({ dob: '', ageGroup: '', teamName: '', gender: 'Male', coachName: '', coachContact: '', birthCertificate: '', teamFormSubmissionUuid: '', selectedTeam: null, subTeam: null, playerName: '' });
+  const [incompleteFormData, setIncompleteFormData] = useState({ dob: '', ageGroup: '', teamName: '', gender: 'Male', coachName: '', coachContact: '', birthCertificate: '', profileImage: '', teamFormSubmissionUuid: '', selectedTeam: null, subTeam: null, playerName: '', shirtNumber: '', parentPhone: '' });
   const [incompleteSubmitting, setIncompleteSubmitting] = useState(false);
   const [incompleteSuccess, setIncompleteSuccess] = useState(null);
   const [incompleteError, setIncompleteError] = useState('');
@@ -493,8 +493,11 @@ export default function ParentPortal() {
         coachName: incompleteFormData.subTeam?.coachName || '',
         coachContact: incompleteFormData.subTeam?.coachContact || '',
         birthCertificate: incompleteFormData.birthCertificate || undefined,
+        profileImage: incompleteFormData.profileImage || undefined,
         teamFormSubmissionUuid: incompleteFormData.teamFormSubmissionUuid || undefined,
         playerName: incompleteFormData.playerName || undefined,
+        shirtNumber: incompleteFormData.shirtNumber || undefined,
+        parentPhone: incompleteFormData.parentPhone || undefined,
       };
 
       const res = await fetch('/api/player-age-correction', {
@@ -1776,7 +1779,7 @@ export default function ParentPortal() {
                   </div>
                   <button onClick={() => {
                     setShowIncompleteForm(ip.submissionId);
-                    setIncompleteFormData({ dob: '', ageGroup: '', teamName: '', gender: 'Male', coachName: '', coachContact: '', birthCertificate: '', teamFormSubmissionUuid: '', selectedTeam: null, subTeam: null, playerName: ip.playerName });
+                    setIncompleteFormData({ dob: '', ageGroup: '', teamName: '', gender: 'Male', coachName: '', coachContact: '', birthCertificate: '', profileImage: '', teamFormSubmissionUuid: '', selectedTeam: null, subTeam: null, playerName: ip.playerName, shirtNumber: ip.shirtNumber || '', parentPhone: ip.parentPhone || '' });
                     setIncompleteError('');
                   }} style={{
                     background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#000', border: 'none',
@@ -1877,13 +1880,64 @@ export default function ParentPortal() {
                     </div>
                   )}
 
+                  {/* Shirt / Jersey Number */}
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>Preferred Shirt Number</label>
+                    <input type="text" placeholder="e.g. 7" value={incompleteFormData.shirtNumber} onChange={e => setIncompleteFormData(prev => ({ ...prev, shirtNumber: e.target.value }))}
+                      style={{
+                        width: '100%', padding: '0.65rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)',
+                        background: '#1e293b', color: '#f9fafb', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
+                      }} />
+                  </div>
+
+                  {/* Parent / Emergency Contact Phone */}
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>Parent / Emergency Contact Number *</label>
+                    <input type="tel" placeholder="e.g. 082 123 4567" value={incompleteFormData.parentPhone} onChange={e => setIncompleteFormData(prev => ({ ...prev, parentPhone: e.target.value }))}
+                      style={{
+                        width: '100%', padding: '0.65rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)',
+                        background: '#1e293b', color: '#f9fafb', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
+                      }} />
+                  </div>
+
+                  {/* Kit Sizes (read-only if already captured) */}
+                  {(ip.shirtSize || ip.pantsSize) && (
+                    <div style={{
+                      background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)',
+                      borderRadius: '8px', padding: '1rem', marginBottom: '1.25rem'
+                    }}>
+                      <div style={{ color: '#93c5fd', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem' }}>KIT SIZES (ALREADY ON FILE)</div>
+                      <div style={{ display: 'flex', gap: '1.5rem', color: '#e2e8f0', fontSize: '0.9rem' }}>
+                        {ip.shirtSize && <span>Shirt: <strong>{ip.shirtSize}</strong></span>}
+                        {ip.pantsSize && <span>Pants: <strong>{ip.pantsSize}</strong></span>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Profile Photo Upload */}
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>Player Profile Photo</label>
+                    <input type="file" accept="image/*" onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) { alert('File too large. Maximum 5MB.'); return; }
+                      const reader = new FileReader();
+                      reader.onload = (ev) => setIncompleteFormData(prev => ({ ...prev, profileImage: ev.target.result }));
+                      reader.readAsDataURL(file);
+                    }}
+                      style={{ color: '#9ca3af', fontSize: '0.85rem' }} />
+                    {incompleteFormData.profileImage && (
+                      <div style={{ color: '#6ee7b7', fontSize: '0.8rem', marginTop: '0.3rem', fontWeight: 600 }}>✓ Photo uploaded</div>
+                    )}
+                  </div>
+
                   {/* Birth Certificate */}
                   <div style={{ marginBottom: '1.25rem' }}>
-                    <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>Birth Certificate (recommended)</label>
+                    <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>Birth Certificate Upload</label>
                     <input type="file" accept="image/*,.pdf" onChange={(e) => handleAgeCorrectionFileUpload('incompleteFormData', setIncompleteFormData, e)}
                       style={{ color: '#9ca3af', fontSize: '0.85rem' }} />
                     {incompleteFormData.birthCertificate && (
-                      <div style={{ color: '#6ee7b7', fontSize: '0.8rem', marginTop: '0.3rem', fontWeight: 600 }}>✓ File uploaded</div>
+                      <div style={{ color: '#6ee7b7', fontSize: '0.8rem', marginTop: '0.3rem', fontWeight: 600 }}>✓ Certificate uploaded</div>
                     )}
                   </div>
 
