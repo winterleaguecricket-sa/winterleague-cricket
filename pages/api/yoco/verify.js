@@ -17,8 +17,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: 'Order ID is required' });
   }
 
-  // Basic input validation — order IDs follow pattern ORD{timestamp}
-  if (typeof orderId !== 'string' || orderId.length > 50 || !/^ORD\d+$/.test(orderId)) {
+  // Basic input validation — order IDs follow pattern ORD{timestamp} or ORD_ADDON_{timestamp}
+  if (typeof orderId !== 'string' || orderId.length > 50 || !/^ORD[\w]*\d+$/.test(orderId)) {
     return res.status(400).json({ success: false, error: 'Invalid order ID format' });
   }
 

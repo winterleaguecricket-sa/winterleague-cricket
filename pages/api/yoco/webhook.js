@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     // Extract order ID from metadata
     const orderId = payload.metadata?.orderId;
 
-    if (!orderId || typeof orderId !== 'string' || !/^ORD\d+$/.test(orderId)) {
+    if (!orderId || typeof orderId !== 'string' || !/^ORD[\w]*\d+$/.test(orderId)) {
       console.log('Yoco webhook: missing or invalid orderId in metadata — skipping order update');
       return res.status(200).json({ received: true });
     }

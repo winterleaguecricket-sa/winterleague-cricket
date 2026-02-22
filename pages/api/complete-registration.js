@@ -401,8 +401,8 @@ export default async function handler(req, res) {
               category: 'additional-apparel'
             }));
 
-            // Create addon order
-            addonOrderNumber = `ORD_ADDON_${Date.now()}`;
+            // Create addon order (use standard ORD{timestamp} format for Yoco verify/webhook compatibility)
+            addonOrderNumber = `ORD${Date.now()}`;
             const fullName = parentName || email;
             
             await query(
