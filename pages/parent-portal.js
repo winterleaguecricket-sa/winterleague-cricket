@@ -56,6 +56,23 @@ export default function ParentPortal() {
     parentPhoneSecondary: ''
   });
 
+  // Age verification / correction state
+  const [ageFlaggedPlayers, setAgeFlaggedPlayers] = useState([]);
+  const [ageIncomplete, setAgeIncomplete] = useState([]);
+  const [ageTeams, setAgeTeams] = useState([]);
+  const [showAgeCorrectionForm, setShowAgeCorrectionForm] = useState(null); // submissionId or null
+  const [ageCorrectionMode, setAgeCorrectionMode] = useState(''); // 'correct_dob' | 'correct_age_group'
+  const [ageCorrectionData, setAgeCorrectionData] = useState({ dob: '', ageGroup: '', teamName: '', gender: 'Male', coachName: '', coachContact: '', birthCertificate: '', teamFormSubmissionUuid: '', playerName: '' });
+  const [ageCorrectionSubmitting, setAgeCorrectionSubmitting] = useState(false);
+  const [ageCorrectionSuccess, setAgeCorrectionSuccess] = useState(null); // submissionId that was fixed
+  const [ageCorrectionError, setAgeCorrectionError] = useState('');
+  // Incomplete registration correction state
+  const [showIncompleteForm, setShowIncompleteForm] = useState(null); // submissionId
+  const [incompleteFormData, setIncompleteFormData] = useState({ dob: '', ageGroup: '', teamName: '', gender: 'Male', coachName: '', coachContact: '', birthCertificate: '', teamFormSubmissionUuid: '', selectedTeam: null, subTeam: null, playerName: '' });
+  const [incompleteSubmitting, setIncompleteSubmitting] = useState(false);
+  const [incompleteSuccess, setIncompleteSuccess] = useState(null);
+  const [incompleteError, setIncompleteError] = useState('');
+
   const statusColors = {
     pending: '#f59e0b',
     confirmed: '#3b82f6',
@@ -385,6 +402,117 @@ export default function ParentPortal() {
     };
     checkRecovery();
   }, [profile?.email]);
+
+  // Check for age verification issues
+  useEffect(() => {
+    if (!profile?.email) return;
+    const checkAgeVerification = async () => {
+      try {
+        const res = await fetch(`/api/player-age-correction?email=${encodeURIComponent(profile.email)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAgeFlaggedPlayers(data.flaggedPlayers || []);
+          setAgeIncomplete(data.incompleteRegistrations || []);
+          setAgeTeams(data.teams || []);
+        }
+      } catch (err) {
+        console.error('Failed to check age verification:', err);
+      }
+    };
+    checkAgeVerification();
+  }, [profile?.email]);
+
+  // Handle age correction file upload
+  const handleAgeCorrectionFileUpload = (stateKey, setter, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File too large. Maximum 5MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setter(prev => ({ ...prev, birthCertificate: ev.target.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Submit age correction (for flagged players)
+  const handleAgeCorrectionSubmit = async (submissionId) => {
+    setAgeCorrectionError('');
+    setAgeCorrectionSubmitting(true);
+    try {
+      const payload = {
+        submissionId,
+        action: ageCorrectionMode,
+        dob: ageCorrectionData.dob || undefined,
+        ageGroup: ageCorrectionData.ageGroup || undefined,
+        teamName: ageCorrectionData.teamName || undefined,
+        gender: ageCorrectionData.gender || undefined,
+        coachName: ageCorrectionData.coachName || undefined,
+        coachContact: ageCorrectionData.coachContact || undefined,
+        birthCertificate: ageCorrectionData.birthCertificate || undefined,
+        playerName: ageCorrectionData.playerName || undefined,
+      };
+      if (ageCorrectionMode === 'correct_dob' && !payload.dob) throw new Error('Please enter the correct date of birth');
+      if (ageCorrectionMode === 'correct_age_group' && !payload.ageGroup) throw new Error('Please select an age group');
+      if (!ageCorrectionData.birthCertificate) throw new Error('Birth certificate upload is required');
+
+      const res = await fetch('/api/player-age-correction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to submit correction');
+      setAgeCorrectionSuccess(submissionId);
+      setShowAgeCorrectionForm(null);
+      setAgeFlaggedPlayers(prev => prev.filter(p => p.submissionId !== submissionId));
+    } catch (err) {
+      setAgeCorrectionError(err.message);
+    } finally {
+      setAgeCorrectionSubmitting(false);
+    }
+  };
+
+  // Submit incomplete registration correction (for Odis-type cases)
+  const handleIncompleteSubmit = async (submissionId) => {
+    setIncompleteError('');
+    setIncompleteSubmitting(true);
+    try {
+      if (!incompleteFormData.dob) throw new Error('Date of birth is required');
+      if (!incompleteFormData.subTeam) throw new Error('Please select a team and age group');
+
+      const payload = {
+        submissionId,
+        action: 'complete_registration',
+        dob: incompleteFormData.dob,
+        ageGroup: incompleteFormData.subTeam?.ageGroup || '',
+        teamName: incompleteFormData.subTeam?.teamName || '',
+        gender: incompleteFormData.subTeam?.gender || 'Male',
+        coachName: incompleteFormData.subTeam?.coachName || '',
+        coachContact: incompleteFormData.subTeam?.coachContact || '',
+        birthCertificate: incompleteFormData.birthCertificate || undefined,
+        teamFormSubmissionUuid: incompleteFormData.teamFormSubmissionUuid || undefined,
+        playerName: incompleteFormData.playerName || undefined,
+      };
+
+      const res = await fetch('/api/player-age-correction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to complete registration');
+      setIncompleteSuccess(submissionId);
+      setShowIncompleteForm(null);
+      setAgeIncomplete(prev => prev.filter(p => p.submissionId !== submissionId));
+    } catch (err) {
+      setIncompleteError(err.message);
+    } finally {
+      setIncompleteSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1435,6 +1563,350 @@ export default function ParentPortal() {
                 </div>
               </div>
             )}
+
+            {/* Age Verification Warning Banner — for players whose DOB fails age group cutoff */}
+            {ageFlaggedPlayers.length > 0 && !showAgeCorrectionForm && ageFlaggedPlayers.map(fp => (
+              ageCorrectionSuccess === fp.submissionId ? (
+                <div key={fp.submissionId} style={{
+                  background: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.08))',
+                  border: '1px solid rgba(16,185,129,0.4)',
+                  borderRadius: '12px', padding: '1.25rem 1.5rem', marginBottom: '1.5rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '1.5rem' }}>✅</span>
+                    <div>
+                      <div style={{ fontWeight: 800, color: '#10b981', fontSize: '1rem' }}>Correction Submitted</div>
+                      <div style={{ color: '#6ee7b7', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.25rem' }}>
+                        Thank you for updating {fp.playerName}&apos;s details. Our team will review and verify the information shortly.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div key={fp.submissionId} style={{
+                  background: 'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(239,68,68,0.05))',
+                  border: '1px solid rgba(239,68,68,0.5)',
+                  borderRadius: '12px', padding: '1.25rem 1.5rem', marginBottom: '1.5rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                    <span style={{ fontSize: '1.5rem' }}>🛡️</span>
+                    <div>
+                      <div style={{ fontWeight: 800, color: '#ef4444', fontSize: '1rem' }}>
+                        Age Verification Required — {fp.playerName}
+                      </div>
+                      <div style={{ color: '#fca5a5', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.35rem', lineHeight: 1.6 }}>
+                        Our records indicate that <strong>{fp.playerName}</strong>&apos;s date of birth ({fp.dob}) does not align with the <strong>{fp.ageGroup}</strong> age group. 
+                        Players in {fp.ageGroup} must be born in <strong>{fp.cutoffYear} or later</strong>, however {fp.playerName} is recorded as born in <strong>{fp.birthYear}</strong>.
+                      </div>
+                      <div style={{ color: '#f87171', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.5rem', lineHeight: 1.6 }}>
+                        To proceed with your registration, please either <strong>correct the date of birth</strong> or <strong>select the appropriate age group</strong> below. 
+                        A <strong>birth certificate</strong> must be uploaded as proof of age. We are unable to approve this player&apos;s profile until this has been resolved.
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+                    <button onClick={() => {
+                      setShowAgeCorrectionForm(fp.submissionId);
+                      setAgeCorrectionMode('correct_dob');
+                      setAgeCorrectionData({ dob: '', ageGroup: fp.ageGroup, teamName: fp.teamName, gender: 'Male', coachName: '', coachContact: '', birthCertificate: '', teamFormSubmissionUuid: '', playerName: fp.playerName });
+                      setAgeCorrectionError('');
+                    }} style={{
+                      background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: '#fff', border: 'none',
+                      padding: '0.65rem 1.25rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer'
+                    }}>
+                      Correct Date of Birth
+                    </button>
+                    <button onClick={() => {
+                      setShowAgeCorrectionForm(fp.submissionId);
+                      setAgeCorrectionMode('correct_age_group');
+                      setAgeCorrectionData({ dob: fp.dob, ageGroup: '', teamName: '', gender: 'Male', coachName: '', coachContact: '', birthCertificate: '', teamFormSubmissionUuid: '', playerName: fp.playerName });
+                      setAgeCorrectionError('');
+                    }} style={{
+                      background: 'rgba(255,255,255,0.1)', color: '#f9fafb', border: '1px solid rgba(255,255,255,0.2)',
+                      padding: '0.65rem 1.25rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer'
+                    }}>
+                      Change Age Group
+                    </button>
+                  </div>
+                </div>
+              )
+            ))}
+
+            {/* Age Correction Form (inline) */}
+            {showAgeCorrectionForm && (() => {
+              const fp = ageFlaggedPlayers.find(p => p.submissionId === showAgeCorrectionForm);
+              if (!fp) return null;
+              return (
+                <div style={{
+                  background: '#111827', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '16px',
+                  padding: '2rem', marginBottom: '1.5rem', position: 'relative'
+                }}>
+                  <button onClick={() => { setShowAgeCorrectionForm(null); setAgeCorrectionError(''); }} style={{
+                    position: 'absolute', top: '1rem', right: '1rem',
+                    background: 'rgba(255,255,255,0.1)', border: 'none', color: '#9ca3af',
+                    width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer',
+                    fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>×</button>
+
+                  <h3 style={{ margin: '0 0 0.25rem 0', color: '#f9fafb', fontSize: '1.2rem', fontWeight: 800 }}>
+                    {ageCorrectionMode === 'correct_dob' ? '📅 Correct Date of Birth' : '🏏 Change Age Group'} — {fp.playerName}
+                  </h3>
+                  <p style={{ color: '#9ca3af', fontSize: '0.85rem', margin: '0 0 1.25rem 0' }}>
+                    {ageCorrectionMode === 'correct_dob'
+                      ? 'Please enter the correct date of birth and upload a birth certificate as verification.'
+                      : `The date of birth on record is ${fp.dob}. Please select the correct age group for this player and upload a birth certificate.`}
+                  </p>
+
+                  {ageCorrectionError && (
+                    <div style={{
+                      background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                      borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1rem',
+                      color: '#fca5a5', fontSize: '0.85rem', fontWeight: 600
+                    }}>{ageCorrectionError}</div>
+                  )}
+
+                  {ageCorrectionMode === 'correct_dob' && (
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>
+                        Correct Date of Birth *
+                      </label>
+                      <input type="date" value={ageCorrectionData.dob} onChange={e => setAgeCorrectionData(prev => ({ ...prev, dob: e.target.value }))}
+                        style={{
+                          width: '100%', padding: '0.65rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)',
+                          background: '#1e293b', color: '#f9fafb', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
+                        }} />
+                      <div style={{ color: '#6b7280', fontSize: '0.8rem', marginTop: '0.3rem' }}>
+                        Currently on record: {fp.dob} (born {fp.birthYear})
+                      </div>
+                    </div>
+                  )}
+
+                  {ageCorrectionMode === 'correct_age_group' && (
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>
+                        Select Correct Age Group *
+                      </label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        {['U9', 'U11', 'U13', 'U15', 'U17', 'Senior'].map(ag => (
+                          <button key={ag} onClick={() => setAgeCorrectionData(prev => ({ ...prev, ageGroup: ag, teamName: fp.teamName }))}
+                            style={{
+                              padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem',
+                              background: ageCorrectionData.ageGroup === ag ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.08)',
+                              color: ageCorrectionData.ageGroup === ag ? '#c7d2fe' : '#9ca3af',
+                              outline: ageCorrectionData.ageGroup === ag ? '2px solid #6366f1' : 'none'
+                            }}>
+                            {ag}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ color: '#6b7280', fontSize: '0.8rem', marginTop: '0.3rem' }}>
+                        Current: {fp.ageGroup} (requires born {fp.cutoffYear}+) — Player born: {fp.birthYear}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Birth Certificate Upload */}
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>
+                      Birth Certificate Upload *
+                    </label>
+                    <input type="file" accept="image/*,.pdf" onChange={(e) => handleAgeCorrectionFileUpload('ageCorrectionData', setAgeCorrectionData, e)}
+                      style={{ color: '#9ca3af', fontSize: '0.85rem' }} />
+                    {ageCorrectionData.birthCertificate && (
+                      <div style={{ color: '#6ee7b7', fontSize: '0.8rem', marginTop: '0.3rem', fontWeight: 600 }}>✓ File uploaded</div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button onClick={() => handleAgeCorrectionSubmit(fp.submissionId)} disabled={ageCorrectionSubmitting}
+                      style={{
+                        background: ageCorrectionSubmitting ? 'rgba(99,102,241,0.3)' : 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                        color: '#fff', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '8px',
+                        fontWeight: 800, fontSize: '0.9rem', cursor: ageCorrectionSubmitting ? 'not-allowed' : 'pointer'
+                      }}>
+                      {ageCorrectionSubmitting ? 'Submitting...' : 'Submit Correction'}
+                    </button>
+                    <button onClick={() => { setShowAgeCorrectionForm(null); setAgeCorrectionError(''); }}
+                      style={{
+                        background: 'rgba(255,255,255,0.08)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.15)',
+                        padding: '0.75rem 1.5rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer'
+                      }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Incomplete Registration Recovery Banner (Odis Naidoo type — missing DOB + age group) */}
+            {ageIncomplete.length > 0 && !showIncompleteForm && ageIncomplete.map(ip => (
+              incompleteSuccess === ip.submissionId ? (
+                <div key={ip.submissionId} style={{
+                  background: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.08))',
+                  border: '1px solid rgba(16,185,129,0.4)',
+                  borderRadius: '12px', padding: '1.25rem 1.5rem', marginBottom: '1.5rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '1.5rem' }}>✅</span>
+                    <div>
+                      <div style={{ fontWeight: 800, color: '#10b981', fontSize: '1rem' }}>Registration Details Updated</div>
+                      <div style={{ color: '#6ee7b7', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.25rem' }}>
+                        Thank you for completing {ip.playerName}&apos;s registration details. Our team will review and confirm shortly.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div key={ip.submissionId} style={{
+                  background: 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.05))',
+                  border: '1px solid rgba(245,158,11,0.5)',
+                  borderRadius: '12px', padding: '1.25rem 1.5rem', marginBottom: '1.5rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                    <span style={{ fontSize: '1.5rem' }}>🔔</span>
+                    <div>
+                      <div style={{ fontWeight: 800, color: '#f59e0b', fontSize: '1rem' }}>
+                        Action Required — Complete {ip.playerName}&apos;s Registration
+                      </div>
+                      <div style={{ color: '#fbbf24', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.35rem', lineHeight: 1.6 }}>
+                        We experienced a technical issue during registration and some of <strong>{ip.playerName}</strong>&apos;s details were not captured correctly. 
+                        Your payment has been received — thank you! Please complete the information below so we can finalise the registration and add {ip.playerName} to the correct team.
+                      </div>
+                    </div>
+                  </div>
+                  <button onClick={() => {
+                    setShowIncompleteForm(ip.submissionId);
+                    setIncompleteFormData({ dob: '', ageGroup: '', teamName: '', gender: 'Male', coachName: '', coachContact: '', birthCertificate: '', teamFormSubmissionUuid: '', selectedTeam: null, subTeam: null, playerName: ip.playerName });
+                    setIncompleteError('');
+                  }} style={{
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#000', border: 'none',
+                    padding: '0.65rem 1.25rem', borderRadius: '8px', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer'
+                  }}>
+                    Complete Registration Details →
+                  </button>
+                </div>
+              )
+            ))}
+
+            {/* Incomplete Registration Form (inline — team + DOB + birth cert) */}
+            {showIncompleteForm && (() => {
+              const ip = ageIncomplete.find(p => p.submissionId === showIncompleteForm);
+              if (!ip) return null;
+              return (
+                <div style={{
+                  background: '#111827', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '16px',
+                  padding: '2rem', marginBottom: '1.5rem', position: 'relative'
+                }}>
+                  <button onClick={() => { setShowIncompleteForm(null); setIncompleteError(''); }} style={{
+                    position: 'absolute', top: '1rem', right: '1rem',
+                    background: 'rgba(255,255,255,0.1)', border: 'none', color: '#9ca3af',
+                    width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer',
+                    fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>×</button>
+
+                  <h3 style={{ margin: '0 0 0.25rem 0', color: '#f9fafb', fontSize: '1.2rem', fontWeight: 800 }}>
+                    📋 Complete Registration — {ip.playerName}
+                  </h3>
+                  <p style={{ color: '#9ca3af', fontSize: '0.85rem', margin: '0 0 1.25rem 0' }}>
+                    Please provide the following details so we can complete {ip.playerName}&apos;s registration.
+                  </p>
+
+                  {incompleteError && (
+                    <div style={{
+                      background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                      borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1rem',
+                      color: '#fca5a5', fontSize: '0.85rem', fontWeight: 600
+                    }}>{incompleteError}</div>
+                  )}
+
+                  {/* Player Name (pre-filled, editable) */}
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>Player Full Name *</label>
+                    <input type="text" value={incompleteFormData.playerName} onChange={e => setIncompleteFormData(prev => ({ ...prev, playerName: e.target.value }))}
+                      style={{
+                        width: '100%', padding: '0.65rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)',
+                        background: '#1e293b', color: '#f9fafb', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
+                      }} />
+                  </div>
+
+                  {/* Date of Birth */}
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>Date of Birth *</label>
+                    <input type="date" value={incompleteFormData.dob} onChange={e => setIncompleteFormData(prev => ({ ...prev, dob: e.target.value }))}
+                      style={{
+                        width: '100%', padding: '0.65rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)',
+                        background: '#1e293b', color: '#f9fafb', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
+                      }} />
+                  </div>
+
+                  {/* Team Selection */}
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>Select Team *</label>
+                    <select value={incompleteFormData.teamFormSubmissionUuid} onChange={e => {
+                      const team = ageTeams.find(t => t.formSubmissionUuid === e.target.value);
+                      setIncompleteFormData(prev => ({ ...prev, teamFormSubmissionUuid: e.target.value, selectedTeam: team || null, subTeam: null }));
+                    }} style={{
+                      width: '100%', padding: '0.65rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)',
+                      background: '#1e293b', color: '#f9fafb', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
+                    }}>
+                      <option value="">— Select a team —</option>
+                      {ageTeams.map(t => (
+                        <option key={t.id} value={t.formSubmissionUuid}>{t.teamName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Sub-team / Age Group Selection */}
+                  {incompleteFormData.selectedTeam && incompleteFormData.selectedTeam.ageGroups.length > 0 && (
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>Select Age Group *</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {incompleteFormData.selectedTeam.ageGroups.map((ag, i) => (
+                          <button key={i} onClick={() => setIncompleteFormData(prev => ({ ...prev, subTeam: ag }))}
+                            style={{
+                              padding: '0.75rem 1rem', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                              textAlign: 'left', fontWeight: 600, fontSize: '0.85rem',
+                              background: incompleteFormData.subTeam === ag ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.05)',
+                              color: incompleteFormData.subTeam === ag ? '#c7d2fe' : '#9ca3af',
+                              outline: incompleteFormData.subTeam === ag ? '2px solid #6366f1' : 'none'
+                            }}>
+                            {ag.teamName} — {ag.gender} {ag.ageGroup} {ag.coachName ? `(Coach: ${ag.coachName})` : ''}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Birth Certificate */}
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>Birth Certificate (recommended)</label>
+                    <input type="file" accept="image/*,.pdf" onChange={(e) => handleAgeCorrectionFileUpload('incompleteFormData', setIncompleteFormData, e)}
+                      style={{ color: '#9ca3af', fontSize: '0.85rem' }} />
+                    {incompleteFormData.birthCertificate && (
+                      <div style={{ color: '#6ee7b7', fontSize: '0.8rem', marginTop: '0.3rem', fontWeight: 600 }}>✓ File uploaded</div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button onClick={() => handleIncompleteSubmit(ip.submissionId)} disabled={incompleteSubmitting}
+                      style={{
+                        background: incompleteSubmitting ? 'rgba(245,158,11,0.3)' : 'linear-gradient(135deg, #f59e0b, #d97706)',
+                        color: '#000', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '8px',
+                        fontWeight: 800, fontSize: '0.9rem', cursor: incompleteSubmitting ? 'not-allowed' : 'pointer'
+                      }}>
+                      {incompleteSubmitting ? 'Submitting...' : 'Complete Registration'}
+                    </button>
+                    <button onClick={() => { setShowIncompleteForm(null); setIncompleteError(''); }}
+                      style={{
+                        background: 'rgba(255,255,255,0.08)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.15)',
+                        padding: '0.75rem 1.5rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer'
+                      }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Registration Recovery Form (fullscreen overlay) */}
             {showRecoveryForm && recoveryData && (
