@@ -519,19 +519,54 @@ async function sendParentApprovalEmail(submission) {
       const parsed = JSON.parse(teamField);
       teamName = parsed.teamName || parsed.label || parsed.name || '';
     } catch (e) {
-      teamName = teamField;
+      // Field 8 stores a UUID (form_submission_uuid of the team)
+      teamName = '';
+    }
+  }
+  // If teamName is still empty or looks like a UUID, resolve from teams table
+  if (!teamName || /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(teamName)) {
+    const teamUuid = typeof teamField === 'string' ? teamField : (teamField?.id || '');
+    if (teamUuid) {
+      try {
+        const teamResult = await query(
+          `SELECT team_name FROM teams WHERE form_submission_uuid = $1 LIMIT 1`,
+          [teamUuid]
+        );
+        if (teamResult.rows.length > 0) {
+          teamName = teamResult.rows[0].team_name || '';
+        }
+      } catch (teamErr) {
+        console.log('Could not look up team name from UUID:', teamErr.message);
+      }
+    }
+    // Fallback: look up team via team_players association
+    if (!teamName) {
+      try {
+        const tpResult = await query(
+          `SELECT t.team_name FROM team_players tp
+           JOIN teams t ON t.id = tp.team_id
+           WHERE LOWER(tp.player_email) = LOWER($1)
+           ORDER BY tp.created_at DESC LIMIT 1`,
+          [parentEmail]
+        );
+        if (tpResult.rows.length > 0) {
+          teamName = tpResult.rows[0].team_name || '';
+        }
+      } catch (tpErr) {
+        console.log('Could not look up team from team_players:', tpErr.message);
+      }
     }
   }
 
-  // Look up parent password from customer_profiles
+  // Look up parent password from customers table
   let password = '';
   try {
     const profileResult = await query(
-      `SELECT password FROM customer_profiles WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+      `SELECT password_hash FROM customers WHERE LOWER(email) = LOWER($1) LIMIT 1`,
       [parentEmail]
     );
     if (profileResult.rows.length > 0) {
-      password = profileResult.rows[0].password || '';
+      password = profileResult.rows[0].password_hash || '';
     }
   } catch (err) {
     console.log('Could not look up parent password for approval email:', err.message);
