@@ -287,8 +287,8 @@ export default function ManufacturerPortal() {
             </div>
             <form onSubmit={handleLogin}>
               <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontWeight: '700', marginBottom: '0.5rem', fontSize: '0.9rem', color: '#374151' }}>Email Address</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email address" required
+                <label style={{ display: 'block', fontWeight: '700', marginBottom: '0.5rem', fontSize: '0.9rem', color: '#374151' }}>Username</label>
+                <input type="text" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your username" required autoComplete="username"
                   style={{ width: '100%', padding: '0.75rem', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '0.95rem', color: '#111827', background: 'white', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' }}
                   onFocus={(e) => e.target.style.borderColor = '#dc0000'} onBlur={(e) => e.target.style.borderColor = '#e5e7eb'} />
               </div>

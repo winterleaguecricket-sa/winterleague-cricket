@@ -11,7 +11,7 @@ export default async function handler(req, res) {
 
     try {
       const result = await query(
-        `SELECT id, company_name, email, contact_name, phone, created_at 
+        `SELECT id, company_name, email, username, contact_name, phone, created_at 
          FROM manufacturers WHERE id = $1 AND active = true`,
         [id]
       );
@@ -23,7 +23,8 @@ export default async function handler(req, res) {
         manufacturer: {
           id: row.id,
           companyName: row.company_name,
-          email: row.email,
+          email: row.email || row.username,
+          username: row.username || row.email,
           contactName: row.contact_name,
           phone: row.phone,
           createdAt: row.created_at
@@ -41,24 +42,25 @@ export default async function handler(req, res) {
 
     if (action === 'login') {
       if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
+        return res.status(400).json({ error: 'Username and password are required' });
       }
 
       try {
+        // Support login by username or email
         const result = await query(
-          `SELECT id, company_name, email, password, contact_name, phone, created_at 
-           FROM manufacturers WHERE LOWER(email) = LOWER($1) AND active = true`,
+          `SELECT id, company_name, email, username, password, contact_name, phone, created_at 
+           FROM manufacturers WHERE (LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1)) AND active = true`,
           [email.trim()]
         );
 
         if (result.rows.length === 0) {
-          return res.status(401).json({ error: 'Invalid email or password' });
+          return res.status(401).json({ error: 'Invalid username or password' });
         }
 
         const row = result.rows[0];
         // Plain text password comparison (matching team-portal pattern)
         if (row.password !== password) {
-          return res.status(401).json({ error: 'Invalid email or password' });
+          return res.status(401).json({ error: 'Invalid username or password' });
         }
 
         // Update last_login
@@ -68,7 +70,8 @@ export default async function handler(req, res) {
           manufacturer: {
             id: row.id,
             companyName: row.company_name,
-            email: row.email,
+            email: row.email || row.username,
+            username: row.username || row.email,
             contactName: row.contact_name,
             phone: row.phone,
             createdAt: row.created_at
