@@ -61,44 +61,29 @@ function useVisitorHeartbeat() {
     // Try to detect the visitor's name from localStorage data
     const getVisitorName = () => {
       try {
-        // Check if we already resolved a name this session
-        const cached = sessionStorage.getItem('_vname')
-        if (cached) return cached
+        // Primary: persistent name saved on registration/login
+        const saved = localStorage.getItem('_vname')
+        if (saved) return saved
 
-        // Team registration draft (form 1): field 1 = team name, field 2 = manager name
+        // Fallback: team registration draft (form 1) — visitor is actively filling the form
         const draft1 = localStorage.getItem('formDraft_1')
         if (draft1) {
           const p = JSON.parse(draft1)
           const teamName = p?.formData?.[1] || p?.formData?.['1'] || ''
           const managerName = p?.formData?.[2] || p?.formData?.['2'] || ''
           if (teamName || managerName) {
-            const name = managerName ? `${managerName}${teamName ? ` (${teamName})` : ''}` : teamName
-            sessionStorage.setItem('_vname', name)
-            return name
+            return managerName ? `${managerName}${teamName ? ` (${teamName})` : ''}` : teamName
           }
         }
 
-        // Player registration draft (form 2): checkout fields or player data
+        // Fallback: player registration draft (form 2) — visitor is actively filling the form
         const draft2 = localStorage.getItem('formDraft_2')
         if (draft2) {
           const p = JSON.parse(draft2)
           const fd = p?.formData || {}
-          // Checkout fields: checkout_firstName, checkout_lastName
-          const first = fd.checkout_firstName || ''
-          const last = fd.checkout_lastName || ''
-          if (first || last) {
-            const name = [first, last].filter(Boolean).join(' ')
-            sessionStorage.setItem('_vname', name)
-            return name
-          }
-          // Fall back to player name fields (6 = first, 7 = last)
-          const pFirst = fd[6] || fd['6'] || ''
-          const pLast = fd[7] || fd['7'] || ''
-          if (pFirst || pLast) {
-            const name = [pFirst, pLast].filter(Boolean).join(' ')
-            sessionStorage.setItem('_vname', name)
-            return name
-          }
+          const first = fd.checkout_firstName || fd[6] || fd['6'] || ''
+          const last = fd.checkout_lastName || fd[7] || fd['7'] || ''
+          if (first || last) return [first, last].filter(Boolean).join(' ')
         }
         return ''
       } catch { return '' }

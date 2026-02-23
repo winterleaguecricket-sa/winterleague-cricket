@@ -406,6 +406,11 @@ export default function TeamPortal() {
       setIsAuthenticated(true);
       if (typeof window !== 'undefined') {
         localStorage.setItem('teamId', teamData.id.toString());
+        // Persist visitor name for live visitor identification
+        const tName = fullTeam?.teamName || fullTeam?.team_name || teamData?.teamName || teamData?.team_name || '';
+        const mName = fullTeam?.managerName || fullTeam?.manager_name || '';
+        const vname = mName ? `${mName}${tName ? ` (${tName})` : ''}` : tName;
+        if (vname) localStorage.setItem('_vname', vname);
       }
     } else {
       setLoginError('Invalid email or password');

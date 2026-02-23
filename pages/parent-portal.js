@@ -305,6 +305,13 @@ export default function ParentPortal() {
       const result = await res.json();
       if (result.authenticated) {
         setProfile(result.profile);
+        // Persist visitor name for live visitor identification
+        if (typeof window !== 'undefined' && result.profile) {
+          const first = result.profile.firstName || result.profile.first_name || '';
+          const last = result.profile.lastName || result.profile.last_name || '';
+          const vname = [first, last].filter(Boolean).join(' ');
+          if (vname) localStorage.setItem('_vname', vname);
+        }
         const ordersRes = await fetch(`/api/orders?email=${encodeURIComponent(email)}`);
         const ordersData = await ordersRes.json();
         setOrders(ordersData.orders || []);
