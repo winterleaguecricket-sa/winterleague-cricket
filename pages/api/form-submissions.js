@@ -16,6 +16,24 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  // GET - Quick existence check for checkout validation
+  if (req.method === 'GET') {
+    const { email, formId, checkOnly } = req.query;
+    if (checkOnly === 'true' && email && formId) {
+      try {
+        const result = await query(
+          `SELECT id FROM form_submissions WHERE LOWER(customer_email) = LOWER($1) AND form_id = $2 LIMIT 1`,
+          [email, String(formId)]
+        );
+        return res.status(200).json({ exists: result.rows.length > 0 });
+      } catch (err) {
+        console.error('Form submission check error:', err);
+        return res.status(500).json({ error: 'Check failed' });
+      }
+    }
+    return res.status(400).json({ error: 'Invalid GET request' });
+  }
+
   if (req.method === 'POST') {
     try {
       const { formId, data, cartItems, cartTotal } = req.body;

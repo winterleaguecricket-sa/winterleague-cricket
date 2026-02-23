@@ -108,9 +108,24 @@ export default function Checkout() {
               password: parentPassword
             });
 
-            // FormDisplay already creates form submissions — trust it.
-            // No safety net needed here (it caused duplicate submissions).
-            setFormSubmissionVerified(true);
+            // Verify a form_submission actually exists in the DB for this email.
+            // This prevents checkout if the form was never actually submitted
+            // (e.g. user navigated directly to /checkout via bookmark/back button).
+            try {
+              const verifyRes = await fetch(`/api/form-submissions?email=${encodeURIComponent(parentEmail)}&formId=2&checkOnly=true`);
+              const verifyData = await verifyRes.json();
+              if (verifyData && verifyData.exists) {
+                setFormSubmissionVerified(true);
+              } else {
+                console.warn('No form submission found for this email — redirecting to registration');
+                window.location.assign('/forms/2');
+                return;
+              }
+            } catch (verifyErr) {
+              console.error('Error verifying form submission:', verifyErr);
+              // On network error, allow checkout to proceed (form was likely submitted)
+              setFormSubmissionVerified(true);
+            }
           }
         }
       } catch (e) {
@@ -304,31 +319,8 @@ export default function Checkout() {
     trackPaymentStart(orderId, parseFloat(orderTotal), activeGateway);
 
     try {
-      // ===== ENSURE CUSTOMER PROFILE EXISTS IN DB (create now if local-only) =====
-      if (!customerProfile.id || String(customerProfile.id).startsWith('local-')) {
-        try {
-          const createRes = await fetch('/api/customers', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'create',
-              email: customerProfile.email,
-              firstName: customerProfile.firstName,
-              lastName: customerProfile.lastName,
-              phone: customerProfile.phone || '',
-              password: customerProfile.password || ''
-            })
-          });
-          const createData = await createRes.json();
-          if (createData?.profile || createData?.id) {
-            const p = createData.profile || createData;
-            setCustomerProfile(prev => ({ ...prev, id: p.id || prev.id }));
-            customerProfile.id = p.id || customerProfile.id;
-          }
-        } catch (createErr) {
-          console.error('Error creating customer profile at payment:', createErr);
-        }
-      }
+      // Customer profile creation is handled server-side (in create-checkout / create-payment)
+      // to ensure it only happens when a payment session is actually created.
 
       // Order + gateway checkout are created atomically server-side.
       // No order is created until payment gateway session is confirmed.
@@ -341,6 +333,7 @@ export default function Checkout() {
         lastName: customerProfile.lastName,
         email: customerProfile.email,
         phone: customerProfile.phone || '',
+        password: customerProfile.password || '',
         customerId: (customerProfile.id || '').toString(),
         // Order creation data — server creates order atomically with gateway checkout
         orderData: {

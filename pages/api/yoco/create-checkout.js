@@ -25,7 +25,7 @@ export default async function handler(req, res) {
 
     const {
       orderId, itemName, itemDescription,
-      firstName, lastName, email, phone, customerId,
+      firstName, lastName, email, phone, password, customerId,
       orderData
     } = req.body;
 
@@ -171,6 +171,28 @@ export default async function handler(req, res) {
     console.log('Redirect URL:', yocoData.redirectUrl);
 
     logPaymentEvent({ orderId, email, amount: serverAmount, gateway: 'yoco', status: 'checkout_created', details: `Checkout ID: ${yocoData.id}, Amount: R${serverAmount}` });
+
+    // ===== CREATE CUSTOMER PROFILE (only after successful checkout session) =====
+    if (email && firstName) {
+      try {
+        const existingCustomer = await query(
+          'SELECT id FROM customers WHERE LOWER(email) = LOWER($1) LIMIT 1',
+          [email]
+        );
+        if (existingCustomer.rows.length === 0) {
+          await query(
+            `INSERT INTO customers (email, password_hash, first_name, last_name, phone, country)
+             VALUES ($1, $2, $3, $4, $5, 'South Africa')
+             ON CONFLICT (email) DO NOTHING`,
+            [email, password || '', firstName || '', lastName || '', phone || '']
+          );
+          console.log(`Customer profile created for ${email} (with Yoco checkout)`);
+        }
+      } catch (custErr) {
+        // Non-fatal — customer can be created later
+        console.error('Error creating customer profile:', custErr.message);
+      }
+    }
 
     // Store the Yoco checkout ID in the order record for later verification
     try {

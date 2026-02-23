@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
     const {
       orderId, amount, itemName, itemDescription,
-      firstName, lastName, email, phone, customerId,
+      firstName, lastName, email, phone, password, customerId,
       orderData
     } = req.body;
 
@@ -138,6 +138,27 @@ export default async function handler(req, res) {
     console.log('Notify URL:', paymentData.notify_url);
     console.log('Signature:', signature);
     console.log('=============================');
+
+    // ===== CREATE CUSTOMER PROFILE (only after successful payment setup) =====
+    if (email && firstName) {
+      try {
+        const existingCustomer = await query(
+          'SELECT id FROM customers WHERE LOWER(email) = LOWER($1) LIMIT 1',
+          [email]
+        );
+        if (existingCustomer.rows.length === 0) {
+          await query(
+            `INSERT INTO customers (email, password_hash, first_name, last_name, phone, country)
+             VALUES ($1, $2, $3, $4, $5, 'South Africa')
+             ON CONFLICT (email) DO NOTHING`,
+            [email, password || '', firstName || '', lastName || '', phone || '']
+          );
+          console.log(`Customer profile created for ${email} (with PayFast payment)`);
+        }
+      } catch (custErr) {
+        console.error('Error creating customer profile:', custErr.message);
+      }
+    }
 
     return res.status(200).json({
       success: true,
