@@ -2,7 +2,7 @@
 // Dark theme matching registration form, auto-populated from form data, no shipping
 // DB order creation, dynamic PayFast/Yoco gateway, server-side payment APIs
 import { useCart } from '../context/CartContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../styles/channel.module.css';
@@ -27,6 +27,7 @@ export default function Checkout() {
   const [formBackground, setFormBackground] = useState('');
   const [activeGateway, setActiveGateway] = useState(null);
   const [formSubmissionVerified, setFormSubmissionVerified] = useState(false);
+  const orderIdRef = useRef(null);
 
   // Load active payment gateway
   useEffect(() => {
@@ -300,7 +301,11 @@ export default function Checkout() {
     setError('');
 
     const orderTotal = getCartTotal().toFixed(2);
-    const orderId = `ORD${Date.now()}`;
+    // Reuse the same orderId on retry — prevents duplicate pending orders
+    if (!orderIdRef.current) {
+      orderIdRef.current = `ORD${Date.now()}`;
+    }
+    const orderId = orderIdRef.current;
 
     // GA4: Track payment initiation
     trackPaymentStart(orderId, parseFloat(orderTotal), activeGateway);
