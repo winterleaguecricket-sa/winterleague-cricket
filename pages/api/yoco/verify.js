@@ -127,24 +127,24 @@ export default async function handler(req, res) {
 
           // Addon orders now stand alone — no merged items to clean up in original orders
 
-          // Mark team players as paid for this customer
+          // ===== CREATE TEAM PLAYERS + REVENUE FROM FORM SUBMISSIONS =====
+          // Players are no longer created at form submission time (to avoid pending clutter).
+          // They are created HERE, directly as 'paid', after payment is confirmed.
+          // Also handles legacy pending_payment records from before this change.
           try {
-            const playerUpdate = await query(
+            // 1. Update any legacy pending_payment players to paid
+            const legacyUpdate = await query(
               `UPDATE team_players SET payment_status = 'paid'
                WHERE payment_status = 'pending_payment'
                  AND LOWER(player_email) = LOWER($1)`,
               [order.customer_email]
             );
-            if (playerUpdate.rowCount > 0) {
-              console.log(`Yoco verify: marked ${playerUpdate.rowCount} player(s) as paid for ${order.customer_email}`);
+            if (legacyUpdate.rowCount > 0) {
+              console.log(`Yoco verify: marked ${legacyUpdate.rowCount} legacy player(s) as paid for ${order.customer_email}`);
             }
-          } catch (playerErr) {
-            console.error('Yoco verify: failed to update team_players payment status:', playerErr.message);
-          }
 
-          // Mark team revenue entries as paid for this customer's players
-          try {
-            const revenueUpdate = await query(
+            // 2. Update any legacy pending_payment revenue to paid
+            const legacyRevUpdate = await query(
               `UPDATE team_revenue tr SET payment_status = 'paid'
                FROM team_players tp
                WHERE tp.team_id = tr.team_id
@@ -153,11 +153,166 @@ export default async function handler(req, res) {
                  AND tr.payment_status = 'pending_payment'`,
               [order.customer_email]
             );
-            if (revenueUpdate.rowCount > 0) {
-              console.log(`Yoco verify: marked ${revenueUpdate.rowCount} revenue entry(s) as paid for ${order.customer_email}`);
+            if (legacyRevUpdate.rowCount > 0) {
+              console.log(`Yoco verify: marked ${legacyRevUpdate.rowCount} legacy revenue entry(s) as paid for ${order.customer_email}`);
             }
-          } catch (revErr) {
-            console.error('Yoco verify: failed to update team_revenue payment status:', revErr.message);
+
+            // 3. Create new team_players + team_revenue from form submissions that don't have players yet
+            const submissions = await query(
+              `SELECT fs.id, fs.data FROM form_submissions fs
+               WHERE LOWER(fs.customer_email) = LOWER($1) AND fs.form_id = '2'
+                 AND NOT EXISTS (
+                   SELECT 1 FROM team_players tp
+                   WHERE tp.registration_data->>'formSubmissionId' = fs.id::text
+                 )`,
+              [order.customer_email]
+            );
+
+            for (const sub of submissions.rows) {
+              const d = typeof sub.data === 'string' ? JSON.parse(sub.data) : (sub.data || {});
+              const playerName = d['6'] || '';
+              const parentEmail = d['38'] || d.checkout_email || order.customer_email || '';
+              const parentPhone = d['40'] || d.checkout_phone || '';
+              const parentName = d['37'] || '';
+              const jerseyNumber = d['36'] || null;
+              const jerseySize = d['25_shirtSize'] || '';
+
+              if (!playerName) continue;
+
+              // Resolve team from field 8 (team selection dropdown)
+              let matchedTeam = null;
+              const teamSel = d['8'] || null;
+              if (teamSel) {
+                const teamName = typeof teamSel === 'object' ? (teamSel.teamName || '') : '';
+                const teamSubId = typeof teamSel === 'object' ? (teamSel.id || '') : String(teamSel);
+                if (teamName) {
+                  const tr = await query('SELECT id, team_name FROM teams WHERE LOWER(team_name) = LOWER($1) LIMIT 1', [teamName]);
+                  matchedTeam = tr.rows[0] || null;
+                }
+                if (!matchedTeam && teamSubId) {
+                  const tr = await query('SELECT id, team_name FROM teams WHERE form_submission_uuid::text = $1 LIMIT 1', [String(teamSubId)]);
+                  matchedTeam = tr.rows[0] || null;
+                }
+              }
+
+              if (!matchedTeam) {
+                console.log(`Yoco verify: could not match team for player ${playerName} (submission ${sub.id})`);
+                continue;
+              }
+
+              // Build sub_team label
+              let subTeam = '';
+              const subTeamVal = d['34'] || '';
+              if (subTeamVal && typeof subTeamVal === 'object') {
+                const name = (subTeamVal.teamName || '').trim();
+                const gender = (subTeamVal.gender || '').trim();
+                const age = (subTeamVal.ageGroup || '').trim();
+                subTeam = (name && gender && age) ? `${name} (${gender} - ${age})` : (name && age) ? `${name} (${age})` : name || age || gender || '';
+              } else if (typeof subTeamVal === 'string') {
+                try { const p = JSON.parse(subTeamVal); subTeam = (p.teamName && p.gender && p.ageGroup) ? `${p.teamName} (${p.gender} - ${p.ageGroup})` : p.teamName || ''; } catch { subTeam = subTeamVal.trim(); }
+              }
+
+              // Dedup: check player doesn't already exist by name+email+team+sub_team
+              const existingPlayer = await query(
+                `SELECT id FROM team_players
+                 WHERE team_id = $1 AND LOWER(player_name) = LOWER($2)
+                   AND LOWER(COALESCE(player_email, '')) = LOWER($3)
+                   AND LOWER(COALESCE(sub_team, '')) = LOWER($4)
+                 LIMIT 1`,
+                [matchedTeam.id, playerName, parentEmail, subTeam || '']
+              );
+
+              if (existingPlayer.rows.length > 0) {
+                console.log(`Yoco verify: player ${playerName} already exists in team ${matchedTeam.id} — skipping`);
+                continue;
+              }
+
+              // Create team_player directly as 'paid'
+              const regData = {
+                formSubmissionId: sub.id,
+                formId: '2',
+                parentEmail,
+                parentPhone,
+                teamName: matchedTeam.team_name,
+                subTeam,
+                profileImage: d['46'] || null
+              };
+
+              await query(
+                `INSERT INTO team_players (team_id, sub_team, player_name, player_email, player_phone,
+                  jersey_size, jersey_number, registration_data, payment_status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'paid')`,
+                [matchedTeam.id, subTeam || null, playerName, parentEmail || null,
+                 parentPhone || null, jerseySize || null, jerseyNumber || null, JSON.stringify(regData)]
+              );
+              console.log(`Yoco verify: created PAID player ${playerName} in team ${matchedTeam.team_name}`);
+
+              // Create team_revenue 'paid' for kit markup
+              try {
+                const teamRow = await query('SELECT kit_pricing FROM teams WHERE id = $1', [matchedTeam.id]);
+                const kitPricing = teamRow.rows[0]?.kit_pricing;
+                if (kitPricing) {
+                  const pricing = typeof kitPricing === 'string' ? JSON.parse(kitPricing) : kitPricing;
+                  const markup = parseFloat(pricing.markup) || 0;
+                  if (markup > 0) {
+                    await query(
+                      `INSERT INTO team_revenue (team_id, revenue_type, amount, description, reference_id, payment_status)
+                       VALUES ($1, 'player-registration-markup', $2, $3, $4, 'paid')`,
+                      [matchedTeam.id, markup, `Kit markup for player: ${playerName}`, String(sub.id)]
+                    );
+                    console.log(`Yoco verify: recorded R${markup} markup revenue for ${playerName}, team ${matchedTeam.id}`);
+                  }
+                }
+              } catch (revErr) {
+                console.error(`Yoco verify: revenue recording error for ${playerName}:`, revErr.message);
+              }
+
+              // Record new player for CricClubs upload
+              try {
+                const existingProfile = d.existingCricClubsProfile || null;
+                if (!existingProfile) {
+                  const host = req.headers.host || '';
+                  const protocol = req.headers['x-forwarded-proto'] || 'http';
+                  const baseUrl = host ? `${protocol}://${host}` : 'https://winterleaguecricket.co.za';
+                  await fetch(`${baseUrl}/api/new-players`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      playerName, email: parentEmail, team: matchedTeam.team_name,
+                      dob: d['10'] || '', submissionId: sub.id
+                    })
+                  });
+                }
+              } catch (npErr) {
+                console.log('Yoco verify: could not record new player for CricClubs:', npErr.message);
+              }
+
+              // Create/update customer profile
+              try {
+                const existingCust = await query('SELECT id, team_id FROM customers WHERE LOWER(email) = LOWER($1) LIMIT 1', [parentEmail]);
+                if (existingCust.rows.length === 0) {
+                  const parts = String(parentName || '').trim().split(/\s+/).filter(Boolean);
+                  const firstName = parts.shift() || '';
+                  const lastName = parts.join(' ') || '';
+                  const pwd = d['39'] || d.checkout_password || '';
+                  await query(
+                    `INSERT INTO customers (email, password_hash, first_name, last_name, phone, country)
+                     VALUES ($1, $2, $3, $4, $5, 'South Africa') ON CONFLICT (email) DO NOTHING`,
+                    [parentEmail, pwd, firstName, lastName, parentPhone]
+                  );
+                } else if (!existingCust.rows[0].team_id) {
+                  await query('UPDATE customers SET team_id = $1, updated_at = NOW() WHERE id = $2', [matchedTeam.id, existingCust.rows[0].id]);
+                }
+              } catch (custErr) {
+                console.log('Yoco verify: customer profile error:', custErr.message);
+              }
+            }
+
+            if (submissions.rows.length > 0) {
+              console.log(`Yoco verify: processed ${submissions.rows.length} form submission(s) for ${order.customer_email}`);
+            }
+          } catch (playerErr) {
+            console.error('Yoco verify: error creating team players from submissions:', playerErr.message);
           }
 
           // Send parent payment success email (non-blocking)

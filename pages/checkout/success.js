@@ -52,10 +52,11 @@ export default function CheckoutSuccess() {
     }
   }, [order, gateway]);
 
-  // Clear form draft now that payment is complete
+  // Clear form draft and submission ID now that payment is complete
   useEffect(() => {
     if (order && typeof window !== 'undefined') {
       try { window.localStorage.removeItem('formDraft_2'); } catch (e) {}
+      try { window.localStorage.removeItem('formSubmissionId_2'); } catch (e) {}
     }
   }, [order]);
 

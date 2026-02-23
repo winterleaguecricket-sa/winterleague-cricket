@@ -366,7 +366,9 @@ export default async function handler(req, res) {
               continue; // Continue with remaining players instead of aborting
             }
 
-            await handlePlayerRegistration(playerData, submission);
+            // Player registration (team_player + team_revenue) is now deferred to payment verification.
+            // This prevents pending records from appearing on team portals for parents who never pay.
+            // See /api/yoco/verify.js — players are created with 'paid' status after payment confirms.
             submissions.push(submission);
           }
 
@@ -531,9 +533,9 @@ export default async function handler(req, res) {
         }
       }
 
-      if (formId === 2 || formId === '2') {
-        await handlePlayerRegistration(data, submission);
-      }
+      // Player registration (team_player + team_revenue) for form 2 is now deferred to payment verification.
+      // This prevents pending records on team portals for parents who abandon checkout.
+      // See /api/yoco/verify.js — players are created with 'paid' status after payment confirms.
 
       // Log successful form submission event
       logFormEvent({ formId, formName: form?.name, email: data[3] || data[38] || null, action: 'submit' });

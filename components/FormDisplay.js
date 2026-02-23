@@ -3573,6 +3573,14 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
           const vname = [first, last].filter(Boolean).join(' ');
           if (vname) localStorage.setItem('_vname', vname);
         } catch {}
+        // Store form submission ID — checkout page uses this as proof the submission was saved
+        // Without this, the checkout page will redirect back to the registration form
+        try {
+          const submissionId = result.submission?.id || (result.submissions && result.submissions[0]?.id);
+          if (submissionId) {
+            localStorage.setItem('formSubmissionId_2', String(submissionId));
+          }
+        } catch {}
         // Don't clear formDraft yet — checkout page needs it for customer profile
         if (onSubmitSuccess) {
           onSubmitSuccess(result.submission);

@@ -45,6 +45,17 @@ export default function Checkout() {
 
     const loadAndCreateProfile = async () => {
       try {
+        // Gate: require a confirmed form submission before allowing checkout.
+        // formSubmissionId_2 is set by FormDisplay.js ONLY after the API confirms
+        // the form_submission was saved to the database. Without it, the parent
+        // must go through the registration form first.
+        const savedSubmissionId = localStorage.getItem('formSubmissionId_2');
+        if (!savedSubmissionId) {
+          console.warn('Checkout: No formSubmissionId_2 found — redirecting to registration form');
+          window.location.replace('/forms/2');
+          return;
+        }
+
         const savedFormData = localStorage.getItem('formDraft_2');
         if (savedFormData) {
           const parsed = JSON.parse(savedFormData);

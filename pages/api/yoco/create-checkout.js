@@ -70,6 +70,28 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'Invalid order amount' });
       }
 
+      // Cancel any existing pending orders for the same email to prevent clutter.
+      // If a parent abandons and re-registers, old unfulfilled orders get cleaned up.
+      try {
+        if (orderData.customerEmail) {
+          const cancelled = await query(
+            `UPDATE orders SET payment_status = 'cancelled', status = 'cancelled',
+              status_notes = 'Auto-cancelled: replaced by new order ' || $1,
+              updated_at = NOW()
+             WHERE LOWER(customer_email) = LOWER($2)
+               AND payment_status = 'pending'
+               AND order_number != $1`,
+            [orderData.orderNumber, orderData.customerEmail]
+          );
+          if (cancelled.rowCount > 0) {
+            console.log(`Cancelled ${cancelled.rowCount} old pending order(s) for ${orderData.customerEmail}`);
+          }
+        }
+      } catch (cancelErr) {
+        // Non-fatal — just log and continue
+        console.error('Error cancelling old pending orders:', cancelErr.message);
+      }
+
       try {
         await query(
           `INSERT INTO orders (order_number, customer_email, customer_name, customer_phone, items, total_amount, status, payment_method, payment_status, order_type, created_at, updated_at)
