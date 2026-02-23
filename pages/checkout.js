@@ -123,8 +123,10 @@ export default function Checkout() {
               }
             } catch (verifyErr) {
               console.error('Error verifying form submission:', verifyErr);
-              // On network error, allow checkout to proceed (form was likely submitted)
-              setFormSubmissionVerified(true);
+              // On network error, do NOT silently allow checkout — redirect to registration
+              console.warn('Verification failed due to network error — redirecting to registration');
+              window.location.assign('/forms/player-registration');
+              return;
             }
           }
         }
@@ -142,7 +144,7 @@ export default function Checkout() {
     };
 
     loadAndCreateProfile();
-  }, [cart]);
+  }, []);  // Run once on mount — profile loading doesn't depend on cart
 
   // Load form background image to match the registration form theme
   useEffect(() => {

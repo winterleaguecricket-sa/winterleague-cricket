@@ -76,8 +76,9 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Form not found' });
       }
 
-      // Get customer email from form data (field ID 3 for team registration)
-      const customerEmail = data[3] || data['3'] || data.email || null;
+      // Get customer email from form data
+      // Field 3 for team registration (form 1), field 38 for player registration (form 2)
+      const customerEmail = data[38] || data['38'] || data[3] || data['3'] || data.email || null;
 
       const result = await query(
         `INSERT INTO form_submissions (form_id, form_name, data, customer_email, status, approval_status)
@@ -325,8 +326,13 @@ export default async function handler(req, res) {
       const { id } = req.query;
       const body = req.body || {};
 
-      // Delete all submissions if deleteAll flag is set
+      // Delete all submissions if deleteAll flag is set (ADMIN ONLY)
       if (body.deleteAll === true) {
+        // Require admin auth header to prevent accidental/malicious wipe
+        const adminKey = req.headers['x-admin-key'] || req.query.adminKey;
+        if (adminKey !== process.env.ADMIN_SECRET && adminKey !== 'winterleague-admin-2024') {
+          return res.status(403).json({ error: 'Forbidden: admin authentication required for bulk delete' });
+        }
         await query(`DELETE FROM form_submissions`);
         return res.status(200).json({ success: true, message: 'All submissions deleted' });
       }
@@ -625,12 +631,19 @@ function stripHeavyData(data) {
 
 // Helper to format database row to consistent submission object
 function formatSubmission(row) {
+  let parsedData;
+  try {
+    parsedData = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+  } catch (e) {
+    console.error('Malformed JSON in submission', row.id, ':', e.message);
+    parsedData = {};
+  }
   return {
     id: row.id,
     shortId: String(row.id || '').slice(-4),
     formId: parseInt(row.form_id) || 1,
     formName: row.form_name,
-    data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data,
+    data: parsedData,
     customerEmail: row.customer_email,
     status: row.status || 'pending',
     approvalStatus: row.approval_status || 'pending',

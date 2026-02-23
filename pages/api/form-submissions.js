@@ -43,7 +43,8 @@ export default async function handler(req, res) {
       }
 
       // For player registration (form 2), include cart data in submission
-      if (formId === 2 && cartItems && Array.isArray(cartItems)) {
+      const numericFormId = typeof formId === 'string' ? parseInt(formId, 10) : formId;
+      if (numericFormId === 2 && cartItems && Array.isArray(cartItems)) {
         data._cartItems = cartItems;
         data._cartTotal = cartTotal || 0;
       }
@@ -315,12 +316,13 @@ export default async function handler(req, res) {
         data.email ||
         null;
 
-      if (formId === 2 || formId === '2') {
+      if (numericFormId === 2) {
         const playerEntriesRaw = data[45] || data['45'];
         const playerEntries = Array.isArray(playerEntriesRaw) ? playerEntriesRaw : [];
         if (playerEntries.length > 0) {
           const profiles = Array.isArray(data.existingCricClubsProfiles) ? data.existingCricClubsProfiles : [];
           const submissions = [];
+          const failedPlayers = [];
 
           for (let index = 0; index < playerEntries.length; index += 1) {
             const entry = playerEntries[index] || {};
@@ -359,18 +361,24 @@ export default async function handler(req, res) {
                 approvalStatus: submissionResult.rows[0].approval_status || 'pending'
               };
             } catch (dbError) {
-              console.error('Database error saving submission:', dbError);
-              return res.status(500).json({ error: 'Failed to save submission to database', details: dbError.message });
+              console.error(`Database error saving player ${index + 1} submission:`, dbError);
+              failedPlayers.push({ index: index + 1, name: entry.playerName || 'Unknown', error: dbError.message });
+              continue; // Continue with remaining players instead of aborting
             }
 
             await handlePlayerRegistration(playerData, submission);
             submissions.push(submission);
           }
 
+          if (submissions.length === 0) {
+            return res.status(500).json({ error: 'Failed to save any player submissions', failedPlayers });
+          }
+
           return res.status(200).json({
             success: true,
             submission: submissions[0] || null,
-            submissions
+            submissions,
+            ...(failedPlayers.length > 0 ? { partialFailure: true, failedPlayers } : {})
           });
         }
       }
@@ -406,10 +414,10 @@ export default async function handler(req, res) {
         const email = data[3] || data['3'] || '';
         const teamName = data[1] || data['1'] || '';
         
-        // Check if team already exists
+        // Check if team already exists (use FOR UPDATE to prevent race conditions)
         try {
           const existingTeam = await query(
-            `SELECT * FROM teams WHERE LOWER(email) = LOWER($1) OR LOWER(team_name) = LOWER($2)`,
+            `SELECT * FROM teams WHERE LOWER(email) = LOWER($1) OR LOWER(team_name) = LOWER($2) FOR UPDATE`,
             [email, teamName]
           );
           
@@ -543,41 +551,8 @@ export default async function handler(req, res) {
     }
   }
 
-  if (req.method === 'GET') {
-    try {
-      const { formId } = req.query;
-      
-      let sql = `SELECT * FROM form_submissions`;
-      const params = [];
-      
-      if (formId) {
-        sql += ` WHERE form_id = $1`;
-        params.push(formId.toString());
-      }
-      
-      sql += ` ORDER BY created_at DESC`;
-      
-      const result = await query(sql, params);
-      
-      const submissions = result.rows.map(row => ({
-        id: row.id,
-        formId: parseInt(row.form_id) || 1,
-        formName: row.form_name,
-        data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data,
-        customerEmail: row.customer_email,
-        status: row.status || 'pending',
-        approvalStatus: row.approval_status || 'pending',
-        submittedAt: row.created_at,
-        updatedAt: row.updated_at
-      }));
-      
-      return res.status(200).json({ submissions });
-      
-    } catch (error) {
-      console.error('Error fetching submissions:', error);
-      return res.status(500).json({ error: 'Failed to fetch submissions', details: error.message });
-    }
-  }
+  // Note: Dead second GET handler was removed. All GET requests are handled by the
+  // checkOnly handler at the top of this file. Use /api/submissions for full listing.
 
   return res.status(405).json({ error: 'Method not allowed' });
 }

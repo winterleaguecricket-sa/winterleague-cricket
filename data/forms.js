@@ -470,7 +470,9 @@ export function getFormTemplates() {
 }
 
 export function getFormTemplateById(id) {
-  return formTemplates.find(form => form.id === id);
+  // Support both numeric and string IDs (API bodies may send either)
+  const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
+  return formTemplates.find(form => form.id === numericId || form.id === id);
 }
 
 export function getFormTemplatesByCategory(categoryId) {
