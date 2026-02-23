@@ -319,8 +319,16 @@ export default function AdminAnalytics() {
                 marginTop: '1.5rem', background: '#1e293b', borderRadius: '12px',
                 border: '1px solid #334155', overflow: 'hidden'
               }}>
-                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #334155' }}>
+                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <h3 style={{ margin: 0, fontSize: '1rem', color: '#e2e8f0' }}>Active Sessions</h3>
+                  {(() => {
+                    const named = liveData.visitors.filter(v => v.visitorName).length;
+                    return named > 0 ? (
+                      <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>
+                        👤 {named} identified
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -337,7 +345,14 @@ export default function AdminAnalytics() {
                       {liveData.visitors.map((v, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                           <td style={{ padding: '0.75rem 1.5rem' }}>
-                            <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#94a3b8' }}>#{v.visitorId}</span>
+                            {v.visitorName ? (
+                              <div>
+                                <div style={{ fontWeight: 600, color: '#e2e8f0', fontSize: '0.9rem' }}>{v.visitorName}</div>
+                                <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#64748b' }}>#{v.visitorId}</span>
+                              </div>
+                            ) : (
+                              <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#94a3b8' }}>#{v.visitorId}</span>
+                            )}
                           </td>
                           <td style={{ padding: '0.75rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

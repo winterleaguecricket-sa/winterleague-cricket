@@ -3566,12 +3566,29 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
       }
 
       if (form.id === 2 && typeof window !== 'undefined') {
+        // Save visitor name before navigating away (draft will be cleared on payment success)
+        try {
+          const first = formData?.checkout_firstName || formData?.[6] || formData?.['6'] || '';
+          const last = formData?.checkout_lastName || formData?.[7] || formData?.['7'] || '';
+          const vname = [first, last].filter(Boolean).join(' ');
+          if (vname) sessionStorage.setItem('_vname', vname);
+        } catch {}
         // Don't clear formDraft yet — checkout page needs it for customer profile
         if (onSubmitSuccess) {
           onSubmitSuccess(result.submission);
         }
         window.location.assign('/checkout');
         return;
+      }
+
+      // Save visitor name for team registration
+      if (form.id === 1 && typeof window !== 'undefined') {
+        try {
+          const teamName = formData?.[1] || formData?.['1'] || '';
+          const managerName = formData?.[2] || formData?.['2'] || '';
+          const vname = managerName ? `${managerName}${teamName ? ` (${teamName})` : ''}` : teamName;
+          if (vname) sessionStorage.setItem('_vname', vname);
+        } catch {}
       }
 
       // Clear draft for non-checkout forms (form 2 draft is cleared on payment success)

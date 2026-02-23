@@ -55,7 +55,7 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      const { visitorId, page, _delete } = body;
+      const { visitorId, page, _delete, visitorName } = body;
       if (!visitorId) return res.status(400).json({ error: 'visitorId required' });
 
       // Handle sendBeacon unload signal
@@ -79,6 +79,10 @@ export default async function handler(req, res) {
           existing.pageHistory.push(page);
           if (existing.pageHistory.length > 10) existing.pageHistory.shift();
         }
+        // Update name if provided and not already set
+        if (visitorName && !existing.visitorName) {
+          existing.visitorName = String(visitorName).substring(0, 80);
+        }
       } else {
         // New visitor — get geo data
         const geo = await getGeoFromIP(ip);
@@ -91,7 +95,8 @@ export default async function handler(req, res) {
           pageHistory: [page || '/'],
           userAgent,
           device: parseDevice(userAgent),
-          geo
+          geo,
+          visitorName: visitorName ? String(visitorName).substring(0, 80) : ''
         });
       }
 
@@ -120,6 +125,7 @@ export default async function handler(req, res) {
 
     const visitors = Array.from(activeVisitors.values()).map(v => ({
       visitorId: v.visitorId.substring(0, 8), // partial ID only
+      visitorName: v.visitorName || '',
       page: v.page,
       pageHistory: v.pageHistory,
       device: v.device,

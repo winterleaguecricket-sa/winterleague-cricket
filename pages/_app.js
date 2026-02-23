@@ -58,13 +58,62 @@ function useVisitorHeartbeat() {
       sessionStorage.setItem('_vid', visitorId)
     }
 
+    // Try to detect the visitor's name from localStorage data
+    const getVisitorName = () => {
+      try {
+        // Check if we already resolved a name this session
+        const cached = sessionStorage.getItem('_vname')
+        if (cached) return cached
+
+        // Team registration draft (form 1): field 1 = team name, field 2 = manager name
+        const draft1 = localStorage.getItem('formDraft_1')
+        if (draft1) {
+          const p = JSON.parse(draft1)
+          const teamName = p?.formData?.[1] || p?.formData?.['1'] || ''
+          const managerName = p?.formData?.[2] || p?.formData?.['2'] || ''
+          if (teamName || managerName) {
+            const name = managerName ? `${managerName}${teamName ? ` (${teamName})` : ''}` : teamName
+            sessionStorage.setItem('_vname', name)
+            return name
+          }
+        }
+
+        // Player registration draft (form 2): checkout fields or player data
+        const draft2 = localStorage.getItem('formDraft_2')
+        if (draft2) {
+          const p = JSON.parse(draft2)
+          const fd = p?.formData || {}
+          // Checkout fields: checkout_firstName, checkout_lastName
+          const first = fd.checkout_firstName || ''
+          const last = fd.checkout_lastName || ''
+          if (first || last) {
+            const name = [first, last].filter(Boolean).join(' ')
+            sessionStorage.setItem('_vname', name)
+            return name
+          }
+          // Fall back to player name fields (6 = first, 7 = last)
+          const pFirst = fd[6] || fd['6'] || ''
+          const pLast = fd[7] || fd['7'] || ''
+          if (pFirst || pLast) {
+            const name = [pFirst, pLast].filter(Boolean).join(' ')
+            sessionStorage.setItem('_vname', name)
+            return name
+          }
+        }
+        return ''
+      } catch { return '' }
+    }
+
     const sendHeartbeat = () => {
       // Don't send heartbeats from admin pages
       if (window.location.pathname.startsWith('/admin')) return
+      const payload = { visitorId, page: window.location.pathname }
+      const vname = getVisitorName()
+      if (vname) payload.visitorName = vname
       fetch('/api/visitors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visitorId, page: window.location.pathname })
+        body: JSON.stringify(payload)
       }).catch(() => {})
     }
 
