@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 
@@ -42,6 +42,7 @@ export default function ParentPortal() {
   const [recoverySuccess, setRecoverySuccess] = useState(false);
   const [recoveryError, setRecoveryError] = useState('');
   const [recoveryCart, setRecoveryCart] = useState([]); // Additional products cart
+  const recoveryFormRef = useRef(null);
   const [recoveryForm, setRecoveryForm] = useState({
     teamFormSubmissionUuid: '',
     selectedTeam: null,
@@ -241,6 +242,8 @@ export default function ParentPortal() {
       
     } catch (err) {
       setRecoveryError(err.message);
+      // Scroll error into view so user always sees what went wrong
+      setTimeout(() => recoveryFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } finally {
       setRecoverySubmitting(false);
     }
@@ -1535,7 +1538,7 @@ export default function ParentPortal() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowRecoveryForm(true)}
+                  onClick={() => { setShowRecoveryForm(true); setTimeout(() => recoveryFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}
                   style={{
                     background: 'linear-gradient(135deg, #ef4444, #dc2626)',
                     color: '#fff',
@@ -1991,7 +1994,7 @@ export default function ParentPortal() {
 
             {/* Registration Recovery Form (fullscreen overlay) */}
             {showRecoveryForm && recoveryData && (
-              <div style={{
+              <div ref={recoveryFormRef} style={{
                 background: '#111827',
                 border: '1px solid rgba(239,68,68,0.3)',
                 borderRadius: '16px',
@@ -2278,6 +2281,10 @@ export default function ParentPortal() {
                         onClick={() => {
                           if (!recoveryForm.playerName.trim()) {
                             setRecoveryError('Player name is required');
+                            return;
+                          }
+                          if (!recoveryForm.shirtNumber) {
+                            setRecoveryError('Preferred shirt number is required');
                             return;
                           }
                           setRecoveryError('');
