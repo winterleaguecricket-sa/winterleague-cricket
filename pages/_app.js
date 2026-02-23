@@ -89,6 +89,21 @@ function useVisitorHeartbeat() {
       } catch { return '' }
     }
 
+    // One-time: if existing team-portal user has teamId but no _vname, fetch their name
+    if (!localStorage.getItem('_vname') && localStorage.getItem('teamId')) {
+      fetch(`/api/teams?id=${localStorage.getItem('teamId')}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.team) {
+            const tName = data.team.teamName || data.team.team_name || ''
+            const mName = data.team.managerName || data.team.manager_name || ''
+            const vname = mName ? `${mName}${tName ? ` (${tName})` : ''}` : tName
+            if (vname) localStorage.setItem('_vname', vname)
+          }
+        })
+        .catch(() => {})
+    }
+
     const sendHeartbeat = () => {
       // Don't send heartbeats from admin pages
       if (window.location.pathname.startsWith('/admin')) return
