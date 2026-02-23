@@ -118,7 +118,7 @@ export default function Checkout() {
                 setFormSubmissionVerified(true);
               } else {
                 console.warn('No form submission found for this email — redirecting to registration');
-                window.location.assign('/forms/2');
+                window.location.assign('/forms/player-registration');
                 return;
               }
             } catch (verifyErr) {
