@@ -1876,16 +1876,18 @@ export default function ParentPortal() {
                   <div style={{ marginBottom: '1.25rem' }}>
                     <label style={{ display: 'block', color: '#d1d5db', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>Select Team *</label>
                     <select value={incompleteFormData.teamFormSubmissionUuid} onChange={e => {
-                      const team = ageTeams.find(t => t.formSubmissionUuid === e.target.value);
-                      setIncompleteFormData(prev => ({ ...prev, teamFormSubmissionUuid: e.target.value, selectedTeam: team || null, subTeam: null }));
+                      const val = e.target.value;
+                      const team = ageTeams.find(t => (t.formSubmissionUuid || `team-${t.id}`) === val);
+                      setIncompleteFormData(prev => ({ ...prev, teamFormSubmissionUuid: val, selectedTeam: team || null, subTeam: null }));
                     }} style={{
                       width: '100%', padding: '0.65rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)',
                       background: '#1e293b', color: '#f9fafb', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
                     }}>
                       <option value="">— Select a team —</option>
-                      {ageTeams.map(t => (
-                        <option key={t.id} value={t.formSubmissionUuid}>{t.teamName}</option>
-                      ))}
+                      {ageTeams.map(t => {
+                        const optValue = t.formSubmissionUuid || `team-${t.id}`;
+                        return <option key={t.id} value={optValue}>{t.teamName}</option>;
+                      })}
                     </select>
                   </div>
 
@@ -2068,9 +2070,9 @@ export default function ParentPortal() {
                       <select
                         value={recoveryForm.teamFormSubmissionUuid}
                         onChange={(e) => {
-                          const uuid = e.target.value;
-                          const team = recoveryData.teams.find(t => t.formSubmissionUuid === uuid);
-                          setRecoveryForm(prev => ({ ...prev, teamFormSubmissionUuid: uuid, selectedTeam: team, subTeam: null }));
+                          const val = e.target.value;
+                          const team = recoveryData.teams.find(t => (t.formSubmissionUuid || `team-${t.id}`) === val);
+                          setRecoveryForm(prev => ({ ...prev, teamFormSubmissionUuid: val, selectedTeam: team, subTeam: null }));
                         }}
                         style={{
                           width: '100%', padding: '0.75rem', background: '#1f2937', color: '#f9fafb',
@@ -2078,11 +2080,14 @@ export default function ParentPortal() {
                         }}
                       >
                         <option value="">— Choose a team —</option>
-                        {recoveryData.teams.map(t => (
-                          <option key={t.formSubmissionUuid} value={t.formSubmissionUuid}>
-                            {t.teamName}
-                          </option>
-                        ))}
+                        {recoveryData.teams.map(t => {
+                          const optValue = t.formSubmissionUuid || `team-${t.id}`;
+                          return (
+                            <option key={optValue} value={optValue}>
+                              {t.teamName}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
 
