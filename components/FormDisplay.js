@@ -3431,6 +3431,11 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     // Combine form data with prefilled data for submission
     let combinedData = { ...formData, ...prefilledData };
 
+    // Sync number_of_teams (field 32) with actual age_group_teams count (field 33)
+    if (form.id === 1 && Array.isArray(combinedData[33]) && combinedData[33].length > 0) {
+      combinedData[32] = String(combinedData[33].length);
+    }
+
     if (form.id === 2) {
       const entries = getPlayerEntries();
       combinedData.existingCricClubsProfiles = entries.map((_, index) => {

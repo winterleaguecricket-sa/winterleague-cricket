@@ -385,8 +385,13 @@ function extractTeamUpdatesFromSubmission(data) {
     primaryColor: data['23_primaryColor'] || data.primaryColor || '',
     secondaryColor: data['23_secondaryColor'] || data.secondaryColor || '',
     sponsorLogo: data['30'] || data[30] || data.sponsorLogo || '',
-    numberOfTeams: parseInt(data['32'] || data[32] || data.numberOfTeams || 1, 10),
     ageGroupTeams: data['33'] || data[33] || data.ageGroupTeams || [],
+    // Always derive numberOfTeams from actual age group teams count
+    numberOfTeams: (() => {
+      const teams = data['33'] || data[33] || data.ageGroupTeams || [];
+      const count = Array.isArray(teams) ? teams.length : 0;
+      return count > 0 ? count : parseInt(data['32'] || data[32] || data.numberOfTeams || 1, 10);
+    })(),
     kitPricing: { basePrice, markup },
     entryFee: { baseFee },
     submissionData: data

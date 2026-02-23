@@ -74,8 +74,10 @@ export default async function handler(req, res) {
       const primaryColor = data['23_primaryColor'] || '';
       const secondaryColor = data['23_secondaryColor'] || '';
       const sponsorLogo = data[30] || data['30'] || '';
-      const numberOfTeams = parseInt(data[32] || data['32'] || 1);
       const ageGroupTeams = data[33] || data['33'] || [];
+      const numberOfTeams = Array.isArray(ageGroupTeams) && ageGroupTeams.length > 0
+        ? ageGroupTeams.length
+        : parseInt(data[32] || data['32'] || 1);
       const kitPricing = {
         basePrice: data['29_basePrice'] || 150,
         markup: data['29_markup'] || 0
