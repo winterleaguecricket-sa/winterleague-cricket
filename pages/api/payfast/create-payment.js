@@ -34,7 +34,14 @@ export default async function handler(req, res) {
 
     // ===== CREATE ORDER IN DB (atomic with payment) =====
     if (orderData) {
-      const total = parseFloat(orderData.total);
+      // SECURITY: Re-calculate total from items server-side — never trust client total
+      const items = orderData.items || [];
+      const calculatedTotal = items.reduce((sum, item) => {
+        const price = parseFloat(item.price) || 0;
+        const qty = parseInt(item.quantity) || 1;
+        return sum + (price * qty);
+      }, 0);
+      const total = calculatedTotal > 0 ? calculatedTotal : parseFloat(orderData.total);
       if (isNaN(total) || total <= 0) {
         return res.status(400).json({ success: false, error: 'Invalid order amount' });
       }

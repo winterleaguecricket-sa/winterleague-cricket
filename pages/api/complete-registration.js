@@ -20,7 +20,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Email is required' });
       }
 
-      // Check if user has a paid order but no form_submission for form_id=2
+      // Check if user has paid orders
       const orderResult = await query(
         `SELECT order_number, customer_name, customer_phone, total_amount, items, created_at
          FROM orders 
@@ -34,55 +34,77 @@ export default async function handler(req, res) {
         return res.status(200).json({ needsRecovery: false });
       }
 
-      // Check if user has any form_submissions for player registration
+      // Extract all player names from ALL paid orders
+      const allOrderPlayerNames = [];
+      for (const order of orderResult.rows) {
+        const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
+        for (const item of items) {
+          if (item.id === 'basic-kit' && item.selectedSize) {
+            const match = item.selectedSize.match(/Player \d+ - (.+?)\s*\|/);
+            if (match) allOrderPlayerNames.push(match[1].trim());
+          }
+        }
+      }
+
+      // Get existing form_submission player names for this email
       const submissionResult = await query(
-        `SELECT id FROM form_submissions 
+        `SELECT id, data->>'6' as player_name FROM form_submissions 
          WHERE LOWER(customer_email) = LOWER($1) 
-           AND form_id = '2'
-         LIMIT 1`,
+           AND form_id = '2'`,
         [email]
       );
 
-      if (submissionResult.rows.length > 0) {
-        // They already have a form submission - no recovery needed
-        return res.status(200).json({ needsRecovery: false });
-      }
-
-      // Check if they have any team_players records
+      // Get existing team_player names for this email
       const playerResult = await query(
-        `SELECT id FROM team_players 
-         WHERE LOWER(player_email) = LOWER($1)
-         LIMIT 1`,
+        `SELECT id, player_name FROM team_players 
+         WHERE LOWER(player_email) = LOWER($1)`,
         [email]
       );
 
-      if (playerResult.rows.length > 0) {
-        // They have team_players - no recovery needed
+      // Build set of already-registered player names (case-insensitive)
+      const registeredNames = new Set();
+      for (const row of submissionResult.rows) {
+        if (row.player_name) registeredNames.add(row.player_name.trim().toLowerCase());
+      }
+      for (const row of playerResult.rows) {
+        if (row.player_name) registeredNames.add(row.player_name.trim().toLowerCase());
+      }
+
+      // Find orders whose players are NOT yet registered
+      const unmatchedOrders = [];
+      for (const order of orderResult.rows) {
+        const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
+        for (const item of items) {
+          if (item.id === 'basic-kit' && item.selectedSize) {
+            const match = item.selectedSize.match(/Player \d+ - (.+?)\s*\| Shirt: (.+?) \/ Pants: (.+)/);
+            if (match) {
+              const name = match[1].trim();
+              if (!registeredNames.has(name.toLowerCase())) {
+                unmatchedOrders.push({ order, playerName: name, shirtSize: match[2], pantsSize: match[3] });
+              }
+            }
+          }
+        }
+      }
+
+      if (unmatchedOrders.length === 0) {
+        // All paid players are registered — no recovery needed
         return res.status(200).json({ needsRecovery: false });
       }
 
-      // User has paid orders but no registration records - needs recovery
-      // Parse order items to extract what we already know
+      // Recovery needed for unmatched players
+      // Use the first unmatched player's data as the pre-fill
       const orders = orderResult.rows;
       const allItems = [];
-      const playerNames = [];
-      const sizes = {};
+      const playerNames = unmatchedOrders.map(u => u.playerName);
+      const sizes = {
+        shirtSize: unmatchedOrders[0].shirtSize,
+        pantsSize: unmatchedOrders[0].pantsSize
+      };
 
       for (const order of orders) {
         const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
         allItems.push(...items);
-        
-        for (const item of items) {
-          if (item.id === 'basic-kit' && item.selectedSize) {
-            // Parse "Player 1 - Cole Dennehy | Shirt: 11/12 years / Pants: 11/12 years"
-            const match = item.selectedSize.match(/Player \d+ - (.+?) \| Shirt: (.+?) \/ Pants: (.+)/);
-            if (match) {
-              playerNames.push(match[1]);
-              sizes.shirtSize = match[2];
-              sizes.pantsSize = match[3];
-            }
-          }
-        }
       }
 
       // Get list of all teams with their age group details for the dropdown
@@ -262,16 +284,17 @@ export default async function handler(req, res) {
         '_recoveredAt': new Date().toISOString()
       };
 
-      // Check for duplicate submission
+      // Check for duplicate submission (by player name, not just email — parent can register multiple children)
       const existingSubmission = await query(
         `SELECT id FROM form_submissions 
          WHERE LOWER(customer_email) = LOWER($1) AND form_id = '2'
+           AND LOWER(data->>'6') = LOWER($2)
          LIMIT 1`,
-        [email]
+        [email, playerName]
       );
 
       if (existingSubmission.rows.length > 0) {
-        return res.status(409).json({ error: 'Registration already exists for this email' });
+        return res.status(409).json({ error: 'Registration already exists for this player' });
       }
 
       // Check for duplicate team_player
