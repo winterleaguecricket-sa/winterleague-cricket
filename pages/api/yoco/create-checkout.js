@@ -1,6 +1,6 @@
 // API endpoint to create a Yoco checkout session
 // Uses Yoco Online Payments API: https://developer.yoco.com/online/checkout
-// SECURITY: Amount is read from DB order, not trusted from client
+// ATOMIC: Creates order + Yoco checkout in one call — no order without payment session
 import { getYocoConfig } from './config';
 import { query } from '../../../lib/db';
 import { logPaymentEvent, logApiError } from '../../../lib/logger';
@@ -10,11 +10,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let createdOrderNumber = null; // Track for rollback
+
   try {
     const config = await getYocoConfig();
 
     if (!config.secretKey) {
-      logPaymentEvent({ orderId: orderId || 'unknown', email: req.body?.email, amount: null, gateway: 'yoco', status: 'config_error', details: 'Yoco secret key not configured' });
+      logPaymentEvent({ orderId: req.body?.orderId || 'unknown', email: req.body?.email, amount: null, gateway: 'yoco', status: 'config_error', details: 'Yoco secret key not configured' });
       return res.status(400).json({
         success: false,
         error: 'Yoco payment gateway not configured. Please contact administrator.'
@@ -23,7 +25,8 @@ export default async function handler(req, res) {
 
     const {
       orderId, itemName, itemDescription,
-      firstName, lastName, email, phone, customerId
+      firstName, lastName, email, phone, customerId,
+      orderData
     } = req.body;
 
     if (!orderId || !email) {
@@ -33,35 +36,64 @@ export default async function handler(req, res) {
       });
     }
 
-    // SECURITY: Read the order amount from the database — never trust client-sent amount
-    const orderResult = await query(
-      'SELECT total_amount, payment_status FROM orders WHERE order_number = $1',
+    // ===== CHECK FOR EXISTING ORDER (idempotency) =====
+    const existingOrder = await query(
+      'SELECT total_amount, payment_status, gateway_checkout_id FROM orders WHERE order_number = $1',
       [orderId]
     );
 
-    if (orderResult.rows.length === 0) {
+    let serverAmount;
+
+    if (existingOrder.rows.length > 0) {
+      // Order already exists — use its amount (security: don't trust client)
+      const dbOrder = existingOrder.rows[0];
+
+      if (dbOrder.payment_status === 'paid') {
+        return res.status(400).json({
+          success: false,
+          error: 'This order has already been paid.'
+        });
+      }
+
+      serverAmount = parseFloat(dbOrder.total_amount);
+    } else if (orderData) {
+      // ===== CREATE ORDER IN DB (atomic with checkout) =====
+      const total = parseFloat(orderData.total);
+      if (isNaN(total) || total <= 0) {
+        return res.status(400).json({ success: false, error: 'Invalid order amount' });
+      }
+
+      try {
+        await query(
+          `INSERT INTO orders (order_number, customer_email, customer_name, customer_phone, items, total_amount, status, payment_method, payment_status, order_type, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, 'pending', $8, NOW(), NOW())`,
+          [
+            orderData.orderNumber,
+            orderData.customerEmail,
+            orderData.customerName,
+            orderData.customerPhone || '',
+            JSON.stringify(orderData.items || []),
+            total,
+            orderData.paymentMethod || 'yoco',
+            orderData.orderType || 'registration'
+          ]
+        );
+        createdOrderNumber = orderData.orderNumber;
+        serverAmount = total;
+        console.log(`Order ${orderId} created in DB (atomic with Yoco checkout)`);
+      } catch (dbErr) {
+        console.error('Failed to create order in DB:', dbErr.message);
+        return res.status(500).json({ success: false, error: 'Failed to create order. Please try again.' });
+      }
+    } else {
       return res.status(400).json({
         success: false,
-        error: 'Order not found. Please try again.'
+        error: 'Order not found and no order data provided.'
       });
     }
 
-    const dbOrder = orderResult.rows[0];
-
-    // Don't allow checkout for already-paid orders
-    if (dbOrder.payment_status === 'paid') {
-      return res.status(400).json({
-        success: false,
-        error: 'This order has already been paid.'
-      });
-    }
-
-    const serverAmount = parseFloat(dbOrder.total_amount);
     if (isNaN(serverAmount) || serverAmount <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid order amount'
-      });
+      return res.status(400).json({ success: false, error: 'Invalid order amount' });
     }
 
     // Determine the base URL from request headers
@@ -73,7 +105,6 @@ export default async function handler(req, res) {
     const amountInCents = Math.round(serverAmount * 100);
 
     // Build Yoco checkout payload
-    // Docs: https://developer.yoco.com/online/checkout/api
     const checkoutPayload = {
       amount: amountInCents,
       currency: 'ZAR',
@@ -112,6 +143,17 @@ export default async function handler(req, res) {
       console.error('Yoco API error:', yocoData);
       logPaymentEvent({ orderId, email, amount: serverAmount, gateway: 'yoco', status: 'checkout_api_error', details: `Yoco API ${yocoResponse.status}: ${yocoData.message || yocoData.error || 'Unknown'}` });
       logApiError({ method: 'POST', url: '/api/yoco/create-checkout', statusCode: 400, error: `Yoco API error: ${JSON.stringify(yocoData)}`, body: { orderId, email } });
+
+      // ROLLBACK: If we just created the order but Yoco rejected, delete the order
+      if (createdOrderNumber) {
+        try {
+          await query('DELETE FROM orders WHERE order_number = $1 AND payment_status = $2', [createdOrderNumber, 'pending']);
+          console.log(`Rolled back order ${createdOrderNumber} after Yoco API failure`);
+        } catch (rollbackErr) {
+          console.error('Failed to rollback order:', rollbackErr.message);
+        }
+      }
+
       return res.status(400).json({
         success: false,
         error: yocoData.message || yocoData.error || 'Failed to create Yoco checkout'
@@ -132,7 +174,6 @@ export default async function handler(req, res) {
       console.log(`Stored Yoco checkoutId ${yocoData.id} for order ${orderId}`);
     } catch (dbErr) {
       console.error('Failed to store Yoco checkoutId in DB:', dbErr.message);
-      // Don't fail the checkout — payment can still proceed
     }
 
     return res.status(200).json({
@@ -146,6 +187,17 @@ export default async function handler(req, res) {
     console.error('Yoco create-checkout error:', error);
     logApiError({ method: 'POST', url: '/api/yoco/create-checkout', statusCode: 500, error, body: req.body });
     logPaymentEvent({ orderId: req.body?.orderId || 'unknown', email: req.body?.email, amount: null, gateway: 'yoco', status: 'checkout_exception', details: error.message });
+
+    // ROLLBACK: Clean up order if we created one but hit an exception
+    if (createdOrderNumber) {
+      try {
+        await query('DELETE FROM orders WHERE order_number = $1 AND payment_status = $2', [createdOrderNumber, 'pending']);
+        console.log(`Rolled back order ${createdOrderNumber} after exception`);
+      } catch (rollbackErr) {
+        console.error('Failed to rollback order:', rollbackErr.message);
+      }
+    }
+
     return res.status(500).json({
       success: false,
       error: 'Failed to create payment session'

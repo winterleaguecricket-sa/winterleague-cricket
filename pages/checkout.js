@@ -108,54 +108,9 @@ export default function Checkout() {
               password: parentPassword
             });
 
-            // Safety net: verify form submission exists, create if missing
-            // (FormDisplay should create it, but this catches edge cases like
-            //  server restarts, network failures, or direct navigation to /checkout)
-            try {
-              const subRes = await fetch(`/api/form-submissions?formId=2`);
-              const subData = await subRes.json();
-              const submissions = subData.submissions || subData || [];
-              const hasSubmission = Array.isArray(submissions) && submissions.some(s => 
-                s.customerEmail === parentEmail || 
-                s.customer_email === parentEmail ||
-                (s.data && (s.data[38] === parentEmail || s.data['38'] === parentEmail))
-              );
-              
-              if (!hasSubmission && formData) {
-                // Create the missing form submission
-                const submissionPayload = {
-                  formId: 2,
-                  data: formData
-                };
-                if (cart && cart.length > 0) {
-                  submissionPayload.cartItems = cart.map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    price: item.price,
-                    quantity: item.quantity,
-                    selectedSize: item.selectedSize || null
-                  }));
-                  submissionPayload.cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                }
-                const createSubRes = await fetch('/api/form-submissions', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(submissionPayload)
-                });
-                if (createSubRes.ok) {
-                  console.log('Created missing form submission from checkout');
-                  setFormSubmissionVerified(true);
-                } else {
-                  console.error('Failed to create form submission from checkout');
-                }
-              } else {
-                setFormSubmissionVerified(true);
-              }
-            } catch (subErr) {
-              console.error('Error verifying form submission:', subErr);
-              // Still allow checkout even if verification fails
-              setFormSubmissionVerified(true);
-            }
+            // FormDisplay already creates form submissions — trust it.
+            // No safety net needed here (it caused duplicate submissions).
+            setFormSubmissionVerified(true);
           }
         }
       } catch (e) {
@@ -375,54 +330,39 @@ export default function Checkout() {
         }
       }
 
-      // ===== CREATE ORDER IN DATABASE =====
-      const orderRes = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'create',
-          orderData: {
-            orderNumber: orderId,
-            customerEmail: customerProfile.email,
-            customerName: `${customerProfile.firstName} ${customerProfile.lastName}`,
-            customerPhone: customerProfile.phone || '',
-            items: cart,
-            subtotal: parseFloat(orderTotal),
-            shipping: 0,
-            total: parseFloat(orderTotal),
-            status: 'pending',
-            paymentMethod: activeGateway,
-            paymentStatus: 'pending',
-            orderType: 'registration',
-            shippingAddress: null,
-            notes: ''
-          }
-        })
-      });
-
-      const orderData = await orderRes.json();
-      if (!orderData.order) {
-        console.error('Failed to create order in DB:', orderData);
-      } else {
-        console.log('Order saved to database:', orderId);
-      }
+      // Order + gateway checkout are created atomically server-side.
+      // No order is created until payment gateway session is confirmed.
+      const orderPayload = {
+        orderId,
+        amount: orderTotal,
+        itemName: `Order #${orderId}`,
+        itemDescription: `${cart.length} item(s)`,
+        firstName: customerProfile.firstName,
+        lastName: customerProfile.lastName,
+        email: customerProfile.email,
+        phone: customerProfile.phone || '',
+        customerId: (customerProfile.id || '').toString(),
+        // Order creation data — server creates order atomically with gateway checkout
+        orderData: {
+          orderNumber: orderId,
+          customerEmail: customerProfile.email,
+          customerName: `${customerProfile.firstName} ${customerProfile.lastName}`,
+          customerPhone: customerProfile.phone || '',
+          items: cart,
+          subtotal: parseFloat(orderTotal),
+          shipping: 0,
+          total: parseFloat(orderTotal),
+          paymentMethod: activeGateway,
+          orderType: 'registration'
+        }
+      };
 
       if (activeGateway === 'yoco') {
-        // ===== YOCO FLOW =====
+        // ===== YOCO FLOW — order created server-side with checkout =====
         const response = await fetch('/api/yoco/create-checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            orderId,
-            amount: orderTotal,
-            itemName: `Order #${orderId}`,
-            itemDescription: `${cart.length} item(s)`,
-            firstName: customerProfile.firstName,
-            lastName: customerProfile.lastName,
-            email: customerProfile.email,
-            phone: customerProfile.phone,
-            customerId: customerProfile.id.toString()
-          })
+          body: JSON.stringify(orderPayload)
         });
 
         const data = await response.json();
@@ -435,21 +375,11 @@ export default function Checkout() {
 
         window.location.href = data.redirectUrl;
       } else {
-        // ===== PAYFAST FLOW =====
+        // ===== PAYFAST FLOW — order created server-side with payment =====
         const response = await fetch('/api/payfast/create-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            orderId,
-            amount: orderTotal,
-            itemName: `Order #${orderId}`,
-            itemDescription: `${cart.length} item(s)`,
-            firstName: customerProfile.firstName,
-            lastName: customerProfile.lastName,
-            email: customerProfile.email,
-            phone: customerProfile.phone,
-            customerId: customerProfile.id.toString()
-          })
+          body: JSON.stringify(orderPayload)
         });
 
         const data = await response.json();

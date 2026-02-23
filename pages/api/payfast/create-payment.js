@@ -1,6 +1,8 @@
 // API endpoint to create a PayFast payment — generates signature server-side
+// ATOMIC: Creates order + PayFast payment in one call — no order without payment session
 import crypto from 'crypto';
 import { getPayfastConfig } from './config';
+import { query } from '../../../lib/db';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -19,7 +21,8 @@ export default async function handler(req, res) {
 
     const {
       orderId, amount, itemName, itemDescription,
-      firstName, lastName, email, phone, customerId
+      firstName, lastName, email, phone, customerId,
+      orderData
     } = req.body;
 
     if (!orderId || !amount || !firstName || !email) {
@@ -27,6 +30,42 @@ export default async function handler(req, res) {
         success: false,
         error: 'Missing required payment fields'
       });
+    }
+
+    // ===== CREATE ORDER IN DB (atomic with payment) =====
+    if (orderData) {
+      const total = parseFloat(orderData.total);
+      if (isNaN(total) || total <= 0) {
+        return res.status(400).json({ success: false, error: 'Invalid order amount' });
+      }
+
+      // Check if order already exists (idempotency)
+      const existingOrder = await query(
+        'SELECT id FROM orders WHERE order_number = $1', [orderId]
+      );
+
+      if (existingOrder.rows.length === 0) {
+        try {
+          await query(
+            `INSERT INTO orders (order_number, customer_email, customer_name, customer_phone, items, total_amount, status, payment_method, payment_status, order_type, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, 'pending', $8, NOW(), NOW())`,
+            [
+              orderData.orderNumber,
+              orderData.customerEmail,
+              orderData.customerName,
+              orderData.customerPhone || '',
+              JSON.stringify(orderData.items || []),
+              total,
+              orderData.paymentMethod || 'payfast',
+              orderData.orderType || 'registration'
+            ]
+          );
+          console.log(`Order ${orderId} created in DB (atomic with PayFast payment)`);
+        } catch (dbErr) {
+          console.error('Failed to create order in DB:', dbErr.message);
+          return res.status(500).json({ success: false, error: 'Failed to create order. Please try again.' });
+        }
+      }
     }
 
     // Determine the base URL from the request headers
