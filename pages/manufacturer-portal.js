@@ -74,6 +74,17 @@ export default function ManufacturerPortal() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState(null);
+  const [selectedTeamIds, setSelectedTeamIds] = useState(new Set());
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  // ─── STATUS CONFIG ───────────────────────────────────────
+  const STATUS_CONFIG = {
+    pending: { label: 'Pending', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.3)', icon: '⏳' },
+    in_production: { label: 'In Production', color: '#60a5fa', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.3)', icon: '🏭' },
+    ready_for_dispatch: { label: 'Ready for Dispatch', color: '#34d399', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)', icon: '✅' },
+    dispatched: { label: 'Dispatched', color: '#a78bfa', bg: 'rgba(168,85,247,0.12)', border: 'rgba(168,85,247,0.3)', icon: '📦' }
+  };
 
   // ─── FETCH DATA ──────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -152,10 +163,55 @@ export default function ManufacturerPortal() {
 
   // ─── HELPERS ─────────────────────────────────────────────
   const filteredTeams = teamsData.filter(t => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return t.teamName.toLowerCase().includes(q) || t.kitDesignName.toLowerCase().includes(q);
+    const matchesSearch = !searchQuery || t.teamName.toLowerCase().includes(searchQuery.toLowerCase()) || t.kitDesignName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || t.manufacturingStatus === statusFilter;
+    return matchesSearch && matchesStatus;
   });
+
+  // ─── BULK STATUS UPDATE ──────────────────────────────────
+  const toggleTeamSelection = (teamId, e) => {
+    e.stopPropagation();
+    setSelectedTeamIds(prev => {
+      const next = new Set(prev);
+      if (next.has(teamId)) next.delete(teamId);
+      else next.add(teamId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedTeamIds.size === filteredTeams.length) {
+      setSelectedTeamIds(new Set());
+    } else {
+      setSelectedTeamIds(new Set(filteredTeams.map(t => t.id)));
+    }
+  };
+
+  const updateTeamStatus = async (newStatus, teamIds = null) => {
+    const ids = teamIds || Array.from(selectedTeamIds);
+    if (ids.length === 0) return;
+    setUpdatingStatus(true);
+    try {
+      const res = await fetch('/api/manufacturer-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamIds: ids, status: newStatus })
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+      const data = await res.json();
+      // Update local state
+      setTeamsData(prev => prev.map(t => {
+        const updated = data.teams?.find(u => u.id === t.id);
+        return updated ? { ...t, manufacturingStatus: updated.status } : t;
+      }));
+      setSelectedTeamIds(new Set());
+    } catch (err) {
+      console.error('Status update failed:', err);
+      alert('Failed to update status. Please try again.');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   const selectedTeam = selectedTeamId ? teamsData.find(t => t.id === selectedTeamId) : null;
 
@@ -268,19 +324,37 @@ export default function ManufacturerPortal() {
   }
 
   // ─── RENDER: TEAM LIST CARD (clickable → navigates to detail page) ───
-  const renderTeamListCard = (team) => (
+  const renderTeamListCard = (team) => {
+    const sc = STATUS_CONFIG[team.manufacturingStatus] || STATUS_CONFIG.pending;
+    const isSelected = selectedTeamIds.has(team.id);
+    return (
     <div key={team.id}
       onClick={() => navigateToTeam(team.id)}
       onMouseEnter={applyTeamHover}
       onMouseLeave={removeTeamHover}
       style={{
         background: '#111827', borderRadius: '14px',
-        border: '1px solid rgba(255,255,255,0.08)',
+        border: isSelected ? `2px solid ${sc.color}` : '1px solid rgba(255,255,255,0.08)',
         overflow: 'hidden', cursor: 'pointer',
         transition: 'all 0.25s ease',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+        boxShadow: isSelected ? `0 0 12px ${sc.bg}` : '0 1px 3px rgba(0,0,0,0.3)',
+        position: 'relative'
       }}
     >
+      {/* Bulk select checkbox */}
+      <div
+        onClick={(e) => toggleTeamSelection(team.id, e)}
+        style={{
+          position: 'absolute', top: '0.5rem', left: '0.5rem', zIndex: 5,
+          width: '24px', height: '24px', borderRadius: '6px',
+          background: isSelected ? sc.color : 'rgba(0,0,0,0.5)',
+          border: isSelected ? 'none' : '2px solid rgba(255,255,255,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', backdropFilter: 'blur(6px)', transition: 'all 0.15s'
+        }}
+      >
+        {isSelected && <span style={{ color: '#000', fontSize: '0.8rem', fontWeight: 900 }}>✓</span>}
+      </div>
       {/* Kit image preview */}
       <div style={{
         height: '160px', background: '#0f172a',
@@ -371,14 +445,19 @@ export default function ManufacturerPortal() {
           </div>
         )}
 
-        {/* View details arrow */}
+        {/* Status badge + View details */}
         <div style={{
           marginTop: '0.75rem', paddingTop: '0.65rem',
           borderTop: '1px solid rgba(255,255,255,0.06)',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center'
         }}>
-          <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: '600' }}>
-            {team.playerCount} player{team.playerCount !== 1 ? 's' : ''}{(team.sponsorLogos || []).length > 0 ? ` · ${(team.sponsorLogos || []).length} Sponsor${(team.sponsorLogos || []).length > 1 ? 's' : ''}` : ''}
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+            fontSize: '0.72rem', fontWeight: '700', color: sc.color,
+            background: sc.bg, border: `1px solid ${sc.border}`,
+            padding: '0.15rem 0.5rem', borderRadius: '20px'
+          }}>
+            {sc.icon} {sc.label}
           </span>
           <span style={{ fontSize: '0.8rem', color: '#f87171', fontWeight: '700' }}>
             View Details →
@@ -386,7 +465,8 @@ export default function ManufacturerPortal() {
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   // ─── RENDER: TEAM DETAIL PAGE ────────────────────────────
   const renderTeamDetail = () => {
@@ -451,6 +531,14 @@ export default function ManufacturerPortal() {
               <span style={{ fontSize: '0.8rem', color: '#9ca3af', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                 {icons.player} {team.playerCount} paid player{team.playerCount !== 1 ? 's' : ''}
               </span>
+              {team.ageGroupTeams && team.ageGroupTeams.length > 1 && (
+                <span style={{
+                  fontSize: '0.78rem', fontWeight: '700', color: '#fbbf24',
+                  background: 'rgba(251,191,36,0.12)', padding: '0.2rem 0.6rem', borderRadius: '5px'
+                }}>
+                  {team.ageGroupTeams.length} age groups
+                </span>
+              )}
               {(team.sponsorLogos || []).length > 0 && (
                 <span style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: '600' }}>+ {(team.sponsorLogos || []).length} Sponsor{(team.sponsorLogos || []).length > 1 ? 's' : ''}</span>
               )}
@@ -463,6 +551,37 @@ export default function ManufacturerPortal() {
                 </span>
               )}
             </div>
+            {/* Status badge + inline change */}
+            {(() => {
+              const sc = STATUS_CONFIG[team.manufacturingStatus] || STATUS_CONFIG.pending;
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                    fontSize: '0.8rem', fontWeight: 700, color: sc.color,
+                    background: sc.bg, border: `1px solid ${sc.border}`,
+                    padding: '0.25rem 0.7rem', borderRadius: '20px'
+                  }}>
+                    {sc.icon} {sc.label}
+                  </span>
+                  <select
+                    value={team.manufacturingStatus || 'pending'}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => updateTeamStatus(e.target.value, [team.id])}
+                    disabled={updatingStatus}
+                    style={{
+                      padding: '0.3rem 0.6rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600,
+                      background: '#1e293b', color: '#d1d5db', border: '1px solid rgba(255,255,255,0.12)',
+                      cursor: 'pointer', outline: 'none'
+                    }}
+                  >
+                    {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                      <option key={key} value={key}>{cfg.icon} {cfg.label}</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -612,147 +731,253 @@ export default function ManufacturerPortal() {
           </div>
         )}
 
-        {/* ── PLAYER ROSTER TABLE ── */}
+        {/* ── PLAYER ROSTER (GROUPED BY AGE GROUP) ── */}
         <div style={{
           fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.6rem',
           textTransform: 'uppercase', letterSpacing: '0.08em'
         }}>
           Player Roster — {team.playerCount} paid player{team.playerCount !== 1 ? 's' : ''}
+          {team.ageGroupTeams && team.ageGroupTeams.length > 1 ? ` · ${team.ageGroupTeams.length} Age Groups` : ''}
         </div>
 
-        {hasPlayers ? (
-          <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '1.5rem' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', minWidth: '640px' }}>
-                <thead>
-                  <tr style={{ background: '#1e293b' }}>
-                    <th style={thStyle}>#</th>
-                    <th style={{ ...thStyle, textAlign: 'left' }}>Player Name</th>
-                    <th style={{ ...thStyle, textAlign: 'left' }}>DOB</th>
-                    <th style={{ ...thStyle, textAlign: 'left' }}>Shirt Size</th>
-                    <th style={{ ...thStyle, textAlign: 'left' }}>Pants Size</th>
-                    <th style={{ ...thStyle, textAlign: 'center' }}>Shirt No.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {team.players.map((player, idx) => (
-                    <Fragment key={idx}>
-                      <tr style={{
-                        background: idx % 2 === 0 ? '#111827' : '#0f172a',
-                        borderBottom: (player.additionalItems && player.additionalItems.length > 0) ? 'none' : '1px solid rgba(255,255,255,0.04)'
-                      }}>
-                        <td style={{ ...tdStyle, color: '#6b7280', fontWeight: '600', fontSize: '0.82rem', width: '40px' }}>
-                          {idx + 1}
-                        </td>
-                        <td style={{ ...tdStyle, color: '#f1f5f9', fontWeight: '700' }}>
-                          {player.name}
-                        </td>
-                        <td style={tdStyle}>
-                          {player.dateOfBirth ? (
-                            <span style={{
-                              padding: '0.2rem 0.5rem', background: 'rgba(251,191,36,0.1)',
-                              border: '1px solid rgba(251,191,36,0.2)', borderRadius: '4px',
-                              fontSize: '0.78rem', fontWeight: '600', color: '#fcd34d', whiteSpace: 'nowrap'
-                            }}>{(() => { const d = new Date(player.dateOfBirth + 'T00:00:00'); const yy = String(d.getFullYear()).slice(-2); const mm = String(d.getMonth()+1).padStart(2,'0'); const dd = String(d.getDate()).padStart(2,'0'); return `${yy}/${mm}/${dd}`; })()}</span>
-                          ) : (
-                            <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
-                          )}
-                        </td>
-                        <td style={tdStyle}>
-                          {player.shirtSize ? (
-                            <span style={{
-                              padding: '0.2rem 0.5rem', background: 'rgba(96,165,250,0.1)',
-                              border: '1px solid rgba(96,165,250,0.2)', borderRadius: '4px',
-                              fontSize: '0.82rem', fontWeight: '600', color: '#93c5fd'
-                            }}>{player.shirtSize}</span>
-                          ) : (
-                            <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
-                          )}
-                        </td>
-                        <td style={tdStyle}>
-                          {player.pantsSize ? (
-                            <span style={{
-                              padding: '0.2rem 0.5rem', background: 'rgba(34,197,94,0.1)',
-                              border: '1px solid rgba(34,197,94,0.2)', borderRadius: '4px',
-                              fontSize: '0.82rem', fontWeight: '600', color: '#86efac'
-                            }}>{player.pantsSize}</span>
-                          ) : (
-                            <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
-                          )}
-                        </td>
-                        <td style={{ ...tdStyle, textAlign: 'center' }}>
-                          {player.shirtNumber != null ? (
-                            <span style={{
-                              display: 'inline-block', minWidth: '32px',
-                              padding: '0.2rem 0.5rem', background: 'rgba(239,68,68,0.1)',
-                              border: '1px solid rgba(239,68,68,0.25)', borderRadius: '6px',
-                              fontSize: '0.9rem', fontWeight: '800', color: '#fca5a5', textAlign: 'center'
-                            }}>{player.shirtNumber}</span>
-                          ) : (
-                            <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
-                          )}
-                        </td>
-                      </tr>
-                      {player.additionalItems && player.additionalItems.length > 0 && (
-                        <tr style={{
-                          background: idx % 2 === 0 ? '#111827' : '#0f172a',
-                          borderBottom: '1px solid rgba(255,255,255,0.04)'
+        {hasPlayers ? (() => {
+          // Group players by age group (using subTeam field)
+          const ageGroupColors = ['#f87171', '#60a5fa', '#34d399', '#fbbf24', '#a78bfa', '#fb923c'];
+          const groupMap = {};
+          const ungrouped = [];
+
+          for (const player of team.players) {
+            if (player.subTeam) {
+              // Extract age group from subTeam like "Spartans (Male - U13)"
+              const match = player.subTeam.match(/\(([^)]+)\)/);
+              const groupKey = match ? match[1] : player.subTeam;
+              if (!groupMap[groupKey]) groupMap[groupKey] = { label: groupKey, subTeamFull: player.subTeam, players: [] };
+              groupMap[groupKey].players.push(player);
+            } else {
+              ungrouped.push(player);
+            }
+          }
+
+          const groups = Object.values(groupMap);
+          // If team has age_group_teams data, try to match and enrich with coach info
+          if (team.ageGroupTeams && team.ageGroupTeams.length > 0) {
+            for (const agt of team.ageGroupTeams) {
+              const key = `${agt.gender} - ${agt.ageGroup}`;
+              if (groupMap[key]) {
+                groupMap[key].coach = agt.coachName;
+                groupMap[key].coachContact = agt.coachContact;
+                groupMap[key].subTeamName = agt.teamName;
+              }
+            }
+          }
+
+          // If only 1 group or no subTeam data, render as flat table
+          const allGroups = groups.length > 0 ? [...groups] : [];
+          if (ungrouped.length > 0) {
+            allGroups.push({ label: groups.length > 0 ? 'Unassigned' : null, players: ungrouped });
+          }
+
+          const renderPlayerRow = (player, idx, colorAccent) => (
+            <Fragment key={`${player.name}-${idx}`}>
+              <tr style={{
+                background: idx % 2 === 0 ? '#111827' : '#0f172a',
+                borderBottom: (player.additionalItems && player.additionalItems.length > 0) ? 'none' : '1px solid rgba(255,255,255,0.04)'
+              }}>
+                <td style={{ ...tdStyle, color: '#6b7280', fontWeight: '600', fontSize: '0.82rem', width: '40px' }}>
+                  {idx + 1}
+                </td>
+                <td style={{ ...tdStyle, color: '#f1f5f9', fontWeight: '700' }}>
+                  {player.name}
+                </td>
+                <td style={tdStyle}>
+                  {player.dateOfBirth ? (
+                    <span style={{
+                      padding: '0.2rem 0.5rem', background: 'rgba(251,191,36,0.1)',
+                      border: '1px solid rgba(251,191,36,0.2)', borderRadius: '4px',
+                      fontSize: '0.78rem', fontWeight: '600', color: '#fcd34d', whiteSpace: 'nowrap'
+                    }}>{(() => { const d = new Date(player.dateOfBirth + 'T00:00:00'); const yy = String(d.getFullYear()).slice(-2); const mm = String(d.getMonth()+1).padStart(2,'0'); const dd = String(d.getDate()).padStart(2,'0'); return `${yy}/${mm}/${dd}`; })()}</span>
+                  ) : (
+                    <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
+                  )}
+                </td>
+                <td style={tdStyle}>
+                  {player.shirtSize ? (
+                    <span style={{
+                      padding: '0.2rem 0.5rem', background: 'rgba(96,165,250,0.1)',
+                      border: '1px solid rgba(96,165,250,0.2)', borderRadius: '4px',
+                      fontSize: '0.82rem', fontWeight: '600', color: '#93c5fd'
+                    }}>{player.shirtSize}</span>
+                  ) : (
+                    <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
+                  )}
+                </td>
+                <td style={tdStyle}>
+                  {player.pantsSize ? (
+                    <span style={{
+                      padding: '0.2rem 0.5rem', background: 'rgba(34,197,94,0.1)',
+                      border: '1px solid rgba(34,197,94,0.2)', borderRadius: '4px',
+                      fontSize: '0.82rem', fontWeight: '600', color: '#86efac'
+                    }}>{player.pantsSize}</span>
+                  ) : (
+                    <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
+                  )}
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'center' }}>
+                  {player.shirtNumber != null ? (
+                    <span style={{
+                      display: 'inline-block', minWidth: '32px',
+                      padding: '0.2rem 0.5rem', background: 'rgba(239,68,68,0.1)',
+                      border: '1px solid rgba(239,68,68,0.25)', borderRadius: '6px',
+                      fontSize: '0.9rem', fontWeight: '800', color: '#fca5a5', textAlign: 'center'
+                    }}>{player.shirtNumber}</span>
+                  ) : (
+                    <span style={{ color: '#475569', fontStyle: 'italic', fontSize: '0.82rem' }}>—</span>
+                  )}
+                </td>
+              </tr>
+              {player.additionalItems && player.additionalItems.length > 0 && (
+                <tr style={{
+                  background: idx % 2 === 0 ? '#111827' : '#0f172a',
+                  borderBottom: '1px solid rgba(255,255,255,0.04)'
+                }}>
+                  <td colSpan={6} style={{ padding: '0.15rem 1rem 0.65rem 3.2rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Additional Items
+                      </span>
+                      {player.additionalItems.map((ai, aiIdx) => (
+                        <div key={aiIdx} style={{
+                          display: 'flex', alignItems: 'center', gap: '0.6rem',
+                          padding: '0.35rem 0.7rem',
+                          background: ai.isSupporter ? 'rgba(168,85,247,0.06)' : 'rgba(59,130,246,0.06)',
+                          border: `1px solid ${ai.isSupporter ? 'rgba(168,85,247,0.18)' : 'rgba(59,130,246,0.18)'}`,
+                          borderRadius: '6px', fontSize: '0.82rem'
                         }}>
-                          <td colSpan={6} style={{ padding: '0.15rem 1rem 0.65rem 3.2rem' }}>
-                            <div style={{
-                              display: 'flex', flexDirection: 'column', gap: '0.35rem'
-                            }}>
-                              <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Additional Items
+                          {ai.image && (
+                            <img src={ai.image} alt="" style={{
+                              width: '24px', height: '24px', objectFit: 'cover',
+                              borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', flexShrink: 0
+                            }} />
+                          )}
+                          <span style={{ fontWeight: '700', color: ai.isSupporter ? '#c4b5fd' : '#93c5fd', minWidth: '120px' }}>
+                            {ai.name}
+                          </span>
+                          {ai.size && ai.size !== 'One Size' && (
+                            <span style={{
+                              padding: '0.1rem 0.4rem',
+                              background: ai.isSupporter ? 'rgba(168,85,247,0.15)' : 'rgba(59,130,246,0.15)',
+                              borderRadius: '4px', fontSize: '0.78rem', fontWeight: '600',
+                              color: ai.isSupporter ? '#a78bfa' : '#60a5fa'
+                            }}>Size: {ai.size}</span>
+                          )}
+                          {ai.quantity > 1 && (
+                            <span style={{ fontWeight: '800', color: '#94a3b8', fontSize: '0.78rem' }}>×{ai.quantity}</span>
+                          )}
+                          {ai.isSupporter && (
+                            <span style={{
+                              fontSize: '0.65rem', background: 'rgba(168,85,247,0.25)',
+                              padding: '0.12rem 0.4rem', borderRadius: '3px',
+                              color: '#d8b4fe', fontWeight: '700', marginLeft: 'auto'
+                            }}>SUPPORTER</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
+          );
+
+          return (
+            <div style={{ marginBottom: '1.5rem' }}>
+              {allGroups.map((group, gIdx) => {
+                const accentColor = ageGroupColors[gIdx % ageGroupColors.length];
+                // Per-group size summaries
+                const groupShirtSizes = {};
+                const groupPantsSizes = {};
+                for (const p of group.players) {
+                  const ss = p.shirtSize || 'Not specified';
+                  groupShirtSizes[ss] = (groupShirtSizes[ss] || 0) + 1;
+                  const ps = p.pantsSize || 'Not specified';
+                  groupPantsSizes[ps] = (groupPantsSizes[ps] || 0) + 1;
+                }
+                return (
+                  <div key={gIdx} style={{ marginBottom: gIdx < allGroups.length - 1 ? '1.25rem' : 0 }}>
+                    {/* Age group header */}
+                    {group.label && (
+                      <div style={{
+                        background: `linear-gradient(135deg, rgba(17,24,39,0.95) 0%, ${accentColor}15 100%)`,
+                        border: `1px solid ${accentColor}40`,
+                        borderRadius: '10px 10px 0 0', padding: '0.75rem 1.25rem',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                          <span style={{
+                            display: 'inline-block', width: '8px', height: '8px',
+                            borderRadius: '50%', background: accentColor, flexShrink: 0
+                          }}></span>
+                          <span style={{ fontSize: '0.95rem', fontWeight: 800, color: accentColor }}>
+                            {group.subTeamName || group.label}
+                          </span>
+                          <span style={{
+                            fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8',
+                            background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.45rem', borderRadius: '4px'
+                          }}>
+                            {group.players.length} player{group.players.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                          {group.coach && (
+                            <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>
+                              Coach: <span style={{ fontWeight: 700, color: '#d1d5db' }}>{group.coach}</span>
+                            </span>
+                          )}
+                          {/* Inline size summary for this group */}
+                          <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                            {sortSizes(Object.entries(groupShirtSizes)).filter(([s]) => s !== 'Not specified').slice(0, 3).map(([size, count]) => (
+                              <span key={size} style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '0.15rem',
+                                padding: '0.1rem 0.35rem', background: '#1e293b',
+                                border: '1px solid rgba(255,255,255,0.06)', borderRadius: '3px',
+                                fontSize: '0.68rem', color: '#94a3b8', fontWeight: '600'
+                              }}>
+                                {size} <span style={{ color: accentColor, fontWeight: '800' }}>×{count}</span>
                               </span>
-                              {player.additionalItems.map((ai, aiIdx) => (
-                                <div key={aiIdx} style={{
-                                  display: 'flex', alignItems: 'center', gap: '0.6rem',
-                                  padding: '0.35rem 0.7rem',
-                                  background: ai.isSupporter ? 'rgba(168,85,247,0.06)' : 'rgba(59,130,246,0.06)',
-                                  border: `1px solid ${ai.isSupporter ? 'rgba(168,85,247,0.18)' : 'rgba(59,130,246,0.18)'}`,
-                                  borderRadius: '6px', fontSize: '0.82rem'
-                                }}>
-                                  {ai.image && (
-                                    <img src={ai.image} alt="" style={{
-                                      width: '24px', height: '24px', objectFit: 'cover',
-                                      borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', flexShrink: 0
-                                    }} />
-                                  )}
-                                  <span style={{ fontWeight: '700', color: ai.isSupporter ? '#c4b5fd' : '#93c5fd', minWidth: '120px' }}>
-                                    {ai.name}
-                                  </span>
-                                  {ai.size && ai.size !== 'One Size' && (
-                                    <span style={{
-                                      padding: '0.1rem 0.4rem',
-                                      background: ai.isSupporter ? 'rgba(168,85,247,0.15)' : 'rgba(59,130,246,0.15)',
-                                      borderRadius: '4px', fontSize: '0.78rem', fontWeight: '600',
-                                      color: ai.isSupporter ? '#a78bfa' : '#60a5fa'
-                                    }}>Size: {ai.size}</span>
-                                  )}
-                                  {ai.quantity > 1 && (
-                                    <span style={{ fontWeight: '800', color: '#94a3b8', fontSize: '0.78rem' }}>×{ai.quantity}</span>
-                                  )}
-                                  {ai.isSupporter && (
-                                    <span style={{
-                                      fontSize: '0.65rem', background: 'rgba(168,85,247,0.25)',
-                                      padding: '0.12rem 0.4rem', borderRadius: '3px',
-                                      color: '#d8b4fe', fontWeight: '700', marginLeft: 'auto'
-                                    }}>SUPPORTER</span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div style={{
+                      borderRadius: group.label ? '0 0 10px 10px' : '10px',
+                      overflow: 'hidden', border: `1px solid ${group.label ? accentColor + '40' : 'rgba(255,255,255,0.08)'}`,
+                      borderTop: group.label ? 'none' : undefined
+                    }}>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', minWidth: '640px' }}>
+                          <thead>
+                            <tr style={{ background: '#1e293b' }}>
+                              <th style={thStyle}>#</th>
+                              <th style={{ ...thStyle, textAlign: 'left' }}>Player Name</th>
+                              <th style={{ ...thStyle, textAlign: 'left' }}>DOB</th>
+                              <th style={{ ...thStyle, textAlign: 'left' }}>Shirt Size</th>
+                              <th style={{ ...thStyle, textAlign: 'left' }}>Pants Size</th>
+                              <th style={{ ...thStyle, textAlign: 'center' }}>Shirt No.</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {group.players.map((player, idx) => renderPlayerRow(player, idx, accentColor))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        ) : (
+          );
+        })() : (
           <div style={{
             padding: '2rem', textAlign: 'center', background: '#0f172a',
             borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '1.5rem'
@@ -1042,29 +1267,103 @@ export default function ManufacturerPortal() {
                   </h2>
                   <p style={{ margin: '0.25rem 0 0 0', color: '#6b7280', fontSize: '0.85rem' }}>
                     {filteredTeams.length} team{filteredTeams.length !== 1 ? 's' : ''}
-                    {searchQuery ? ` matching "${searchQuery}"` : ''} · {totalPlayers} paid players total
+                    {searchQuery ? ` matching "${searchQuery}"` : ''}
+                    {statusFilter !== 'all' ? ` (${STATUS_CONFIG[statusFilter]?.label})` : ''} · {totalPlayers} paid players total
                   </p>
                 </div>
               </div>
 
-              {/* Search bar */}
-              <div style={{ position: 'relative', marginBottom: '1.5rem' }}>
-                <div style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }}>
-                  {icons.search}
-                </div>
-                <input
-                  type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search teams or kit designs..."
-                  style={{
-                    width: '100%', padding: '0.75rem 1rem 0.75rem 2.8rem',
-                    background: '#111827', border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '10px', color: '#f1f5f9', fontSize: '0.9rem',
-                    outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = 'rgba(220,0,0,0.5)'}
-                  onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-                />
+              {/* Status filter tabs */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                {[{ key: 'all', label: 'All Teams', icon: '📋' }, ...Object.entries(STATUS_CONFIG).map(([key, cfg]) => ({ key, label: cfg.label, icon: cfg.icon }))].map(tab => {
+                  const count = tab.key === 'all' ? teamsData.length : teamsData.filter(t => t.manufacturingStatus === tab.key).length;
+                  const isActive = statusFilter === tab.key;
+                  return (
+                    <button key={tab.key}
+                      onClick={() => { setStatusFilter(tab.key); setSelectedTeamIds(new Set()); }}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                        padding: '0.45rem 0.85rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700,
+                        cursor: 'pointer', transition: 'all 0.15s', border: 'none',
+                        background: isActive ? (tab.key === 'all' ? 'rgba(220,0,0,0.2)' : STATUS_CONFIG[tab.key]?.bg || '#1e293b') : '#1e293b',
+                        color: isActive ? (tab.key === 'all' ? '#f87171' : STATUS_CONFIG[tab.key]?.color || '#94a3b8') : '#94a3b8',
+                        borderBottom: isActive ? `2px solid ${tab.key === 'all' ? '#f87171' : STATUS_CONFIG[tab.key]?.color || '#94a3b8'}` : '2px solid transparent'
+                      }}
+                    >
+                      {tab.icon} {tab.label}
+                      <span style={{
+                        background: 'rgba(255,255,255,0.08)', padding: '0.05rem 0.35rem',
+                        borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800, marginLeft: '0.1rem'
+                      }}>{count}</span>
+                    </button>
+                  );
+                })}
               </div>
+
+              {/* Search bar + Select All row */}
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+                  <div style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }}>
+                    {icons.search}
+                  </div>
+                  <input
+                    type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search teams or kit designs..."
+                    style={{
+                      width: '100%', padding: '0.75rem 1rem 0.75rem 2.8rem',
+                      background: '#111827', border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '10px', color: '#f1f5f9', fontSize: '0.9rem',
+                      outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = 'rgba(220,0,0,0.5)'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
+                  />
+                </div>
+                <button onClick={toggleSelectAll} style={{
+                  padding: '0.75rem 1rem', background: selectedTeamIds.size === filteredTeams.length && filteredTeams.length > 0 ? 'rgba(220,0,0,0.15)' : '#1e293b',
+                  border: selectedTeamIds.size === filteredTeams.length && filteredTeams.length > 0 ? '1px solid rgba(220,0,0,0.3)' : '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '10px', color: selectedTeamIds.size === filteredTeams.length && filteredTeams.length > 0 ? '#f87171' : '#94a3b8',
+                  fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s'
+                }}>
+                  {selectedTeamIds.size === filteredTeams.length && filteredTeams.length > 0 ? '☑ Deselect All' : '☐ Select All'}
+                </button>
+              </div>
+
+              {/* ── BULK ACTION BAR ── */}
+              {selectedTeamIds.size > 0 && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(17,24,39,0.98) 0%, rgba(220,0,0,0.08) 100%)',
+                  border: '1px solid rgba(220,0,0,0.25)', borderRadius: '12px',
+                  padding: '0.85rem 1.25rem', marginBottom: '1.25rem',
+                  display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
+                  boxShadow: '0 4px 16px rgba(220,0,0,0.12)'
+                }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f9fafb', whiteSpace: 'nowrap' }}>
+                    {selectedTeamIds.size} team{selectedTeamIds.size !== 1 ? 's' : ''} selected:
+                  </span>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                      <button key={key}
+                        onClick={() => updateTeamStatus(key)}
+                        disabled={updatingStatus}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                          padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700,
+                          cursor: updatingStatus ? 'wait' : 'pointer', border: `1px solid ${cfg.border}`,
+                          background: cfg.bg, color: cfg.color, transition: 'all 0.15s',
+                          opacity: updatingStatus ? 0.6 : 1
+                        }}
+                      >
+                        {cfg.icon} {cfg.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => setSelectedTeamIds(new Set())} style={{
+                    marginLeft: 'auto', background: 'none', border: 'none',
+                    color: '#6b7280', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer'
+                  }}>✕ Clear</button>
+                </div>
+              )}
 
               {loading && (
                 <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>

@@ -21,7 +21,9 @@ export default async function handler(req, res) {
         t.shirt_design,
         t.submission_data->>'kitDesignImageUrl' as kit_image_url,
         t.submission_data->>'kitDesignImage' as kit_image_fallback,
-        t.submission_data->>'kitDesignId' as kit_design_id
+        t.submission_data->>'kitDesignId' as kit_design_id,
+        t.age_group_teams,
+        t.manufacturing_status
       FROM teams t
       WHERE t.status NOT IN ('archived')
       ORDER BY t.team_name
@@ -34,6 +36,7 @@ export default async function handler(req, res) {
         tp.player_name,
         tp.jersey_size,
         tp.jersey_number,
+        tp.sub_team,
         tp.registration_data->>'formSubmissionId' as fs_id,
         fs.data->>'25_pantsSize' as pants_size,
         fs.data->>'10' as date_of_birth
@@ -131,6 +134,7 @@ export default async function handler(req, res) {
         pantsSize: p.pants_size || '',
         shirtNumber: p.jersey_number,
         dateOfBirth: p.date_of_birth || '',
+        subTeam: p.sub_team || '',
         additionalItems: []  // will be populated below
       });
     }
@@ -220,7 +224,14 @@ export default async function handler(req, res) {
         shirtSizeSummary,
         pantsSizeSummary,
         additionalItems: Object.values(additionalSummary),
-        totalAdditionalQty: allAdditionalItems.reduce((s, i) => s + i.quantity, 0)
+        totalAdditionalQty: allAdditionalItems.reduce((s, i) => s + i.quantity, 0),
+        ageGroupTeams: (() => {
+          try {
+            const arr = typeof t.age_group_teams === 'string' ? JSON.parse(t.age_group_teams) : t.age_group_teams;
+            return Array.isArray(arr) ? arr : [];
+          } catch (e) { return []; }
+        })(),
+        manufacturingStatus: t.manufacturing_status || 'pending'
       };
     });
 
