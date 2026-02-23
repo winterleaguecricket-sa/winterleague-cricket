@@ -52,7 +52,7 @@ export default function Checkout() {
         const savedSubmissionId = localStorage.getItem('formSubmissionId_2');
         if (!savedSubmissionId) {
           console.warn('Checkout: No formSubmissionId_2 found — redirecting to registration form');
-          window.location.replace('/forms/2');
+          window.location.replace('/forms/player-registration');
           return;
         }
 
