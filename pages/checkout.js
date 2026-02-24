@@ -49,11 +49,35 @@ export default function Checkout() {
         // formSubmissionId_2 is set by FormDisplay.js ONLY after the API confirms
         // the form_submission was saved to the database. Without it, the parent
         // must go through the registration form first.
-        const savedSubmissionId = localStorage.getItem('formSubmissionId_2');
+        let savedSubmissionId = localStorage.getItem('formSubmissionId_2');
         if (!savedSubmissionId) {
-          console.warn('Checkout: No formSubmissionId_2 found — redirecting to registration form');
-          window.location.replace('/forms/player-registration');
-          return;
+          // Fallback: if formDraft_2 exists, the parent DID fill the form.
+          // The submissionId might be missing due to a race condition or browser cache.
+          // Verify with the server using the email from the draft before redirecting.
+          const draftRaw = localStorage.getItem('formDraft_2');
+          if (draftRaw) {
+            try {
+              const draftParsed = JSON.parse(draftRaw);
+              const draftEmail = draftParsed?.formData?.[38] || draftParsed?.formData?.['38'] || draftParsed?.formData?.checkout_email || '';
+              if (draftEmail) {
+                const checkRes = await fetch(`/api/form-submissions?checkOnly=true&email=${encodeURIComponent(draftEmail)}&formId=2`);
+                const checkData = await checkRes.json();
+                if (checkData.exists) {
+                  // Submission IS in DB — parent filled the form, localStorage just lost the ID
+                  console.log('Checkout: formSubmissionId_2 missing but server confirmed submission exists for', draftEmail);
+                  savedSubmissionId = 'verified-server';
+                  try { localStorage.setItem('formSubmissionId_2', 'verified-server'); } catch {}
+                }
+              }
+            } catch (e) {
+              console.warn('Checkout: fallback verification failed:', e);
+            }
+          }
+          if (!savedSubmissionId) {
+            console.warn('Checkout: No formSubmissionId_2 and no server submission — redirecting to registration form');
+            window.location.replace('/forms/player-registration');
+            return;
+          }
         }
 
         const savedFormData = localStorage.getItem('formDraft_2');
