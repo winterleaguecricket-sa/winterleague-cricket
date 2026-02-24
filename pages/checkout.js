@@ -152,12 +152,16 @@ export default function Checkout() {
             let profile = null;
             try {
               const lookupRes = await fetch(`/api/customers?email=${encodeURIComponent(parentEmail)}`);
-              const lookupData = await lookupRes.json();
-              if (lookupData && lookupData.id) {
-                profile = lookupData;
+              if (lookupRes.ok) {
+                const lookupData = await lookupRes.json();
+                // API returns { customer: { id, email, ... } }
+                if (lookupData?.customer?.id) {
+                  profile = lookupData.customer;
+                }
               }
+              // 404 = customer not found yet — that's normal for first-time parents
             } catch (lookupErr) {
-              console.error('Error looking up customer profile:', lookupErr);
+              // Network error — continue with local profile
             }
 
             // DO NOT create customer in DB here — only store locally for the UI.
