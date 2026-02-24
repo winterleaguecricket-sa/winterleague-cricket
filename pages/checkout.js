@@ -149,17 +149,18 @@ export default function Checkout() {
 
           if (parentEmail && firstName) {
             // Check if profile already exists in DB (from a previous completed order)
+            // Uses POST lookup action to avoid 404 console errors for new customers
             let profile = null;
             try {
-              const lookupRes = await fetch(`/api/customers?email=${encodeURIComponent(parentEmail)}`);
-              if (lookupRes.ok) {
-                const lookupData = await lookupRes.json();
-                // API returns { customer: { id, email, ... } }
-                if (lookupData?.customer?.id) {
-                  profile = lookupData.customer;
-                }
+              const lookupRes = await fetch('/api/customers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'lookup', email: parentEmail })
+              });
+              const lookupData = await lookupRes.json();
+              if (lookupData?.found && lookupData?.profile?.id) {
+                profile = lookupData.profile;
               }
-              // 404 = customer not found yet — that's normal for first-time parents
             } catch (lookupErr) {
               // Network error — continue with local profile
             }
