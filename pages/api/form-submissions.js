@@ -37,6 +37,7 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       const { formId, data, cartItems, cartTotal } = req.body;
+      console.log(`[form-submissions] POST received — formId: ${formId}, hasData: ${!!data}, email: ${data?.[38] || data?.checkout_email || 'none'}, bodySize: ${JSON.stringify(req.body).length}`);
 
       if (!formId || !data) {
         return res.status(400).json({ error: 'Form ID and data are required' });

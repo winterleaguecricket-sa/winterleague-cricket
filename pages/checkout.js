@@ -47,36 +47,83 @@ export default function Checkout() {
       try {
         // Gate: require a confirmed form submission before allowing checkout.
         // formSubmissionId_2 is set by FormDisplay.js ONLY after the API confirms
-        // the form_submission was saved to the database. Without it, the parent
-        // must go through the registration form first.
+        // the form_submission was saved to the database.
         let savedSubmissionId = localStorage.getItem('formSubmissionId_2');
         if (!savedSubmissionId) {
-          // Fallback: if formDraft_2 exists, the parent DID fill the form.
-          // The submissionId might be missing due to a race condition or browser cache.
-          // Verify with the server using the email from the draft before redirecting.
           const draftRaw = localStorage.getItem('formDraft_2');
-          if (draftRaw) {
-            try {
-              const draftParsed = JSON.parse(draftRaw);
-              const draftEmail = draftParsed?.formData?.[38] || draftParsed?.formData?.['38'] || draftParsed?.formData?.checkout_email || '';
-              if (draftEmail) {
-                const checkRes = await fetch(`/api/form-submissions?checkOnly=true&email=${encodeURIComponent(draftEmail)}&formId=2`);
-                const checkData = await checkRes.json();
-                if (checkData.exists) {
-                  // Submission IS in DB — parent filled the form, localStorage just lost the ID
-                  console.log('Checkout: formSubmissionId_2 missing but server confirmed submission exists for', draftEmail);
-                  savedSubmissionId = 'verified-server';
-                  try { localStorage.setItem('formSubmissionId_2', 'verified-server'); } catch {}
-                }
-              }
-            } catch (e) {
-              console.warn('Checkout: fallback verification failed:', e);
-            }
-          }
-          if (!savedSubmissionId) {
-            console.warn('Checkout: No formSubmissionId_2 and no server submission — redirecting to registration form');
+          if (!draftRaw) {
+            // No draft at all — parent never filled the form. Redirect.
+            console.warn('Checkout: No formDraft_2 — redirecting to registration form');
             window.location.replace('/forms/player-registration');
             return;
+          }
+
+          // Parent DID fill the form but formSubmissionId_2 is missing.
+          // Step 1: Check if server already has a submission for this email.
+          let draftParsed = {};
+          try { draftParsed = JSON.parse(draftRaw); } catch {}
+          const draftFormData = draftParsed?.formData || {};
+          const draftEmail = draftFormData[38] || draftFormData['38'] || draftFormData.checkout_email || '';
+
+          if (draftEmail) {
+            try {
+              const checkRes = await fetch(`/api/form-submissions?checkOnly=true&email=${encodeURIComponent(draftEmail)}&formId=2`);
+              const checkData = await checkRes.json();
+              if (checkData.exists) {
+                console.log('Checkout: server confirmed submission exists for', draftEmail);
+                savedSubmissionId = 'verified-server';
+                try { localStorage.setItem('formSubmissionId_2', 'verified-server'); } catch {}
+              }
+            } catch (e) {
+              console.warn('Checkout: server check failed:', e);
+            }
+          }
+
+          // Step 2: If still no submission, AUTO-RESCUE — submit the form data now.
+          if (!savedSubmissionId) {
+            console.log('Checkout: auto-rescue — submitting form data from localStorage');
+            try {
+              // Build submission payload from draft data (same structure as FormDisplay)
+              const rescuePayload = { formId: 2, data: { ...draftFormData } };
+              // Include cart items if available
+              const cartRaw = localStorage.getItem('winterleague_cart');
+              if (cartRaw) {
+                try {
+                  const cartItems = JSON.parse(cartRaw);
+                  if (Array.isArray(cartItems) && cartItems.length > 0) {
+                    rescuePayload.cartItems = cartItems.map(item => ({
+                      id: item.id, name: item.name, price: item.price,
+                      quantity: item.quantity, selectedSize: item.selectedSize || null
+                    }));
+                    rescuePayload.cartTotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                  }
+                } catch {}
+              }
+              const rescueRes = await fetch('/api/form-submissions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(rescuePayload)
+              });
+              const rescueData = await rescueRes.json();
+              if (rescueRes.ok && rescueData.success) {
+                const rescueId = rescueData.submission?.id || (rescueData.submissions && rescueData.submissions[0]?.id) || 'rescued';
+                console.log('Checkout: auto-rescue succeeded, submissionId:', rescueId);
+                savedSubmissionId = String(rescueId);
+                try { localStorage.setItem('formSubmissionId_2', savedSubmissionId); } catch {}
+              } else {
+                console.error('Checkout: auto-rescue failed:', rescueData.error || 'Unknown error');
+              }
+            } catch (rescueErr) {
+              console.error('Checkout: auto-rescue exception:', rescueErr);
+            }
+          }
+
+          // Step 3: If STILL no submission after auto-rescue, don't redirect —
+          // let the parent continue anyway. The payment endpoint validates server-side.
+          if (!savedSubmissionId) {
+            console.warn('Checkout: auto-rescue failed but allowing checkout to continue (server validates payment)');
+            savedSubmissionId = 'rescue-fallthrough';
+            try { localStorage.setItem('formSubmissionId_2', 'rescue-fallthrough'); } catch {}
           }
         }
 

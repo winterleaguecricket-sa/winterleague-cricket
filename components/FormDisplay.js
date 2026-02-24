@@ -3501,6 +3501,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
         }));
         submissionPayload.cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       }
+      console.log('[FormDisplay] Submitting form', form.id, '— payload size:', JSON.stringify(submissionPayload).length, 'bytes');
       const response = await fetch('/api/form-submissions', {
         method: 'POST',
         headers: {
@@ -3509,7 +3510,9 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
         body: JSON.stringify(submissionPayload)
       });
 
+      console.log('[FormDisplay] API response status:', response.status);
       const result = await response.json();
+      console.log('[FormDisplay] API result:', result.success ? 'success' : 'FAILED', result.error || '', 'submissionId:', result.submission?.id || result.submissions?.[0]?.id || 'NONE');
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to submit form');
@@ -3577,10 +3580,16 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
         // Without this, the checkout page will redirect back to the registration form
         try {
           const submissionId = result.submission?.id || (result.submissions && result.submissions[0]?.id);
+          console.log('[FormDisplay] Setting formSubmissionId_2:', submissionId || 'UNDEFINED');
           if (submissionId) {
             localStorage.setItem('formSubmissionId_2', String(submissionId));
+            console.log('[FormDisplay] formSubmissionId_2 saved to localStorage successfully');
+          } else {
+            console.error('[FormDisplay] WARNING: No submission ID in API response — formSubmissionId_2 NOT saved');
           }
-        } catch {}
+        } catch (lsErr) {
+          console.error('[FormDisplay] localStorage.setItem failed:', lsErr);
+        }
         // Don't clear formDraft yet — checkout page needs it for customer profile
         if (onSubmitSuccess) {
           onSubmitSuccess(result.submission);
@@ -3609,7 +3618,15 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
         onSubmitSuccess(result.submission);
       }
     } catch (error) {
-      console.error('Form submission error:', error);
+      console.error('[FormDisplay] Form submission error:', error?.message || error, error?.stack || '');
+      // Log to server for remote debugging
+      try {
+        fetch('/api/error-logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: 'FormDisplay.handleSubmit', error: error?.message || String(error), formId: form?.id })
+        }).catch(() => {});
+      } catch {}
       setSubmitting(false);
       setFormAlert({ open: true, message: 'There was an error submitting the form. Please try again.' });
     }
