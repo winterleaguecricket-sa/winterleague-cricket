@@ -1053,9 +1053,9 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     }
 
     // For team logo (22) and sponsor logo (30) on team registration form,
-    // upload to server as a file to avoid base64 bloat in the database
-    const UPLOAD_FIELDS = [22, 30];
-    if (UPLOAD_FIELDS.includes(fieldId)) {
+    // use the existing site-asset upload endpoint
+    const SITE_ASSET_FIELDS = [22, 30];
+    if (SITE_ASSET_FIELDS.includes(fieldId)) {
       try {
         const fd = new FormData();
         fd.append('file', file);
@@ -1070,10 +1070,29 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
         return;
       } catch (err) {
         console.error('Image upload failed, falling back to base64:', err);
-        // Fall through to base64 if upload fails
+        // Fall through to file upload below
       }
     }
 
+    // Upload as file to avoid base64 bloat in the database
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/upload-submission-image?fieldKey=${fieldId}`, {
+        method: 'POST',
+        body: fd,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        handleInputChange(fieldId, data.url);
+        return;
+      }
+      console.error('Image upload to file failed, falling back to base64');
+    } catch (err) {
+      console.error('Image upload error, falling back to base64:', err);
+    }
+
+    // Final fallback to base64
     const reader = new FileReader();
     reader.onloadend = () => {
       handleInputChange(fieldId, reader.result);
@@ -1096,7 +1115,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
     });
   };
 
-  const handlePlayerFileUpload = (file, index, fieldKey, label) => {
+  const handlePlayerFileUpload = async (file, index, fieldKey, label) => {
     if (!file) return;
     if (file.size > MAX_UPLOAD_BYTES) {
       setFormAlert({
@@ -1106,6 +1125,25 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
       return;
     }
 
+    // Upload as file to avoid base64 bloat in the database
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/upload-submission-image?fieldKey=${fieldKey}`, {
+        method: 'POST',
+        body: fd,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        updatePlayerEntry(index, { [fieldKey]: data.url });
+        return;
+      }
+      console.error('Player image upload failed, falling back to base64');
+    } catch (err) {
+      console.error('Player image upload error, falling back to base64:', err);
+    }
+
+    // Fallback to base64 if upload fails
     const reader = new FileReader();
     reader.onloadend = () => {
       updatePlayerEntry(index, { [fieldKey]: reader.result });

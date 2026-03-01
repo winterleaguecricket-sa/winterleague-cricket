@@ -54,6 +54,11 @@ export default function AdminForms() {
   const [submissionData, setSubmissionData] = useState({});
   const [selectedSubmissionForm, setSelectedSubmissionForm] = useState('all'); // Track which form's submissions to show
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  const [submissionPage, setSubmissionPage] = useState(1);
+  const [submissionTotal, setSubmissionTotal] = useState(0);
+  const [submissionTotalPages, setSubmissionTotalPages] = useState(1);
+  const [expandedSubmissionData, setExpandedSubmissionData] = useState({}); // Cache of full submission data by ID
+  const [loadingFullSubmission, setLoadingFullSubmission] = useState(null); // ID of submission being loaded
   const [backgroundImage, setBackgroundImage] = useState('');
   const [backgroundUploading, setBackgroundUploading] = useState(false);
   const [backgroundSaving, setBackgroundSaving] = useState(false);
@@ -79,18 +84,13 @@ export default function AdminForms() {
     };
     loadDesigns();
     
-    // Load submission counts from database
+    // Load submission counts from database (lightweight counts-only endpoint)
     const loadSubmissionCounts = async () => {
       try {
-        const response = await fetch('/api/submissions');
+        const response = await fetch('/api/submissions?counts=true');
         if (response.ok) {
-          const { submissions: dbSubmissions } = await response.json();
-          const counts = {};
-          (dbSubmissions || []).forEach(sub => {
-            const formId = sub.formId;
-            counts[formId] = (counts[formId] || 0) + 1;
-          });
-          setSubmissionCounts(counts);
+          const { counts } = await response.json();
+          setSubmissionCounts(counts || {});
         }
       } catch (error) {
         console.log('Could not load submission counts:', error.message);
@@ -129,9 +129,12 @@ export default function AdminForms() {
         setLoadingSubmissions(true);
         
         try {
-          const response = await fetch('/api/submissions');
+          const url = selectedSubmissionForm === 'all' 
+            ? '/api/submissions?page=1&limit=50'
+            : `/api/submissions?formId=${selectedSubmissionForm}&page=1&limit=50`;
+          const response = await fetch(url);
           if (response.ok) {
-            const { submissions: dbSubmissions } = await response.json();
+            const { submissions: dbSubmissions, pagination } = await response.json();
             
             // Map database submissions to expected format
             const mappedSubmissions = (dbSubmissions || []).map(sub => ({
@@ -147,6 +150,11 @@ export default function AdminForms() {
             }));
             
             setSubmissions(mappedSubmissions);
+            if (pagination) {
+              setSubmissionPage(pagination.page);
+              setSubmissionTotal(pagination.total);
+              setSubmissionTotalPages(pagination.totalPages);
+            }
           } else {
             console.error('Failed to fetch submissions');
             setSubmissions([]);
@@ -617,17 +625,23 @@ export default function AdminForms() {
   const handleViewSubmissions = async (form) => {
     setSelectedForm(form);
     setLoadingSubmissions(true);
+    setSelectedSubmissionForm(String(form.id));
     
     try {
-      const response = await fetch(`/api/submissions?formId=${form.id}`);
+      const response = await fetch(`/api/submissions?formId=${form.id}&page=1&limit=50`);
       if (response.ok) {
-        const { submissions: dbSubmissions } = await response.json();
+        const { submissions: dbSubmissions, pagination } = await response.json();
         const mappedSubmissions = (dbSubmissions || []).map(sub => ({
           ...sub,
           shortId: formatSubmissionId(sub.id),
           formName: form.name
         }));
         setSubmissions(mappedSubmissions);
+        if (pagination) {
+          setSubmissionPage(pagination.page);
+          setSubmissionTotal(pagination.total);
+          setSubmissionTotalPages(pagination.totalPages);
+        }
       } else {
         setSubmissions([]);
       }
@@ -640,7 +654,64 @@ export default function AdminForms() {
     setActiveTab('submissions');
   };
 
-  const handleEditSubmission = (submission) => {
+  // Lazy-load full submission data (including images) when viewing a single submission
+  const loadFullSubmission = async (submission) => {
+    // Check if we already have full data cached
+    if (expandedSubmissionData[submission.id]) {
+      setViewingSubmission({ ...submission, data: expandedSubmissionData[submission.id] });
+      return;
+    }
+    
+    setLoadingFullSubmission(submission.id);
+    setViewingSubmission(submission); // Show immediately with lightweight data
+    
+    try {
+      const response = await fetch(`/api/submissions?id=${submission.id}`);
+      if (response.ok) {
+        const { submission: fullSub } = await response.json();
+        if (fullSub && fullSub.data) {
+          // Cache the full data
+          setExpandedSubmissionData(prev => ({ ...prev, [submission.id]: fullSub.data }));
+          setViewingSubmission(prev => prev && prev.id === submission.id ? { ...prev, data: fullSub.data } : prev);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading full submission:', error);
+    }
+    
+    setLoadingFullSubmission(null);
+  };
+
+  const handleEditSubmission = async (submission) => {
+    // Check if we have full data cached, otherwise fetch it
+    if (expandedSubmissionData[submission.id]) {
+      const fullSubmission = { ...submission, data: expandedSubmissionData[submission.id] };
+      setEditingSubmission(fullSubmission);
+      setSubmissionData({ ...expandedSubmissionData[submission.id] });
+      return;
+    }
+    
+    // Load full data first
+    setLoadingFullSubmission(submission.id);
+    try {
+      const response = await fetch(`/api/submissions?id=${submission.id}`);
+      if (response.ok) {
+        const { submission: fullSub } = await response.json();
+        if (fullSub && fullSub.data) {
+          setExpandedSubmissionData(prev => ({ ...prev, [submission.id]: fullSub.data }));
+          const fullSubmission = { ...submission, data: fullSub.data };
+          setEditingSubmission(fullSubmission);
+          setSubmissionData({ ...fullSub.data });
+          setLoadingFullSubmission(null);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading submission for edit:', error);
+    }
+    setLoadingFullSubmission(null);
+    
+    // Fallback to lightweight data
     setEditingSubmission(submission);
     setSubmissionData({ ...(submission.data || {}) });
   };
@@ -1095,15 +1166,20 @@ export default function AdminForms() {
                 onClick={async () => {
                   setLoadingSubmissions(true);
                   try {
-                    const response = await fetch('/api/submissions');
+                    const response = await fetch('/api/submissions?page=1&limit=50');
                     if (response.ok) {
-                      const { submissions: dbSubmissions } = await response.json();
+                      const { submissions: dbSubmissions, pagination } = await response.json();
                       const mappedSubmissions = (dbSubmissions || []).map(sub => ({
                         ...sub,
                         shortId: formatSubmissionId(sub.id),
                         formName: forms.find(f => f.id === sub.formId)?.name || 'Unknown Form'
                       }));
                       setSubmissions(mappedSubmissions);
+                      if (pagination) {
+                        setSubmissionPage(pagination.page);
+                        setSubmissionTotal(pagination.total);
+                        setSubmissionTotalPages(pagination.totalPages);
+                      }
                     } else {
                       setSubmissions([]);
                     }
@@ -2482,7 +2558,7 @@ export default function AdminForms() {
                             if (window.innerWidth > 768) return;
                             const tag = e.target.tagName;
                             if (['BUTTON', 'SELECT', 'OPTION', 'A', 'INPUT', 'TEXTAREA', 'LABEL', 'IMG', 'SVG', 'PATH'].includes(tag)) return;
-                            setViewingSubmission(submission);
+                            loadFullSubmission(submission);
                           }}
                         >
                           <td className={styles.idCell}>#{submission.shortId || formatSubmissionId(submission.id)}</td>
@@ -2524,10 +2600,10 @@ export default function AdminForms() {
                           <td>
                             <div className={styles.submissionActions}>
                               <button 
-                                onClick={() => setViewingSubmission(submission)}
+                                onClick={() => loadFullSubmission(submission)}
                                 className={styles.viewBtn}
                               >
-                                View
+                                {loadingFullSubmission === submission.id ? 'Loading...' : 'View'}
                               </button>
                               <button
                                 onClick={() => handleEditSubmission(submission)}
@@ -2548,6 +2624,101 @@ export default function AdminForms() {
                     })}
                   </tbody>
                 </table>
+
+                {/* Pagination Controls */}
+                {submissionTotalPages > 1 && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '1rem 0',
+                    borderTop: '1px solid #e5e7eb',
+                    marginTop: '0.5rem'
+                  }}>
+                    <button
+                      onClick={async () => {
+                        if (submissionPage <= 1) return;
+                        const newPage = submissionPage - 1;
+                        setLoadingSubmissions(true);
+                        try {
+                          const formFilter = selectedSubmissionForm !== 'all' ? `&formId=${selectedSubmissionForm}` : '';
+                          const response = await fetch(`/api/submissions?page=${newPage}&limit=50${formFilter}`);
+                          if (response.ok) {
+                            const { submissions: dbSubmissions, pagination } = await response.json();
+                            const mappedSubmissions = (dbSubmissions || []).map(sub => ({
+                              ...sub,
+                              shortId: formatSubmissionId(sub.id),
+                              formName: sub.formName || forms.find(f => f.id === sub.formId)?.name || 'Unknown Form'
+                            }));
+                            setSubmissions(mappedSubmissions);
+                            if (pagination) {
+                              setSubmissionPage(pagination.page);
+                              setSubmissionTotal(pagination.total);
+                              setSubmissionTotalPages(pagination.totalPages);
+                            }
+                          }
+                        } catch (error) {
+                          console.error('Error fetching page:', error);
+                        }
+                        setLoadingSubmissions(false);
+                      }}
+                      disabled={submissionPage <= 1 || loadingSubmissions}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        borderRadius: '6px',
+                        border: '1px solid #d1d5db',
+                        background: submissionPage <= 1 ? '#f3f4f6' : 'white',
+                        cursor: submissionPage <= 1 ? 'not-allowed' : 'pointer',
+                        color: submissionPage <= 1 ? '#9ca3af' : '#374151'
+                      }}
+                    >
+                      ← Previous
+                    </button>
+                    <span style={{ color: '#6b7280', fontSize: '0.9rem' }}>
+                      Page {submissionPage} of {submissionTotalPages} ({submissionTotal} total)
+                    </span>
+                    <button
+                      onClick={async () => {
+                        if (submissionPage >= submissionTotalPages) return;
+                        const newPage = submissionPage + 1;
+                        setLoadingSubmissions(true);
+                        try {
+                          const formFilter = selectedSubmissionForm !== 'all' ? `&formId=${selectedSubmissionForm}` : '';
+                          const response = await fetch(`/api/submissions?page=${newPage}&limit=50${formFilter}`);
+                          if (response.ok) {
+                            const { submissions: dbSubmissions, pagination } = await response.json();
+                            const mappedSubmissions = (dbSubmissions || []).map(sub => ({
+                              ...sub,
+                              shortId: formatSubmissionId(sub.id),
+                              formName: sub.formName || forms.find(f => f.id === sub.formId)?.name || 'Unknown Form'
+                            }));
+                            setSubmissions(mappedSubmissions);
+                            if (pagination) {
+                              setSubmissionPage(pagination.page);
+                              setSubmissionTotal(pagination.total);
+                              setSubmissionTotalPages(pagination.totalPages);
+                            }
+                          }
+                        } catch (error) {
+                          console.error('Error fetching page:', error);
+                        }
+                        setLoadingSubmissions(false);
+                      }}
+                      disabled={submissionPage >= submissionTotalPages || loadingSubmissions}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        borderRadius: '6px',
+                        border: '1px solid #d1d5db',
+                        background: submissionPage >= submissionTotalPages ? '#f3f4f6' : 'white',
+                        cursor: submissionPage >= submissionTotalPages ? 'not-allowed' : 'pointer',
+                        color: submissionPage >= submissionTotalPages ? '#9ca3af' : '#374151'
+                      }}
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
 
                 {editingSubmission && (() => {
                   const submissionForm = forms.find(f => f.id === editingSubmission.formId);

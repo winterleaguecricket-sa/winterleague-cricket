@@ -12,9 +12,19 @@ export default async function handler(req, res) {
   // GET - Fetch submissions
   if (req.method === 'GET') {
     try {
-      const { formId, id } = req.query;
+      const { formId, id, counts, lightweight: lightweightParam, page, limit: limitParam } = req.query;
+
+      // Fast counts — returns only submission counts per form (no data)
+      if (counts === 'true') {
+        const result = await query(
+          `SELECT form_id, COUNT(*)::int AS count FROM form_submissions GROUP BY form_id`
+        );
+        const countMap = {};
+        result.rows.forEach(row => { countMap[row.form_id] = row.count; });
+        return res.status(200).json({ counts: countMap });
+      }
       
-      // Get single submission by ID
+      // Get single submission by ID — always returns full data
       if (id) {
         const result = await query(
           `SELECT * FROM form_submissions WHERE id = $1`,
@@ -29,29 +39,54 @@ export default async function handler(req, res) {
         return res.status(200).json({ submission });
       }
       
-      // Get all submissions or filter by formId
-      const lightweight = req.query.lightweight === 'true';
+      // List submissions — always lightweight by default (strip base64 images)
+      // Use lightweight=false to explicitly get full data (for export, etc.)
+      const lightweight = lightweightParam !== 'false';
+      
+      // Pagination support
+      const pageNum = Math.max(1, parseInt(page) || 1);
+      const pageLimit = Math.min(500, Math.max(1, parseInt(limitParam) || 50));
+      const offset = (pageNum - 1) * pageLimit;
+
+      // Count total for pagination metadata
+      let countSql = `SELECT COUNT(*)::int AS total FROM form_submissions`;
       let sql = `SELECT * FROM form_submissions`;
       const params = [];
+      const countParams = [];
       
       if (formId) {
         sql += ` WHERE form_id = $1`;
+        countSql += ` WHERE form_id = $1`;
         params.push(formId.toString());
+        countParams.push(formId.toString());
       }
       
-      sql += ` ORDER BY created_at DESC`;
-      
-      const result = await query(sql, params);
+      sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+      params.push(pageLimit, offset);
+
+      const [result, countResult] = await Promise.all([
+        query(sql, params),
+        query(countSql, countParams)
+      ]);
+
+      const total = countResult.rows[0]?.total || 0;
       const submissions = result.rows.map(row => {
         const s = formatSubmission(row);
         if (lightweight) {
-          // Strip base64 data and large values to reduce payload size
           s.data = stripHeavyData(s.data);
         }
         return s;
       });
       
-      return res.status(200).json({ submissions });
+      return res.status(200).json({
+        submissions,
+        pagination: {
+          page: pageNum,
+          limit: pageLimit,
+          total,
+          totalPages: Math.ceil(total / pageLimit)
+        }
+      });
       
     } catch (error) {
       console.error('Error fetching submissions:', error);
