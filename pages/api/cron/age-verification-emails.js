@@ -69,7 +69,13 @@ export async function runAgeVerificationEmails(dryRun = false) {
         hasAccount: false,
       };
     }
-    parentMap[email].players.push(player);
+    // Deduplicate: skip if same player name already listed for this parent
+    const alreadyListed = parentMap[email].players.some(
+      p => p.playerName === player.playerName && p.ageGroup === player.ageGroup
+    );
+    if (!alreadyListed) {
+      parentMap[email].players.push(player);
+    }
     if (player.paid) parentMap[email].hasPaid = true;
     if (player.hasAccount) parentMap[email].hasAccount = true;
   }
