@@ -19,6 +19,7 @@
     "@uiw/react-color-wheel": "^2.9.2",
     "bcrypt": "^6.0.0",
     "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
     "flatpickr": "^4.6.13",
     "formidable": "^3.5.2",
     "next": "^14.2.32",

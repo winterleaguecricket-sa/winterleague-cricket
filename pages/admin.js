@@ -374,6 +374,13 @@ export default function Admin() {
             <h3 className={styles.cardTitle}>Error Logs</h3>
             <p className={styles.cardDescription}>View server errors, form events, and system logs</p>
           </Link>
+          <Link href="/admin/manufacturing" className={styles.card}>
+            <div className={styles.cardIcon}>
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 20h20"/><path d="M5 20V8l3-3h8l3 3v12"/><rect x="9" y="12" width="6" height="8" rx="1"/><path d="M9 8h6"/></svg>
+            </div>
+            <h3 className={styles.cardTitle}>Manufacturing</h3>
+            <p className={styles.cardDescription}>Batch kit orders for manufacturer — Excel export &amp; tracking</p>
+          </Link>
           <Link href="/admin/analytics" className={styles.card}>
             <div className={styles.cardIcon}>
               <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>

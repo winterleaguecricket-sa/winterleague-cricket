@@ -3815,9 +3815,9 @@ export default function ParentPortal() {
                             <div style={{ fontSize: '0.85rem', color: '#9ca3af', marginBottom: '0.5rem' }}>
                               {formatDate(history.timestamp)}
                             </div>
-                            {history.notes && (
+                            {(history.notes || history.note) && (
                               <div style={{ fontSize: '0.9rem', color: '#d1d5db', fontStyle: 'italic' }}>
-                                {history.notes}
+                                {history.notes || history.note}
                               </div>
                             )}
                           </div>
