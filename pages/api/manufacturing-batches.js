@@ -179,6 +179,33 @@ export default async function handler(req, res) {
         return res.status(200).json({ players: enriched });
       }
 
+      // Get paid batches for a team (for team portal notifications)
+      if (action === 'team-paid-batches' && teamId) {
+        const batches = await query(`
+          SELECT mb.id, mb.batch_number, mb.status, mb.total_players, mb.paid_at, t.team_name
+          FROM manufacturing_batches mb
+          JOIN teams t ON t.id = mb.team_id
+          WHERE mb.team_id = $1 AND mb.status = 'paid'
+          ORDER BY mb.paid_at DESC
+        `, [teamId]);
+
+        // For each batch, get the players
+        const batchesWithPlayers = [];
+        for (const batch of batches.rows) {
+          const players = await query(`
+            SELECT mbp.player_name, mbp.sub_team, mbp.shirt_size, mbp.pants_size,
+                   tp.jersey_number as shirt_number
+            FROM manufacturing_batch_players mbp
+            LEFT JOIN team_players tp ON tp.id = mbp.team_player_id
+            WHERE mbp.batch_id = $1
+            ORDER BY mbp.sub_team, mbp.player_name
+          `, [batch.id]);
+          batchesWithPlayers.push({ ...batch, players: players.rows });
+        }
+
+        return res.status(200).json({ batches: batchesWithPlayers });
+      }
+
       return res.status(400).json({ error: 'Missing action parameter' });
     }
 

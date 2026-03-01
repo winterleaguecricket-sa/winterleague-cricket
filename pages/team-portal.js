@@ -257,6 +257,10 @@ export default function TeamPortal() {
   const [ageGroupSaving, setAgeGroupSaving] = useState(false);
   const [ageGroupMessage, setAgeGroupMessage] = useState('');
   const [deleteAgeGroupConfirm, setDeleteAgeGroupConfirm] = useState(null); // index to delete
+  // Manufacturing batch notifications
+  const [paidBatches, setPaidBatches] = useState([]);
+  const [expandedBatchId, setExpandedBatchId] = useState(null);
+  const [dismissedBatchIds, setDismissedBatchIds] = useState([]);
 
   useEffect(() => {
     const loadPortalTemplate = async () => {
@@ -371,6 +375,40 @@ export default function TeamPortal() {
     };
     loadRemovalRequests();
   }, [team?.id, refreshKey]);
+
+  // Load manufacturing batch notifications for this team
+  useEffect(() => {
+    const loadPaidBatches = async () => {
+      if (team?.id) {
+        try {
+          const res = await fetch(`/api/manufacturing-batches?action=team-paid-batches&teamId=${team.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            setPaidBatches(data.batches || []);
+          }
+        } catch (err) {
+          console.error('Error loading batch notifications:', err);
+        }
+        // Load dismissed batch IDs from localStorage
+        try {
+          const stored = localStorage.getItem(`dismissed_batches_${team.id}`);
+          if (stored) setDismissedBatchIds(JSON.parse(stored));
+        } catch {}
+      }
+    };
+    loadPaidBatches();
+  }, [team?.id, refreshKey]);
+
+  const dismissBatch = (batchId) => {
+    const updated = [...dismissedBatchIds, batchId];
+    setDismissedBatchIds(updated);
+    setExpandedBatchId(null);
+    if (team?.id) {
+      try {
+        localStorage.setItem(`dismissed_batches_${team.id}`, JSON.stringify(updated));
+      } catch {}
+    }
+  };
 
   // Initialize banking details and email when team changes
   useEffect(() => {
@@ -1648,6 +1686,116 @@ export default function TeamPortal() {
               <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', color: '#f9fafb' }}>
                 Team Dashboard
               </h2>
+
+              {/* Manufacturing Batch Notifications */}
+              {paidBatches.filter(b => !dismissedBatchIds.includes(b.id)).map(batch => (
+                <div key={batch.id} style={{
+                  background: 'linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(17,24,39,0.95) 50%, rgba(139,92,246,0.08) 100%)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(139,92,246,0.3)',
+                  marginBottom: '1rem',
+                  overflow: 'hidden',
+                  boxShadow: '0 4px 20px rgba(139,92,246,0.15)'
+                }}>
+                  <div style={{
+                    padding: '1rem 1.25rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
+                    flexWrap: 'wrap'
+                  }}>
+                    <div style={{
+                      width: '44px', height: '44px', borderRadius: '12px',
+                      background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '1.3rem', flexShrink: 0
+                    }}>🏭</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 800, color: '#e9d5ff', fontSize: '0.95rem' }}>
+                        Batch #{batch.batch_number} — Kits Sent for Production!
+                      </div>
+                      <div style={{ color: '#a78bfa', fontSize: '0.82rem', marginTop: '0.15rem' }}>
+                        {batch.total_players} player{batch.total_players !== 1 ? 's\'' : '\'s'} clothing has been paid for and sent to the manufacturer for production.
+                        {batch.paid_at && ` Submitted on ${new Date(batch.paid_at).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' })}.`}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                      <button
+                        onClick={() => setExpandedBatchId(expandedBatchId === batch.id ? null : batch.id)}
+                        style={{
+                          padding: '0.45rem 1rem', borderRadius: '8px',
+                          border: '1px solid rgba(139,92,246,0.4)',
+                          background: 'rgba(139,92,246,0.15)', color: '#c4b5fd',
+                          fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer'
+                        }}
+                      >
+                        {expandedBatchId === batch.id ? '▲ Hide' : '👁 View Players'}
+                      </button>
+                      <button
+                        onClick={() => dismissBatch(batch.id)}
+                        style={{
+                          padding: '0.45rem 1rem', borderRadius: '8px',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          background: 'rgba(255,255,255,0.06)', color: '#9ca3af',
+                          fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer'
+                        }}
+                      >
+                        ✓ OK
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expanded player table */}
+                  {expandedBatchId === batch.id && batch.players && (
+                    <div style={{
+                      borderTop: '1px solid rgba(139,92,246,0.2)',
+                      padding: '1rem 1.25rem',
+                      background: 'rgba(0,0,0,0.2)'
+                    }}>
+                      <div style={{ fontSize: '0.82rem', color: '#a78bfa', fontWeight: 700, marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Players in Production — Batch #{batch.batch_number}
+                      </div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid rgba(139,92,246,0.2)' }}>
+                              {['#', 'Player Name', 'Age Group', 'Shirt Size', 'Pants Size', 'Shirt Number'].map(h => (
+                                <th key={h} style={{
+                                  textAlign: 'left', padding: '0.5rem 0.75rem',
+                                  color: '#a78bfa', fontWeight: 700, fontSize: '0.75rem',
+                                  textTransform: 'uppercase', letterSpacing: '0.05em'
+                                }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {batch.players.map((player, idx) => (
+                              <tr key={idx} style={{
+                                borderBottom: '1px solid rgba(139,92,246,0.1)',
+                                background: idx % 2 === 0 ? 'transparent' : 'rgba(139,92,246,0.04)'
+                              }}>
+                                <td style={{ padding: '0.5rem 0.75rem', color: '#6b7280' }}>{idx + 1}</td>
+                                <td style={{ padding: '0.5rem 0.75rem', color: '#f1f5f9', fontWeight: 600 }}>{player.player_name}</td>
+                                <td style={{ padding: '0.5rem 0.75rem', color: '#94a3b8' }}>{player.sub_team || '—'}</td>
+                                <td style={{ padding: '0.5rem 0.75rem', color: '#d1d5db' }}>{player.shirt_size || '—'}</td>
+                                <td style={{ padding: '0.5rem 0.75rem', color: '#d1d5db' }}>{player.pants_size || '—'}</td>
+                                <td style={{ padding: '0.5rem 0.75rem', color: '#d1d5db' }}>{player.shirt_number || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div style={{
+                        marginTop: '0.75rem', padding: '0.6rem 0.85rem',
+                        background: 'rgba(139,92,246,0.08)', borderRadius: '8px',
+                        fontSize: '0.8rem', color: '#a78bfa'
+                      }}>
+                        💡 These players' parents will see their order status updated to <strong>"In Production"</strong> on their Parent Portal.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
 
               <div
                 className="teamDashboardGrid"
