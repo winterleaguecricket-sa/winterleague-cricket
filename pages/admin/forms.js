@@ -130,8 +130,8 @@ export default function AdminForms() {
         
         try {
           const url = selectedSubmissionForm === 'all' 
-            ? '/api/submissions?page=1&limit=50'
-            : `/api/submissions?formId=${selectedSubmissionForm}&page=1&limit=50`;
+            ? '/api/submissions?page=1&limit=500'
+            : `/api/submissions?formId=${selectedSubmissionForm}&page=1&limit=500`;
           const response = await fetch(url);
           if (response.ok) {
             const { submissions: dbSubmissions, pagination } = await response.json();
@@ -628,7 +628,7 @@ export default function AdminForms() {
     setSelectedSubmissionForm(String(form.id));
     
     try {
-      const response = await fetch(`/api/submissions?formId=${form.id}&page=1&limit=50`);
+      const response = await fetch(`/api/submissions?formId=${form.id}&page=1&limit=500`);
       if (response.ok) {
         const { submissions: dbSubmissions, pagination } = await response.json();
         const mappedSubmissions = (dbSubmissions || []).map(sub => ({
@@ -1166,7 +1166,7 @@ export default function AdminForms() {
                 onClick={async () => {
                   setLoadingSubmissions(true);
                   try {
-                    const response = await fetch('/api/submissions?page=1&limit=50');
+                    const response = await fetch('/api/submissions?page=1&limit=500');
                     if (response.ok) {
                       const { submissions: dbSubmissions, pagination } = await response.json();
                       const mappedSubmissions = (dbSubmissions || []).map(sub => ({
@@ -2643,7 +2643,7 @@ export default function AdminForms() {
                         setLoadingSubmissions(true);
                         try {
                           const formFilter = selectedSubmissionForm !== 'all' ? `&formId=${selectedSubmissionForm}` : '';
-                          const response = await fetch(`/api/submissions?page=${newPage}&limit=50${formFilter}`);
+                          const response = await fetch(`/api/submissions?page=${newPage}&limit=500${formFilter}`);
                           if (response.ok) {
                             const { submissions: dbSubmissions, pagination } = await response.json();
                             const mappedSubmissions = (dbSubmissions || []).map(sub => ({
@@ -2685,7 +2685,7 @@ export default function AdminForms() {
                         setLoadingSubmissions(true);
                         try {
                           const formFilter = selectedSubmissionForm !== 'all' ? `&formId=${selectedSubmissionForm}` : '';
-                          const response = await fetch(`/api/submissions?page=${newPage}&limit=50${formFilter}`);
+                          const response = await fetch(`/api/submissions?page=${newPage}&limit=500${formFilter}`);
                           if (response.ok) {
                             const { submissions: dbSubmissions, pagination } = await response.json();
                             const mappedSubmissions = (dbSubmissions || []).map(sub => ({
