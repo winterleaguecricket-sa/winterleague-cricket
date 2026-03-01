@@ -159,7 +159,7 @@ export default async function handler(req, res) {
       { header: 'Age Group / Sub-Team', key: 'sub_team', width: 35 },
       { header: 'Shirt Size', key: 'shirt_size', width: 15 },
       { header: 'Pants Size', key: 'pants_size', width: 15 },
-      { header: 'Jersey #', key: 'jersey_number', width: 10 },
+      { header: 'Shirt Number', key: 'jersey_number', width: 14 },
       { header: 'Additional Items', key: 'additional', width: 35 },
       { header: 'Parent Name', key: 'parent_name', width: 22 },
       { header: 'Parent Email', key: 'parent_email', width: 30 },

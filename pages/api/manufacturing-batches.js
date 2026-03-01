@@ -3,6 +3,9 @@
 // POST: Create batch, mark as submitted/paid
 import { query } from '../../lib/db';
 
+// Manufacturer cost per basic kit
+const MANUFACTURER_KIT_COST = 433.50;
+
 function parseSize(selectedSize) {
   // "Player 1 - Name | Shirt: Medium / Pants: Medium"
   const shirtMatch = selectedSize?.match(/Shirt:\s*([^/]+)/i);
@@ -47,7 +50,8 @@ export default async function handler(req, res) {
       if (action === 'team-batches' && teamId) {
         const batches = await query(`
           SELECT mb.*, t.team_name,
-            (SELECT COUNT(*) FROM manufacturing_batch_players WHERE batch_id = mb.id) as player_count
+            (SELECT COUNT(*) FROM manufacturing_batch_players WHERE batch_id = mb.id) as player_count,
+            COALESCE(mb.total_cost, 0) as total_cost
           FROM manufacturing_batches mb
           JOIN teams t ON t.id = mb.team_id
           WHERE mb.team_id = $1
@@ -67,15 +71,31 @@ export default async function handler(req, res) {
         if (!batch.rows[0]) return res.status(404).json({ error: 'Batch not found' });
 
         const players = await query(`
-          SELECT mbp.*, tp.jersey_number
+          SELECT mbp.*, tp.jersey_number as shirt_number
           FROM manufacturing_batch_players mbp
           LEFT JOIN team_players tp ON tp.id = mbp.team_player_id
           WHERE mbp.batch_id = $1
           ORDER BY mbp.sub_team, mbp.player_name
         `, [batchId]);
 
+        // Calculate total cost if not stored yet
+        let batchData = batch.rows[0];
+        if (!batchData.total_cost || parseFloat(batchData.total_cost) === 0) {
+          let calculatedCost = 0;
+          for (const p of players.rows) {
+            calculatedCost += MANUFACTURER_KIT_COST;
+            const items = typeof p.additional_items === 'string' ? JSON.parse(p.additional_items) : (p.additional_items || []);
+            for (const item of items) {
+              if (item.cost) {
+                calculatedCost += parseFloat(item.cost) * (item.quantity || 1);
+              }
+            }
+          }
+          batchData = { ...batchData, total_cost: calculatedCost };
+        }
+
         return res.status(200).json({
-          batch: batch.rows[0],
+          batch: batchData,
           players: players.rows
         });
       }
@@ -151,6 +171,7 @@ export default async function handler(req, res) {
             parent_email: parentEmail,
             shirt_size: shirtSize || player.jersey_size || '',
             pants_size: pantsSize || '',
+            shirt_number: player.jersey_number || '',
             additional_items: additionalItems
           });
         }
@@ -185,6 +206,8 @@ export default async function handler(req, res) {
           RETURNING *
         `, [teamId, batchNumber, notes || null, playerIds.length]);
         const batch = batchResult.rows[0];
+
+        let batchTotalCost = 0;
 
         // Get player details with order data to snapshot
         for (const playerId of playerIds) {
@@ -238,21 +261,42 @@ export default async function handler(req, res) {
             }
           }
 
+          // Look up cost prices for additional items from products table
+          const additionalItemsWithCost = [];
+          let playerAdditionalCost = 0;
+          for (const item of additionalItems) {
+            let costPrice = 0;
+            const itemId = String(item.id || '').replace('supporter_', '');
+            if (itemId) {
+              const costResult = await query('SELECT cost FROM products WHERE id = $1', [parseInt(itemId)]);
+              if (costResult.rows[0]?.cost) {
+                costPrice = parseFloat(costResult.rows[0].cost);
+              }
+            }
+            playerAdditionalCost += costPrice * (item.quantity || 1);
+            additionalItemsWithCost.push({ ...item, cost: costPrice });
+          }
+
           await query(`
             INSERT INTO manufacturing_batch_players 
-              (batch_id, team_player_id, order_id, player_name, sub_team, shirt_size, pants_size, additional_items, parent_name, parent_email, parent_phone)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+              (batch_id, team_player_id, order_id, player_name, sub_team, shirt_size, pants_size, additional_items, parent_name, parent_email, parent_phone, kit_cost, additional_cost)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             ON CONFLICT (team_player_id) DO NOTHING
           `, [
             batch.id, player.id, order?.id || null,
             player.player_name, player.sub_team,
             shirtSize || player.jersey_size || '', pantsSize,
-            JSON.stringify(additionalItems),
-            order?.customer_name || '', parentEmail, order?.customer_phone || ''
+            JSON.stringify(additionalItemsWithCost),
+            order?.customer_name || '', parentEmail, order?.customer_phone || '',
+            MANUFACTURER_KIT_COST, playerAdditionalCost
           ]);
+          batchTotalCost += MANUFACTURER_KIT_COST + playerAdditionalCost;
         }
 
-        return res.status(200).json({ batch, message: `Batch #${batchNumber} created with ${playerIds.length} players` });
+        // Update batch with total cost
+        await query('UPDATE manufacturing_batches SET total_cost = $1 WHERE id = $2', [batchTotalCost, batch.id]);
+
+        return res.status(200).json({ batch: { ...batch, total_cost: batchTotalCost }, message: `Batch #${batchNumber} created with ${playerIds.length} players. Manufacturer cost: R${batchTotalCost.toFixed(2)}` });
       }
 
       // Mark batch as submitted to manufacturer

@@ -369,7 +369,7 @@ export default function ManufacturingBatches() {
                         <th style={{ textAlign: 'left', padding: '0.6rem 0.75rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '40px' }}>
                           <input type="checkbox" checked={selectedPlayerIds.length === unbatchedPlayers.length && unbatchedPlayers.length > 0} onChange={selectAllPlayers} style={{ accentColor: '#dc0000' }} />
                         </th>
-                        {['Player', 'Sub-Team', 'Shirt', 'Pants', 'Additional', 'Parent'].map(h => (
+                        {['Player', 'Sub-Team', 'Shirt Size', 'Pants Size', 'Shirt Number', 'Additional', 'Parent'].map(h => (
                           <th key={h} style={{ textAlign: 'left', padding: '0.6rem 0.75rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                         ))}
                       </tr>
@@ -391,6 +391,7 @@ export default function ManufacturingBatches() {
                           <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.8rem', color: '#94a3b8' }}>{player.sub_team}</td>
                           <td style={{ padding: '0.6rem 0.75rem', color: '#d1d5db' }}>{player.shirt_size}</td>
                           <td style={{ padding: '0.6rem 0.75rem', color: '#d1d5db' }}>{player.pants_size}</td>
+                          <td style={{ padding: '0.6rem 0.75rem', color: '#d1d5db' }}>{player.shirt_number || player.jersey_number || '—'}</td>
                           <td style={{ padding: '0.6rem 0.75rem', fontSize: '0.8rem', color: '#94a3b8' }}>
                             {(player.additional_items || []).map((item, i) => (
                               <div key={i}>{item.name} ({item.size})</div>
@@ -461,7 +462,7 @@ export default function ManufacturingBatches() {
                         {statusBadge(batch.status)}
                       </div>
                       <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                        {batch.player_count} players · Created {formatDate(batch.created_at)}
+                        {batch.player_count} players · R{parseFloat(batch.total_cost || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })} · Created {formatDate(batch.created_at)}
                         {batch.submitted_at && ` · Submitted ${formatDate(batch.submitted_at)}`}
                         {batch.paid_at && ` · Paid ${formatDate(batch.paid_at)}`}
                       </div>
@@ -529,22 +530,10 @@ export default function ManufacturingBatches() {
                   boxShadow: '0 2px 8px rgba(220,0,0,0.3)'
                 }}>📥 Download Excel</button>
                 {selectedBatch.status === 'created' && (
-                  <>
-                    <button onClick={() => markBatchStatus(selectedBatch.id, 'mark-submitted')} disabled={actionLoading} style={{
-                      padding: '0.5rem 1rem', borderRadius: '8px', border: 'none',
-                      background: 'linear-gradient(135deg, #d97706, #f59e0b)', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer'
-                    }}>📤 Submitted</button>
-                    <button onClick={() => markBatchStatus(selectedBatch.id, 'mark-paid')} disabled={actionLoading} style={{
-                      padding: '0.5rem 1rem', borderRadius: '8px', border: 'none',
-                      background: 'linear-gradient(135deg, #059669, #10b981)', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer'
-                    }}>💰 Paid</button>
-                  </>
-                )}
-                {selectedBatch.status === 'submitted' && (
-                  <button onClick={() => markBatchStatus(selectedBatch.id, 'mark-paid')} disabled={actionLoading} style={{
+                  <button onClick={() => markBatchStatus(selectedBatch.id, 'mark-submitted')} disabled={actionLoading} style={{
                     padding: '0.5rem 1rem', borderRadius: '8px', border: 'none',
-                    background: 'linear-gradient(135deg, #059669, #10b981)', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer'
-                  }}>💰 Mark Paid</button>
+                    background: 'linear-gradient(135deg, #d97706, #f59e0b)', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer'
+                  }}>📤 Submitted</button>
                 )}
               </div>
             </div>
@@ -557,7 +546,7 @@ export default function ManufacturingBatches() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                    {['#', 'Player Name', 'Sub-Team / Age Group', 'Shirt Size', 'Pants Size', 'Jersey #', 'Additional Items', 'Parent Name', 'Parent Contact'].map(h => (
+                    {['#', 'Player Name', 'Sub-Team / Age Group', 'Shirt Size', 'Pants Size', 'Shirt Number', 'Additional Items', 'Parent Name', 'Parent Contact'].map(h => (
                       <th key={h} style={{ textAlign: 'left', padding: '0.75rem 1rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                     ))}
                   </tr>
@@ -573,7 +562,7 @@ export default function ManufacturingBatches() {
                       <td style={{ padding: '0.75rem 1rem', fontSize: '0.82rem', color: '#94a3b8' }}>{player.sub_team}</td>
                       <td style={{ padding: '0.75rem 1rem', color: '#d1d5db' }}>{player.shirt_size}</td>
                       <td style={{ padding: '0.75rem 1rem', color: '#d1d5db' }}>{player.pants_size}</td>
-                      <td style={{ padding: '0.75rem 1rem', color: '#d1d5db' }}>{player.jersey_number || '—'}</td>
+                      <td style={{ padding: '0.75rem 1rem', color: '#d1d5db' }}>{player.shirt_number || player.jersey_number || '—'}</td>
                       <td style={{ padding: '0.75rem 1rem', fontSize: '0.82rem', color: '#94a3b8' }}>
                         {(player.additional_items || []).map((item, i) => (
                           <div key={i}>{item.name} ({item.size}) x{item.quantity}</div>
@@ -590,6 +579,60 @@ export default function ManufacturingBatches() {
                 </tbody>
               </table>
             </div>
+
+            {/* Manufacturer Payment Card */}
+            {selectedBatch.status !== 'paid' && (
+              <div style={{
+                marginTop: '1.5rem', padding: '1.5rem', borderRadius: '12px',
+                background: 'linear-gradient(135deg, rgba(251,191,36,0.1) 0%, rgba(17,24,39,0.95) 50%, rgba(251,191,36,0.06) 100%)',
+                border: '1px solid rgba(251,191,36,0.25)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div>
+                    <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 800, color: '#fcd34d' }}>💳 Manufacturer Payment</h3>
+                    <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.82rem' }}>
+                      {batchPlayers.length} basic kits × R433.50 = R{(batchPlayers.length * 433.50).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+                      {(() => {
+                        const additionalCost = parseFloat(selectedBatch.total_cost || 0) - (batchPlayers.length * 433.50);
+                        return additionalCost > 0 ? ` + R${additionalCost.toLocaleString('en-ZA', { minimumFractionDigits: 2 })} additional items` : '';
+                      })()}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Due to Manufacturer</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#fbbf24' }}>
+                        R{parseFloat(selectedBatch.total_cost || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <button onClick={() => markBatchStatus(selectedBatch.id, 'mark-paid')} disabled={actionLoading} style={{
+                      padding: '0.75rem 2rem', borderRadius: '10px', border: 'none',
+                      background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: '#fff', fontWeight: 800, fontSize: '1rem', cursor: 'pointer',
+                      boxShadow: '0 4px 15px rgba(16,185,129,0.4)', minWidth: '160px'
+                    }}>
+                      {actionLoading ? 'Processing...' : '✅ Mark as Paid'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {selectedBatch.status === 'paid' && (
+              <div style={{
+                marginTop: '1.5rem', padding: '1.25rem', borderRadius: '12px',
+                background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div>
+                    <span style={{ fontWeight: 800, color: '#34d399', fontSize: '1rem' }}>✅ Batch Paid</span>
+                    <span style={{ marginLeft: '0.75rem', color: '#9ca3af', fontSize: '0.85rem' }}>Paid {formatDate(selectedBatch.paid_at)}</span>
+                  </div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#34d399' }}>
+                    R{parseFloat(selectedBatch.total_cost || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Batch summary */}
             <div style={{
