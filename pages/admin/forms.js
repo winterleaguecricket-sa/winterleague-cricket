@@ -1128,8 +1128,8 @@ export default function AdminForms() {
   };
 
   const needsOptions = ['radio', 'checkbox', 'select', 'image-select'].includes(fieldData.type);
+  // No client-side filtering needed — API already filters by formId
   const filteredSubmissions = submissions
-    .filter(s => selectedSubmissionForm === 'all' || s.formId === selectedSubmissionForm)
     .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
   const submissionFieldLabels = getSubmissionFieldLabels(filteredSubmissions);
 
@@ -2529,20 +2529,25 @@ export default function AdminForms() {
             {/* Form Filter Tabs */}
             <div className={styles.submissionTabs}>
               <button
-                onClick={() => setSelectedSubmissionForm('all')}
+                onClick={() => {
+                  setSelectedSubmissionForm('all');
+                  fetchSubmissionsPage(1, 'all');
+                }}
                 className={`${styles.submissionTab} ${selectedSubmissionForm === 'all' ? styles.submissionTabActive : ''}`}
               >
-                All Forms ({submissions.length})
+                All Forms ({Object.values(submissionCounts).reduce((sum, c) => sum + c, 0)})
               </button>
               {forms.map(form => {
-                const formSubmissions = submissions.filter(s => s.formId === form.id);
                 return (
                   <button
                     key={form.id}
-                    onClick={() => setSelectedSubmissionForm(form.id)}
+                    onClick={() => {
+                      setSelectedSubmissionForm(form.id);
+                      fetchSubmissionsPage(1, form.id);
+                    }}
                     className={`${styles.submissionTab} ${selectedSubmissionForm === form.id ? styles.submissionTabActive : ''}`}
                   >
-                    {form.name} ({formSubmissions.length})
+                    {form.name} ({submissionCounts[form.id] || 0})
                   </button>
                 );
               })}
