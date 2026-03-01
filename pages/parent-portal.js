@@ -1613,8 +1613,12 @@ export default function ParentPortal() {
                       {fp.flagType === 'invalidDob' ? (
                         <>
                           <div style={{ color: '#fca5a5', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.35rem', lineHeight: 1.6 }}>
-                            Our records indicate that <strong>{fp.playerName}</strong>&apos;s date of birth is recorded as <strong>{fp.dob}</strong>, which appears to be incorrect.
-                            This player is registered in the <strong>{fp.ageGroup}</strong> age group for <strong>{fp.teamName}</strong>.
+                            {fp.dob ? (
+                              <>Our records indicate that <strong>{fp.playerName}</strong>&apos;s date of birth is recorded as <strong>{fp.dob}</strong>, which appears to be incorrect.</>
+                            ) : (
+                              <>Our records indicate that <strong>{fp.playerName}</strong>&apos;s date of birth was not provided during registration.</>
+                            )}
+                            {' '}This player is registered in the <strong>{fp.ageGroup}</strong> age group for <strong>{fp.teamName}</strong>.
                           </div>
                           <div style={{ color: '#f87171', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.5rem', lineHeight: 1.6 }}>
                             Please <strong>correct the date of birth</strong> below and upload a <strong>birth certificate</strong> as proof of age.

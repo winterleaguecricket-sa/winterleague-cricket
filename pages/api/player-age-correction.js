@@ -99,12 +99,12 @@ export default async function handler(req, res) {
 
         // Check for invalid/impossible DOB (with valid age group — these aren't incomplete, just wrong DOB)
         // hasBadDob catches: no DOB, future DOB, or birth year within last 4 years (impossibly young)
-        if (dob && ageGroup && hasBadDob) {
+        if (ageGroup && hasBadDob) {
           flaggedPlayers.push({
             submissionId: row.id,
             playerName,
-            dob,
-            birthYear: parseInt(dob.substring(0, 4), 10),
+            dob: dob || null,
+            birthYear: dob ? parseInt(dob.substring(0, 4), 10) : null,
             ageGroup,
             teamName,
             flagType: 'invalidDob',
