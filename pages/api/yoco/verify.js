@@ -219,7 +219,13 @@ export default async function handler(req, res) {
                 const age = (subTeamVal.ageGroup || '').trim();
                 subTeam = (name && gender && age) ? `${name} (${gender} - ${age})` : (name && age) ? `${name} (${age})` : name || age || gender || '';
               } else if (typeof subTeamVal === 'string') {
-                try { const p = JSON.parse(subTeamVal); subTeam = (p.teamName && p.gender && p.ageGroup) ? `${p.teamName} (${p.gender} - ${p.ageGroup})` : p.teamName || ''; } catch { subTeam = subTeamVal.trim(); }
+                try {
+                  const p = JSON.parse(subTeamVal);
+                  const name = (p.teamName || '').trim();
+                  const gender = (p.gender || '').trim();
+                  const age = (p.ageGroup || '').trim();
+                  subTeam = (name && gender && age) ? `${name} (${gender} - ${age})` : (name && age) ? `${name} (${age})` : name || age || gender || '';
+                } catch { subTeam = subTeamVal.trim(); }
               }
 
               // Dedup: check player doesn't already exist by name+email+team+sub_team
