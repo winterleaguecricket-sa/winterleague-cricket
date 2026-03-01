@@ -10,6 +10,7 @@
 import { query } from '../../../lib/db';
 import { logPaymentEvent, logApiError } from '../../../lib/logger';
 import { sendParentPaymentSuccessEmail } from '../../../lib/parentEmailHelper';
+import { createTeamPlayersFromSubmissions } from '../../../lib/createTeamPlayersFromSubmissions';
 
 // Can also be called internally (not just via HTTP)
 export async function reconcilePendingPayments() {
@@ -138,37 +139,14 @@ export async function reconcilePendingPayments() {
             ]
           );
 
-          // Mark team players as paid
+          // Create team_players + revenue + link customer (handles both legacy pending and new submissions)
           try {
-            const playerUpdate = await query(
-              `UPDATE team_players SET payment_status = 'paid'
-               WHERE payment_status = 'pending_payment'
-                 AND LOWER(player_email) = LOWER($1)`,
-              [order.customer_email]
-            );
-            if (playerUpdate.rowCount > 0) {
-              console.log(`[RECONCILE] Marked ${playerUpdate.rowCount} player(s) as paid for ${order.customer_email}`);
+            const playerResult = await createTeamPlayersFromSubmissions(order.customer_email, 'RECONCILE');
+            if (playerResult.playersCreated > 0) {
+              console.log(`[RECONCILE] Created ${playerResult.playersCreated} player(s) for ${order.customer_email}`);
             }
           } catch (playerErr) {
-            console.error('[RECONCILE] Failed to update team_players:', playerErr.message);
-          }
-
-          // Mark team revenue entries as paid
-          try {
-            const revenueUpdate = await query(
-              `UPDATE team_revenue tr SET payment_status = 'paid'
-               FROM team_players tp
-               WHERE tp.team_id = tr.team_id
-                 AND tp.registration_data->>'formSubmissionId' = tr.reference_id
-                 AND LOWER(tp.player_email) = LOWER($1)
-                 AND tr.payment_status = 'pending_payment'`,
-              [order.customer_email]
-            );
-            if (revenueUpdate.rowCount > 0) {
-              console.log(`[RECONCILE] Marked ${revenueUpdate.rowCount} revenue entry(s) as paid for ${order.customer_email}`);
-            }
-          } catch (revErr) {
-            console.error('[RECONCILE] Failed to update team_revenue:', revErr.message);
+            console.error('[RECONCILE] Failed to create/update team_players:', playerErr.message);
           }
 
           // Send parent payment success email (non-blocking)

@@ -3,6 +3,7 @@
 import { query } from '../../../lib/db';
 import { sendParentPaymentSuccessEmail } from '../../../lib/parentEmailHelper';
 import { logPaymentEvent, logApiError } from '../../../lib/logger';
+import { createTeamPlayersFromSubmissions } from '../../../lib/createTeamPlayersFromSubmissions';
 
 // Yoco sends JSON webhooks
 export const config = {
@@ -104,37 +105,11 @@ export default async function handler(req, res) {
 
         // Addon orders now stand alone — no merged items to clean up in original orders
 
-        // Mark team players as paid for this customer
+        // Create team_players + revenue + link customer (handles both legacy pending and new submissions)
         try {
-          const playerUpdate = await query(
-            `UPDATE team_players SET payment_status = 'paid'
-             WHERE payment_status = 'pending_payment'
-               AND LOWER(player_email) = LOWER($1)`,
-            [order.customer_email]
-          );
-          if (playerUpdate.rowCount > 0) {
-            console.log(`Yoco webhook: marked ${playerUpdate.rowCount} player(s) as paid for ${order.customer_email}`);
-          }
+          await createTeamPlayersFromSubmissions(order.customer_email, 'Yoco webhook');
         } catch (playerErr) {
-          console.error('Yoco webhook: failed to update team_players payment status:', playerErr.message);
-        }
-
-        // Mark team revenue entries as paid for this customer's players
-        try {
-          const revenueUpdate = await query(
-            `UPDATE team_revenue tr SET payment_status = 'paid'
-             FROM team_players tp
-             WHERE tp.team_id = tr.team_id
-               AND tp.registration_data->>'formSubmissionId' = tr.reference_id
-               AND LOWER(tp.player_email) = LOWER($1)
-               AND tr.payment_status = 'pending_payment'`,
-            [order.customer_email]
-          );
-          if (revenueUpdate.rowCount > 0) {
-            console.log(`Yoco webhook: marked ${revenueUpdate.rowCount} revenue entry(s) as paid for ${order.customer_email}`);
-          }
-        } catch (revErr) {
-          console.error('Yoco webhook: failed to update team_revenue payment status:', revErr.message);
+          console.error('Yoco webhook: failed to create/update team_players:', playerErr.message);
         }
 
         // Send parent payment success email (non-blocking)

@@ -5,6 +5,7 @@ import { query } from '../../../lib/db';
 import { getYocoConfig } from './config';
 import { sendParentPaymentSuccessEmail } from '../../../lib/parentEmailHelper';
 import { logPaymentEvent, logApiError } from '../../../lib/logger';
+import { createTeamPlayersFromSubmissions } from '../../../lib/createTeamPlayersFromSubmissions';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -37,8 +38,17 @@ export default async function handler(req, res) {
 
     const order = orderResult.rows[0];
 
-    // If already confirmed, return success immediately
+    // If already confirmed, still ensure team_players were created (covers race condition
+    // where webhook/reconcile marked paid but player creation was missed)
     if (order.payment_status === 'paid') {
+      try {
+        const host = req.headers.host || '';
+        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const baseUrl = host ? `${protocol}://${host}` : 'https://winterleaguecricket.co.za';
+        await createTeamPlayersFromSubmissions(order.customer_email, 'Yoco verify (already-paid)', { baseUrl });
+      } catch (e) {
+        console.log('Yoco verify: player creation check for already-paid order failed (non-fatal):', e.message);
+      }
       return res.status(200).json({
         success: true,
         status: 'paid',

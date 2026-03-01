@@ -62,10 +62,9 @@ export default async function handler(req, res) {
       );
 
       // Build set of already-registered player names (case-insensitive)
+      // IMPORTANT: Only team_players count as "registered" — having a form_submission
+      // without a team_player means payment was confirmed but player creation was missed
       const registeredNames = new Set();
-      for (const row of submissionResult.rows) {
-        if (row.player_name) registeredNames.add(row.player_name.trim().toLowerCase());
-      }
       for (const row of playerResult.rows) {
         if (row.player_name) registeredNames.add(row.player_name.trim().toLowerCase());
       }
