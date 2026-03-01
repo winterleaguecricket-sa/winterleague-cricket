@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       
       // Pagination support
       const pageNum = Math.max(1, parseInt(page) || 1);
-      const pageLimit = Math.min(500, Math.max(1, parseInt(limitParam) || 50));
+      const pageLimit = Math.min(2500, Math.max(1, parseInt(limitParam) || 100));
       const offset = (pageNum - 1) * pageLimit;
 
       // Count total for pagination metadata

@@ -130,8 +130,8 @@ export default function AdminForms() {
         
         try {
           const url = selectedSubmissionForm === 'all' 
-            ? '/api/submissions?page=1&limit=500'
-            : `/api/submissions?formId=${selectedSubmissionForm}&page=1&limit=500`;
+            ? '/api/submissions?page=1&limit=100'
+            : `/api/submissions?formId=${selectedSubmissionForm}&page=1&limit=100`;
           const response = await fetch(url);
           if (response.ok) {
             const { submissions: dbSubmissions, pagination } = await response.json();
@@ -628,7 +628,7 @@ export default function AdminForms() {
     setSelectedSubmissionForm(String(form.id));
     
     try {
-      const response = await fetch(`/api/submissions?formId=${form.id}&page=1&limit=500`);
+      const response = await fetch(`/api/submissions?formId=${form.id}&page=1&limit=100`);
       if (response.ok) {
         const { submissions: dbSubmissions, pagination } = await response.json();
         const mappedSubmissions = (dbSubmissions || []).map(sub => ({
@@ -680,6 +680,32 @@ export default function AdminForms() {
     }
     
     setLoadingFullSubmission(null);
+  };
+
+  // Shared helper to fetch a page of submissions and update state
+  const fetchSubmissionsPage = async (pageNum, formFilter = null) => {
+    setLoadingSubmissions(true);
+    try {
+      const formParam = formFilter && formFilter !== 'all' ? `&formId=${formFilter}` : '';
+      const response = await fetch(`/api/submissions?page=${pageNum}&limit=100${formParam}`);
+      if (response.ok) {
+        const { submissions: dbSubmissions, pagination } = await response.json();
+        const mappedSubmissions = (dbSubmissions || []).map(sub => ({
+          ...sub,
+          shortId: formatSubmissionId(sub.id),
+          formName: sub.formName || forms.find(f => f.id === sub.formId)?.name || 'Unknown Form'
+        }));
+        setSubmissions(mappedSubmissions);
+        if (pagination) {
+          setSubmissionPage(pagination.page);
+          setSubmissionTotal(pagination.total);
+          setSubmissionTotalPages(pagination.totalPages);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching submissions page:', error);
+    }
+    setLoadingSubmissions(false);
   };
 
   const handleEditSubmission = async (submission) => {
@@ -1166,7 +1192,7 @@ export default function AdminForms() {
                 onClick={async () => {
                   setLoadingSubmissions(true);
                   try {
-                    const response = await fetch('/api/submissions?page=1&limit=500');
+                    const response = await fetch('/api/submissions?page=1&limit=100');
                     if (response.ok) {
                       const { submissions: dbSubmissions, pagination } = await response.json();
                       const mappedSubmissions = (dbSubmissions || []).map(sub => ({
@@ -2491,7 +2517,7 @@ export default function AdminForms() {
         {activeTab === 'submissions' && (
           <div className={styles.submissionsView}>
             <div className={styles.submissionsHeader}>
-              <h2>All Form Submissions</h2>
+              <h2>All Form Submissions {submissionTotal > 0 && <span style={{ color: '#6b7280', fontWeight: '400', fontSize: '1rem' }}>({submissionTotal} total)</span>}</h2>
               <button
                 onClick={handleDownloadCSV}
                 className={styles.downloadButton}
@@ -2626,99 +2652,97 @@ export default function AdminForms() {
                 </table>
 
                 {/* Pagination Controls */}
-                {submissionTotalPages > 1 && (
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '1rem 0',
-                    borderTop: '1px solid #e5e7eb',
-                    marginTop: '0.5rem'
-                  }}>
-                    <button
-                      onClick={async () => {
-                        if (submissionPage <= 1) return;
-                        const newPage = submissionPage - 1;
-                        setLoadingSubmissions(true);
-                        try {
-                          const formFilter = selectedSubmissionForm !== 'all' ? `&formId=${selectedSubmissionForm}` : '';
-                          const response = await fetch(`/api/submissions?page=${newPage}&limit=500${formFilter}`);
-                          if (response.ok) {
-                            const { submissions: dbSubmissions, pagination } = await response.json();
-                            const mappedSubmissions = (dbSubmissions || []).map(sub => ({
-                              ...sub,
-                              shortId: formatSubmissionId(sub.id),
-                              formName: sub.formName || forms.find(f => f.id === sub.formId)?.name || 'Unknown Form'
-                            }));
-                            setSubmissions(mappedSubmissions);
-                            if (pagination) {
-                              setSubmissionPage(pagination.page);
-                              setSubmissionTotal(pagination.total);
-                              setSubmissionTotalPages(pagination.totalPages);
-                            }
-                          }
-                        } catch (error) {
-                          console.error('Error fetching page:', error);
-                        }
-                        setLoadingSubmissions(false);
-                      }}
-                      disabled={submissionPage <= 1 || loadingSubmissions}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        borderRadius: '6px',
-                        border: '1px solid #d1d5db',
-                        background: submissionPage <= 1 ? '#f3f4f6' : 'white',
-                        cursor: submissionPage <= 1 ? 'not-allowed' : 'pointer',
-                        color: submissionPage <= 1 ? '#9ca3af' : '#374151'
-                      }}
-                    >
-                      ← Previous
-                    </button>
-                    <span style={{ color: '#6b7280', fontSize: '0.9rem' }}>
-                      Page {submissionPage} of {submissionTotalPages} ({submissionTotal} total)
-                    </span>
-                    <button
-                      onClick={async () => {
-                        if (submissionPage >= submissionTotalPages) return;
-                        const newPage = submissionPage + 1;
-                        setLoadingSubmissions(true);
-                        try {
-                          const formFilter = selectedSubmissionForm !== 'all' ? `&formId=${selectedSubmissionForm}` : '';
-                          const response = await fetch(`/api/submissions?page=${newPage}&limit=500${formFilter}`);
-                          if (response.ok) {
-                            const { submissions: dbSubmissions, pagination } = await response.json();
-                            const mappedSubmissions = (dbSubmissions || []).map(sub => ({
-                              ...sub,
-                              shortId: formatSubmissionId(sub.id),
-                              formName: sub.formName || forms.find(f => f.id === sub.formId)?.name || 'Unknown Form'
-                            }));
-                            setSubmissions(mappedSubmissions);
-                            if (pagination) {
-                              setSubmissionPage(pagination.page);
-                              setSubmissionTotal(pagination.total);
-                              setSubmissionTotalPages(pagination.totalPages);
-                            }
-                          }
-                        } catch (error) {
-                          console.error('Error fetching page:', error);
-                        }
-                        setLoadingSubmissions(false);
-                      }}
-                      disabled={submissionPage >= submissionTotalPages || loadingSubmissions}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        borderRadius: '6px',
-                        border: '1px solid #d1d5db',
-                        background: submissionPage >= submissionTotalPages ? '#f3f4f6' : 'white',
-                        cursor: submissionPage >= submissionTotalPages ? 'not-allowed' : 'pointer',
-                        color: submissionPage >= submissionTotalPages ? '#9ca3af' : '#374151'
-                      }}
-                    >
-                      Next →
-                    </button>
-                  </div>
-                )}
+                {submissionTotalPages > 1 && (() => {
+                  // Build page number array with ellipsis for large page counts
+                  const pages = [];
+                  const total = submissionTotalPages;
+                  const current = submissionPage;
+                  
+                  if (total <= 10) {
+                    for (let i = 1; i <= total; i++) pages.push(i);
+                  } else {
+                    pages.push(1);
+                    if (current > 4) pages.push('...');
+                    const start = Math.max(2, current - 2);
+                    const end = Math.min(total - 1, current + 2);
+                    for (let i = start; i <= end; i++) pages.push(i);
+                    if (current < total - 3) pages.push('...');
+                    pages.push(total);
+                  }
+                  
+                  const startItem = (current - 1) * 100 + 1;
+                  const endItem = Math.min(current * 100, submissionTotal);
+                  
+                  const btnBase = {
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid #d1d5db',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: '500',
+                    minWidth: '36px',
+                    textAlign: 'center'
+                  };
+                  
+                  return (
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '1rem 0.5rem',
+                      borderTop: '1px solid #e5e7eb',
+                      marginTop: '0.5rem',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem'
+                    }}>
+                      <span style={{ color: '#6b7280', fontSize: '0.85rem', fontWeight: '500' }}>
+                        Showing {startItem}–{endItem} of {submissionTotal} submissions
+                      </span>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        {/* Previous */}
+                        <button
+                          onClick={() => current > 1 && fetchSubmissionsPage(current - 1, selectedSubmissionForm)}
+                          disabled={current <= 1 || loadingSubmissions}
+                          style={{ ...btnBase, background: current <= 1 ? '#f3f4f6' : 'white', color: current <= 1 ? '#9ca3af' : '#374151', cursor: current <= 1 ? 'not-allowed' : 'pointer' }}
+                        >
+                          ‹ Prev
+                        </button>
+                        
+                        {/* Page numbers */}
+                        {pages.map((p, idx) => 
+                          p === '...' ? (
+                            <span key={`ellipsis-${idx}`} style={{ padding: '0 0.25rem', color: '#9ca3af' }}>…</span>
+                          ) : (
+                            <button
+                              key={p}
+                              onClick={() => p !== current && fetchSubmissionsPage(p, selectedSubmissionForm)}
+                              disabled={loadingSubmissions}
+                              style={{
+                                ...btnBase,
+                                background: p === current ? '#000' : 'white',
+                                color: p === current ? '#fff' : '#374151',
+                                border: p === current ? '1px solid #000' : '1px solid #d1d5db',
+                                fontWeight: p === current ? '700' : '500'
+                              }}
+                            >
+                              {p}
+                            </button>
+                          )
+                        )}
+                        
+                        {/* Next */}
+                        <button
+                          onClick={() => current < total && fetchSubmissionsPage(current + 1, selectedSubmissionForm)}
+                          disabled={current >= total || loadingSubmissions}
+                          style={{ ...btnBase, background: current >= total ? '#f3f4f6' : 'white', color: current >= total ? '#9ca3af' : '#374151', cursor: current >= total ? 'not-allowed' : 'pointer' }}
+                        >
+                          Next ›
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {editingSubmission && (() => {
                   const submissionForm = forms.find(f => f.id === editingSubmission.formId);
