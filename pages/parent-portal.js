@@ -14,6 +14,7 @@ export default function ParentPortal() {
   const [allTeams, setAllTeams] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [showDirectory, setShowDirectory] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [previousProfile, setPreviousProfile] = useState(null);
   const [previousOrders, setPreviousOrders] = useState([]);
@@ -33,6 +34,11 @@ export default function ParentPortal() {
   const [parentPlayers, setParentPlayers] = useState([]);
   const [parentPlayersLoaded, setParentPlayersLoaded] = useState(false);
   const [parentTeams, setParentTeams] = useState({});
+
+  // Competition state
+  const [competitionData, setCompetitionData] = useState(null);
+  const [competitionLoading, setCompetitionLoading] = useState(false);
+  const [competitionSelectedAg, setCompetitionSelectedAg] = useState(null);
 
   // Recovery state for incomplete registrations
   const [recoveryData, setRecoveryData] = useState(null);
@@ -62,6 +68,10 @@ export default function ParentPortal() {
   const [ageIncomplete, setAgeIncomplete] = useState([]);
   const [ageTeams, setAgeTeams] = useState([]);
   const [showAgeCorrectionForm, setShowAgeCorrectionForm] = useState(null); // submissionId or null
+
+  // Shortfall payment state
+  const [shortfalls, setShortfalls] = useState([]);
+  const [shortfallPaying, setShortfallPaying] = useState(false);
   const [ageCorrectionMode, setAgeCorrectionMode] = useState(''); // 'correct_dob' | 'correct_age_group'
   const [ageCorrectionData, setAgeCorrectionData] = useState({ dob: '', ageGroup: '', teamName: '', gender: 'Male', coachName: '', coachContact: '', birthCertificate: '', teamFormSubmissionUuid: '', playerName: '' });
   const [ageCorrectionSubmitting, setAgeCorrectionSubmitting] = useState(false);
@@ -295,6 +305,33 @@ export default function ParentPortal() {
     return recoveryCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   };
 
+  const handlePayShortfall = async (shortfall) => {
+    setShortfallPaying(true);
+    try {
+      const res = await fetch('/api/yoco/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: shortfall.orderNumber,
+          email: profile.email,
+          firstName: profile.firstName || '',
+          lastName: profile.lastName || ''
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+      } else {
+        alert(data.error || 'Failed to initiate payment. Please try again.');
+      }
+    } catch (err) {
+      console.error('Shortfall payment error:', err);
+      alert('Failed to initiate payment. Please try again.');
+    } finally {
+      setShortfallPaying(false);
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
@@ -414,6 +451,43 @@ export default function ParentPortal() {
       }
     };
     checkRecovery();
+  }, [profile?.email]);
+
+  // Check for shortfall payments (kit price adjustments)
+  useEffect(() => {
+    if (!profile?.email) { setShortfalls([]); return; }
+    const checkShortfalls = async () => {
+      try {
+        const res = await fetch(`/api/shortfall-payments?email=${encodeURIComponent(profile.email)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setShortfalls(data.shortfalls || []);
+        }
+      } catch (err) {
+        console.error('Failed to check shortfall payments:', err);
+      }
+    };
+    checkShortfalls();
+  }, [profile?.email]);
+
+  // Fetch competition data for parent
+  useEffect(() => {
+    if (!profile?.email) return;
+    const fetchCompetition = async () => {
+      try {
+        setCompetitionLoading(true);
+        const res = await fetch(`/api/competition?email=${encodeURIComponent(profile.email)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setCompetitionData(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch competition:', err);
+      } finally {
+        setCompetitionLoading(false);
+      }
+    };
+    fetchCompetition();
   }, [profile?.email]);
 
   // Check for age verification issues
@@ -1025,6 +1099,47 @@ export default function ParentPortal() {
                 {allCustomers.length} customers
               </span>
             </div>
+            <div style={{ padding: '1rem 1.5rem', background: '#111827', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input
+                type="text"
+                placeholder="Search by name, email, phone, or team..."
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '0.65rem 1rem',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: '8px',
+                  color: '#f3f4f6',
+                  fontSize: '0.9rem',
+                  outline: 'none'
+                }}
+              />
+              {customerSearch && (
+                <button
+                  onClick={() => setCustomerSearch('')}
+                  style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '1.1rem', padding: '0.25rem' }}
+                >
+                  ✕
+                </button>
+              )}
+              <span style={{ color: '#6b7280', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                {(() => {
+                  const q = customerSearch.trim().toLowerCase();
+                  if (!q) return '';
+                  const count = allCustomers.filter(c => {
+                    const name = ((c.firstName || '') + ' ' + (c.lastName || '')).toLowerCase();
+                    const email = (c.email || '').toLowerCase();
+                    const phone = (c.phone || '').toLowerCase();
+                    const teamName = (() => { const t = allTeams.find(t => t.id === c.teamId); return t ? (t.teamName || t.team_name || '').toLowerCase() : ''; })();
+                    return name.includes(q) || email.includes(q) || phone.includes(q) || teamName.includes(q);
+                  }).length;
+                  return count + ' match' + (count !== 1 ? 'es' : '');
+                })()}
+              </span>
+            </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -1053,7 +1168,15 @@ export default function ParentPortal() {
                       </td>
                     </tr>
                   )}
-                  {allCustomers.map((customer) => (
+                  {allCustomers.filter(c => {
+                    const q = customerSearch.trim().toLowerCase();
+                    if (!q) return true;
+                    const name = ((c.firstName || '') + ' ' + (c.lastName || '')).toLowerCase();
+                    const email = (c.email || '').toLowerCase();
+                    const phone = (c.phone || '').toLowerCase();
+                    const teamName = (() => { const t = allTeams.find(t => t.id === c.teamId); return t ? (t.teamName || t.team_name || '').toLowerCase() : ''; })();
+                    return name.includes(q) || email.includes(q) || phone.includes(q) || teamName.includes(q);
+                  }).map((customer) => (
                     <tr
                       key={customer.id}
                       onClick={() => handleCustomerSelect(customer)}
@@ -1581,6 +1704,81 @@ export default function ParentPortal() {
             )}
 
             {/* Age Verification Warning Banner — for players whose DOB fails age group cutoff */}
+            {shortfalls.length > 0 && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.08))',
+                border: '1px solid rgba(239,68,68,0.4)',
+                borderRadius: '12px',
+                padding: '1.25rem 1.5rem',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+                  <div>
+                    <div style={{ fontWeight: 800, color: '#ef4444', fontSize: '1rem' }}>
+                      Outstanding Balance — Kit Price Adjustment
+                    </div>
+                    <div style={{ color: '#fca5a5', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.25rem' }}>
+                      Due to a billing error during registration, there is an outstanding balance on your account.
+                      We sincerely apologise for the inconvenience. Please settle the outstanding amount below.
+                    </div>
+                  </div>
+                </div>
+                {shortfalls.map(sf => (
+                  <div key={sf.orderNumber} style={{
+                    background: 'rgba(239,68,68,0.1)',
+                    borderRadius: '8px',
+                    padding: '0.75rem 1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem'
+                  }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      {sf.items.map((item, i) => (
+                        <span key={i} style={{
+                          background: 'rgba(239,68,68,0.2)',
+                          color: '#fca5a5',
+                          padding: '0.2rem 0.6rem',
+                          borderRadius: '999px',
+                          fontSize: '0.8rem',
+                          fontWeight: 700
+                        }}>
+                          {item.playerName || item.name} — R{item.price}
+                        </span>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                      <span style={{ color: '#fca5a5', fontWeight: 800, fontSize: '1rem' }}>
+                        Total: R{sf.totalAmount.toFixed(0)}
+                      </span>
+                      <button
+                        onClick={() => handlePayShortfall(sf)}
+                        disabled={shortfallPaying}
+                        style={{
+                          background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                          color: '#fff',
+                          border: 'none',
+                          padding: '0.6rem 1.5rem',
+                          borderRadius: '8px',
+                          fontWeight: 800,
+                          fontSize: '0.9rem',
+                          cursor: shortfallPaying ? 'wait' : 'pointer',
+                          opacity: shortfallPaying ? 0.7 : 1,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {shortfallPaying ? 'Processing...' : 'Pay Now →'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Age Verification Warning Banner orig — for players whose DOB fails age group cutoff */}
             {ageFlaggedPlayers.length > 0 && !showAgeCorrectionForm && ageFlaggedPlayers.map(fp => (
               ageCorrectionSuccess === fp.submissionId ? (
                 <div key={fp.submissionId} style={{
@@ -2798,9 +2996,308 @@ export default function ParentPortal() {
                 </div>
               );
             })()}
+
+            {/* Competition Card */}
+            {(() => {
+              const ageGroups = [...new Set((competitionData?.players || []).map(p => p.ageGroup).filter(Boolean))];
+              return (
+                <div
+                  className="parentDashboardCard"
+                  onClick={() => { setCompetitionSelectedAg(null); setActiveTab('competition'); }}
+                  onMouseEnter={applyDashboardCardHover}
+                  onMouseLeave={removeDashboardCardHover}
+                  style={{
+                    background: '#111827',
+                    padding: '1.5rem',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                >
+                  <ShineEffect />
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '12px',
+                    background: 'rgba(239, 68, 68, 0.14)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '1rem',
+                    color: '#f87171',
+                    fontSize: '1.4rem'
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                  </div>
+                  <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', fontWeight: 800, color: '#f9fafb' }}>
+                    Competition
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#9ca3af', fontWeight: 600 }}>
+                    See which teams you&apos;re competing against
+                  </p>
+                  {ageGroups.length > 0 && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '1rem',
+                      right: '1rem',
+                      background: 'rgba(239, 68, 68, 0.2)',
+                      color: '#f87171',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '999px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700
+                    }}>
+                      {ageGroups.length} {ageGroups.length === 1 ? 'age group' : 'age groups'}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           </div>
         )}
+
+        {/* COMPETITION VIEW */}
+        {activeTab === 'competition' && (() => {
+          const players = competitionData?.players || [];
+          const uniqueAgeGroups = [...new Set(players.map(p => p.ageGroup).filter(Boolean))].sort();
+
+          // If only 1 player/age group, go straight to the team list
+          const autoSelected = uniqueAgeGroups.length === 1 ? uniqueAgeGroups[0] : competitionSelectedAg;
+
+          if (competitionLoading) {
+            return (
+              <div style={{ textAlign: 'center', padding: '3rem', color: '#9ca3af' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>Loading competition...</div>
+              </div>
+            );
+          }
+
+          if (players.length === 0) {
+            return (
+              <div style={{ textAlign: 'center', padding: '3rem', color: '#9ca3af' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>No competition data available yet</div>
+                <p>Once your player is registered in an age group, you&apos;ll see your competition here.</p>
+              </div>
+            );
+          }
+
+          // Show age group selection cards if multiple players/age groups
+          if (!autoSelected) {
+            return (
+              <div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f9fafb', marginBottom: '0.5rem' }}>Competition</h2>
+                <p style={{ color: '#9ca3af', marginBottom: '1.5rem', fontSize: '0.95rem' }}>Select an age group to see which teams you&apos;ll be competing against</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                  {players.map((p, idx) => {
+                    const accents = [
+                      { color: '#60a5fa', bg: 'rgba(96, 165, 250, 0.14)', border: '1px solid rgba(96, 165, 250, 0.35)' },
+                      { color: '#f87171', bg: 'rgba(239, 68, 68, 0.14)', border: '1px solid rgba(239, 68, 68, 0.35)' },
+                      { color: '#34d399', bg: 'rgba(52, 211, 153, 0.14)', border: '1px solid rgba(52, 211, 153, 0.35)' },
+                      { color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.14)', border: '1px solid rgba(167, 139, 250, 0.35)' },
+                      { color: '#fb923c', bg: 'rgba(251, 146, 60, 0.14)', border: '1px solid rgba(251, 146, 60, 0.35)' }
+                    ];
+                    const accent = accents[idx % accents.length];
+                    return (
+                      <div
+                        key={idx}
+                        className="parentDashboardCard"
+                        onClick={() => setCompetitionSelectedAg(p.ageGroup)}
+                        onMouseEnter={applyDashboardCardHover}
+                        onMouseLeave={removeDashboardCardHover}
+                        style={{
+                          background: '#111827',
+                          padding: '1.5rem',
+                          borderRadius: '12px',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          textAlign: 'left',
+                          animation: 'competitionCardIn 0.4s ease both',
+                          animationDelay: `${idx * 0.06}s`
+                        }}
+                      >
+                        <ShineEffect />
+                        <div style={{
+                          width: '48px', height: '48px', marginBottom: '0.75rem',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          borderRadius: '12px', color: accent.color,
+                          background: accent.bg, border: accent.border
+                        }}>
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                          </svg>
+                        </div>
+                        <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f9fafb', marginBottom: '0.25rem' }}>{p.ageGroup}</div>
+                        <div style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 600 }}>
+                          {p.competition?.totalTeams || 0} {(p.competition?.totalTeams || 0) === 1 ? 'team' : 'teams'} competing
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
+
+          // Show competition teams for the selected age group
+          const selectedPlayer = players.find(p => p.ageGroup === autoSelected);
+          const teams = selectedPlayer?.competition?.teams || [];
+          const myTeamId = selectedPlayer?.teamId;
+
+          return (
+            <div>
+              {uniqueAgeGroups.length > 1 && (
+                <button
+                  onClick={() => setCompetitionSelectedAg(null)}
+                  style={{
+                    background: 'rgba(255,255,255,0.08)',
+                    color: '#e5e7eb',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    marginBottom: '1rem'
+                  }}
+                >
+                  ← Back to Age Groups
+                </button>
+              )}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f9fafb', margin: 0 }}>
+                  {autoSelected} Competition
+                </h2>
+                <span style={{ color: '#9ca3af', fontSize: '0.95rem', fontWeight: 600 }}>
+                  {teams.length} {teams.length === 1 ? 'team' : 'teams'} competing
+                </span>
+              </div>
+              <p style={{ color: '#6b7280', marginTop: '0.25rem', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+                {selectedPlayer?.playerName} — {selectedPlayer?.teamName}
+              </p>
+              <div className="competitionGrid" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                gap: '1.5rem'
+              }}>
+                {teams.map((t, idx) => {
+                  const isMyTeam = t.teamId === myTeamId;
+                  return (
+                    <div
+                      key={`${t.teamId}-${idx}`}
+                      className="parentDashboardCard competitionTeamCard"
+                      onMouseEnter={applyDashboardCardHover}
+                      onMouseLeave={removeDashboardCardHover}
+                      style={{
+                        background: isMyTeam ? 'linear-gradient(135deg, #111827 0%, rgba(239, 68, 68, 0.08) 100%)' : '#111827',
+                        padding: '1.5rem',
+                        borderRadius: '12px',
+                        border: isMyTeam ? '1px solid rgba(239, 68, 68, 0.5)' : '1px solid rgba(255,255,255,0.08)',
+                        boxShadow: isMyTeam ? '0 4px 20px rgba(220, 0, 0, 0.15)' : '0 1px 3px rgba(0,0,0,0.4)',
+                        transition: 'all 0.3s',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        textAlign: 'center',
+                        animation: 'competitionCardIn 0.4s ease both',
+                        animationDelay: `${idx * 0.04}s`,
+                        cursor: 'default'
+                      }}
+                    >
+                      <ShineEffect />
+                      {isMyTeam && (
+                        <span style={{
+                          position: 'absolute', top: '0.6rem', left: '0.6rem',
+                          background: 'rgba(239, 68, 68, 0.2)', color: '#f87171',
+                          padding: '0.15rem 0.5rem', borderRadius: '6px',
+                          fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.03em'
+                        }}>Your Team</span>
+                      )}
+                      {t.isNewTeam && (
+                        <span style={{
+                          position: 'absolute', top: '0.6rem', right: '0.6rem',
+                          background: 'rgba(16,185,129,0.2)', color: '#34d399',
+                          padding: '0.15rem 0.5rem', borderRadius: '6px',
+                          fontSize: '0.7rem', fontWeight: 800
+                        }}>New!</span>
+                      )}
+                      <div style={{ position: 'relative', width: '90px', margin: '0.75rem auto 0.75rem' }}>
+                        <div style={{
+                          width: '90px', height: '90px', borderRadius: '50%',
+                          overflow: 'hidden',
+                          border: isMyTeam ? '3px solid rgba(239, 68, 68, 0.4)' : '3px solid rgba(255,255,255,0.15)',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.3)', background: '#1f2937'
+                        }}>
+                          <img
+                            src={t.teamLogo || ''}
+                            alt={t.teamName}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: t.teamLogo ? 'block' : 'none' }}
+                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                          />
+                          <div style={{
+                            width: '100%', height: '100%', display: t.teamLogo ? 'none' : 'flex',
+                            alignItems: 'center', justifyContent: 'center',
+                            color: '#6b7280', fontSize: '1.5rem', fontWeight: 900
+                          }}>
+                            {(t.teamName || '?')[0]}
+                          </div>
+                        </div>
+                        {t.shirtDesign && (
+                          <div style={{
+                            position: 'absolute', bottom: '-4px', right: '-8px',
+                            width: '40px', height: '40px', borderRadius: '6px',
+                            overflow: 'hidden', background: '#1f2937',
+                            border: '2px solid #111827',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.4)'
+                          }}>
+                            <img
+                              src={t.shirtDesign}
+                              alt={`${t.teamName} kit`}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                            />
+                            <div style={{
+                              width: '100%', height: '100%', display: 'none',
+                              alignItems: 'center', justifyContent: 'center',
+                              background: 'linear-gradient(135deg, #1f2937, #374151)',
+                              color: '#9ca3af', fontSize: '1rem'
+                            }}>
+                              👕
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f9fafb', marginBottom: '0.25rem', lineHeight: 1.3 }}>
+                        {t.teamName}
+                      </div>
+                      {t.cupWins > 0 && (
+                        <div style={{ marginTop: '0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(239, 68, 68, 0.12)', padding: '0.2rem 0.6rem', borderRadius: '999px' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#f87171' }}>{t.cupWins} {t.cupWins === 1 ? 'Cup Win' : 'Cup Wins'}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* TEAM PORTAL VIEW */}
         {activeTab === 'teamView' && (() => {
@@ -3173,7 +3670,7 @@ export default function ParentPortal() {
                                       color: '#f9fafb',
                                       border: '1px solid rgba(255,255,255,0.08)'
                                     }}>
-                                      #{player.jerseyNumber || player.shirtNumber || '-'}
+                                      #{String(player.jerseyNumber || player.shirtNumber || '-').padStart(2, '0')}
                                     </span>
                                   </td>
                                   <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#94a3b8' }}>
@@ -3226,7 +3723,7 @@ export default function ParentPortal() {
                                   color: '#f9fafb',
                                   fontSize: '0.8rem',
                                   border: '1px solid rgba(255,255,255,0.08)'
-                                }}>#{player.jerseyNumber || player.shirtNumber || '-'}</span>
+                                }}>#{String(player.jerseyNumber || player.shirtNumber || '-').padStart(2, '0')}</span>
                               </div>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
                                 {(player.roles || player.registrationData?.roles) ? (
@@ -4081,6 +4578,27 @@ export default function ParentPortal() {
         @keyframes mobileCardGlow {
           0% { opacity: 0.65; }
           100% { opacity: 1; }
+        }
+
+        @keyframes competitionCardIn {
+          from {
+            opacity: 0;
+            transform: translateY(16px) scale(0.97);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @media (max-width: 768px) {
+          .competitionGrid {
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+            gap: 0.75rem !important;
+          }
+          .competitionTeamCard {
+            padding: 1rem !important;
+          }
         }
       `}</style>
     );

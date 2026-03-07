@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: 'Order ID is required' });
   }
 
-  // Basic input validation — order IDs follow pattern ORD{timestamp} or ORD_ADDON_{timestamp}
+  // Basic input validation — order IDs follow pattern ORD{timestamp}, ORD_ADDON_{timestamp}, or ORD_SF_{timestamp}
   if (typeof orderId !== 'string' || orderId.length > 50 || !/^ORD[\w]*\d+$/.test(orderId)) {
     return res.status(400).json({ success: false, error: 'Invalid order ID format' });
   }
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   try {
     // 1. Look up order in database
     const orderResult = await query(
-      'SELECT id, order_number, total_amount, status, payment_status, payment_method, gateway_checkout_id, customer_email, customer_name, order_type FROM orders WHERE order_number = $1',
+      'SELECT id, order_number, total_amount, status, payment_status, payment_method, gateway_checkout_id, customer_email, customer_name, order_type, items FROM orders WHERE order_number = $1',
       [orderId]
     );
 
@@ -41,13 +41,15 @@ export default async function handler(req, res) {
     // If already confirmed, still ensure team_players were created (covers race condition
     // where webhook/reconcile marked paid but player creation was missed)
     if (order.payment_status === 'paid') {
-      try {
-        const host = req.headers.host || '';
-        const protocol = req.headers['x-forwarded-proto'] || 'http';
-        const baseUrl = host ? `${protocol}://${host}` : 'https://winterleaguecricket.co.za';
-        await createTeamPlayersFromSubmissions(order.customer_email, 'Yoco verify (already-paid)', { baseUrl });
-      } catch (e) {
-        console.log('Yoco verify: player creation check for already-paid order failed (non-fatal):', e.message);
+      if (order.order_type !== 'shortfall') {
+        try {
+          const host = req.headers.host || '';
+          const protocol = req.headers['x-forwarded-proto'] || 'http';
+          const baseUrl = host ? `${protocol}://${host}` : 'https://winterleaguecricket.co.za';
+          await createTeamPlayersFromSubmissions(order.customer_email, 'Yoco verify (already-paid)', { baseUrl });
+        } catch (e) {
+          console.log('Yoco verify: player creation check for already-paid order failed (non-fatal):', e.message);
+        }
       }
       return res.status(200).json({
         success: true,
@@ -136,6 +138,36 @@ export default async function handler(req, res) {
           logPaymentEvent({ orderId, email: order.customer_email, amount: order.total_amount, gateway: 'yoco', status: 'paid', details: `Verified via Yoco API. Checkout ${order.gateway_checkout_id} completed (${yocoAmountCents} cents)` });
 
           // Addon orders now stand alone — no merged items to clean up in original orders
+
+          // ===== SHORTFALL ORDER: Create team_revenue entries =====
+          if (order.order_type === 'shortfall') {
+            try {
+              const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
+              for (const item of items) {
+                const teamId = item.teamId;
+                const playerName = item.playerName || item.name || '';
+                const amount = parseFloat(item.price) || 0;
+                if (teamId && amount > 0) {
+                  await query(
+                    `INSERT INTO team_revenue (team_id, revenue_type, amount, description, reference_id, payment_status)
+                     VALUES ($1, 'player-registration-markup', $2, $3, $4, 'paid')`,
+                    [teamId, amount, `Kit markup for player: ${playerName}`, orderId]
+                  );
+                  console.log(`Shortfall verify: recorded R${amount} markup revenue for ${playerName}, team ${teamId}`);
+                }
+              }
+            } catch (shortfallErr) {
+              console.error('Shortfall verify: error creating revenue entries:', shortfallErr.message);
+            }
+
+            try {
+              await sendParentPaymentSuccessEmail(orderId, order.customer_email || '', order.customer_name || '', order.total_amount);
+            } catch (emailErr) {
+              console.error('Shortfall payment email error (non-blocking):', emailErr.message);
+            }
+
+            return res.status(200).json({ success: true, status: 'paid', message: 'Shortfall payment verified and confirmed' });
+          }
 
           // ===== CREATE TEAM PLAYERS + REVENUE FROM FORM SUBMISSIONS =====
           // Players are no longer created at form submission time (to avoid pending clutter).

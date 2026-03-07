@@ -80,7 +80,8 @@ export default async function handler(req, res) {
               updated_at = NOW()
              WHERE LOWER(customer_email) = LOWER($2)
                AND payment_status = 'pending'
-               AND order_number != $1`,
+               AND order_number != $1
+               AND COALESCE(order_type, '') != 'shortfall'`,
             [orderData.orderNumber, orderData.customerEmail]
           );
           if (cancelled.rowCount > 0) {
