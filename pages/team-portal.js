@@ -189,11 +189,32 @@ const portalIcons = {
       <path d="M19 10v8" />
       <path d="M4 18h16" />
     </svg>
+  ),
+  competition: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 7 7 7 7" />
+      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5C17 4 17 7 17 7" />
+      <path d="M4 22h16" />
+      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22" />
+      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22" />
+      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+    </svg>
+  ),
+  store: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z" />
+      <path d="m3 9 2.45-4.9A2 2 0 0 1 7.24 3h9.52a2 2 0 0 1 1.8 1.1L21 9" />
+      <path d="M12 3v6" />
+      <path d="M9 21v-6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v6" />
+    </svg>
   )
 };
 
 export default function TeamPortal() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Prevent login form flash: check localStorage synchronously on mount
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [hasSavedSession, setHasSavedSession] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [team, setTeam] = useState(null);
   const [identifier, setIdentifier] = useState('');
@@ -261,6 +282,29 @@ export default function TeamPortal() {
   const [paidBatches, setPaidBatches] = useState([]);
   const [expandedBatchId, setExpandedBatchId] = useState(null);
   const [dismissedBatchIds, setDismissedBatchIds] = useState([]);
+  // Competition state
+  const [competitionData, setCompetitionData] = useState(null);
+  const [competitionLoading, setCompetitionLoading] = useState(false);
+  const [competitionSelectedAg, setCompetitionSelectedAg] = useState(null);
+  // Coach Store state
+  const [coachStoreEnabled, setCoachStoreEnabled] = useState(true); // coach store live
+  const [coachProducts, setCoachProducts] = useState([]);
+  const [coachStoreLoading, setCoachStoreLoading] = useState(false);
+  const [coachCart, setCoachCart] = useState({}); // { [productId]: [{ size, personalization }] } — each array entry is one unit
+  const [coachToast, setCoachToast] = useState(null); // { message, product }
+  const [coachOrders, setCoachOrders] = useState([]);
+  const [coachCartRefresh, setCoachCartRefresh] = useState(0);
+  const [expandedOrders, setExpandedOrders] = useState({});
+  const [showCartModal, setShowCartModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const loadPortalTemplate = async () => {
@@ -300,9 +344,20 @@ export default function TeamPortal() {
     // Check for admin bypass or existing session
     const initializeSession = async () => {
       if (typeof window !== 'undefined') {
+        // Immediately flag if we have a saved session to prevent login flash
+        const savedTeamId = localStorage.getItem('teamId');
+        if (savedTeamId) {
+          setHasSavedSession(true);
+        }
+
         // Check if admin wants to bypass login
         const urlParams = new URLSearchParams(window.location.search);
         const adminBypass = urlParams.get('admin') === 'true';
+
+        // Coach Store preview gate — only show when ?preview=coachstore
+        if (urlParams.get('preview') === 'coachstore') {
+          setCoachStoreEnabled(true);
+        }
         
         if (adminBypass) {
           setIsAdminMode(true);
@@ -313,19 +368,31 @@ export default function TeamPortal() {
           setIsPreviewMode(false);
           setTeam(null);
           setSelectedTeamId(null);
+          setSessionChecked(true);
           return;
         }
         
         // Check for existing team session
-        const savedTeamId = localStorage.getItem('teamId');
         if (savedTeamId) {
           const teamData = await apiHelpers.getTeamById(parseInt(savedTeamId));
           if (teamData) {
             setTeam(teamData);
             setIsAuthenticated(true);
+            // Restore tab from URL param (e.g. ?tab=coach-store from checkout back-nav)
+            const tabParam = urlParams.get('tab');
+            if (tabParam) {
+              setActiveTab(tabParam);
+              // Auto-enable coach store if returning from checkout
+              if (tabParam === 'coach-store') setCoachStoreEnabled(true);
+            }
+          } else {
+            // teamId in localStorage but API returned nothing — stale session
+            localStorage.removeItem('teamId');
+            setHasSavedSession(false);
           }
         }
       }
+      setSessionChecked(true);
     };
     initializeSession();
   }, []);
@@ -348,6 +415,27 @@ export default function TeamPortal() {
   useEffect(() => {
     if (activeTab === 'revenue' && team) {
       handleRefreshData();
+    }
+    if (activeTab === 'coach-store' && team) {
+      loadCoachProducts();
+      // Load coach apparel orders by team email
+      if (team.email) {
+        fetch(`/api/orders?email=${encodeURIComponent(team.email)}`)
+          .then(r => r.ok ? r.json() : { orders: [] })
+          .then(data => {
+            const apparelOrders = (data.orders || []).filter(o =>
+              o.items && o.items.some(i => i.name && (
+                i.name.toLowerCase().includes('hoodie') ||
+                i.name.toLowerCase().includes('pants') ||
+                i.name.toLowerCase().includes('shirt') ||
+                i.name.toLowerCase().includes('scuba') ||
+                i.name.toLowerCase().includes('cap')
+              ))
+            );
+            setCoachOrders(apparelOrders);
+          })
+          .catch(() => setCoachOrders([]));
+      }
     }
   }, [activeTab]);
 
@@ -398,6 +486,26 @@ export default function TeamPortal() {
     };
     loadPaidBatches();
   }, [team?.id, refreshKey]);
+
+  // Load competition data for this team
+  useEffect(() => {
+    if (!team?.id) return;
+    const fetchCompetition = async () => {
+      try {
+        setCompetitionLoading(true);
+        const res = await fetch(`/api/competition?teamId=${team.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setCompetitionData(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch competition:', err);
+      } finally {
+        setCompetitionLoading(false);
+      }
+    };
+    fetchCompetition();
+  }, [team?.id]);
 
   const dismissBatch = (batchId) => {
     const updated = [...dismissedBatchIds, batchId];
@@ -471,7 +579,9 @@ export default function TeamPortal() {
 
   const saveSponsorLogos = async (logos) => {
     if (!team?.id) return;
-    const nextSubmissionData = { ...(team.submissionData || {}) };
+    // Fetch fresh data from server to avoid overwriting pricing fields with stale values
+    const freshTeam = await apiHelpers.getTeamById(team.id);
+    const nextSubmissionData = { ...(freshTeam?.submissionData || team.submissionData || {}) };
     nextSubmissionData.sponsorLogos = logos;
     // Keep field 30 as the first logo for backward compatibility
     nextSubmissionData[30] = logos[0] || '';
@@ -579,7 +689,9 @@ export default function TeamPortal() {
 
         // Also update submission_data field 22 for backward compat
         if (team.formSubmissionId) {
-          const nextData = { ...(team.submissionData || {}), 22: data.url, teamLogo: data.url };
+          // Fetch fresh data from server to avoid overwriting pricing fields with stale values
+          const freshTeam = await apiHelpers.getTeamById(team.id);
+          const nextData = { ...(freshTeam?.submissionData || team.submissionData || {}), 22: data.url, teamLogo: data.url };
           await fetch('/api/submissions', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -677,7 +789,9 @@ export default function TeamPortal() {
     if (!team?.id) return;
     setAgeGroupSaving(true);
     try {
-      const nextSubmissionData = { ...(team.submissionData || {}) };
+      // Fetch fresh data from server to avoid overwriting pricing fields with stale values
+      const freshTeam = await apiHelpers.getTeamById(team.id);
+      const nextSubmissionData = { ...(freshTeam?.submissionData || team.submissionData || {}) };
       nextSubmissionData['33'] = updatedAgeGroups;
       nextSubmissionData['32'] = updatedAgeGroups.length;
 
@@ -903,6 +1017,60 @@ export default function TeamPortal() {
     setIsRefreshing(false);
   };
 
+  // Coach Store: load team-specific products
+  const loadCoachProducts = async () => {
+    if (!team?.id) return;
+    setCoachStoreLoading(true);
+    try {
+      const res = await fetch(`/api/products?category=coach-apparel&teamId=${team.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCoachProducts(data.products || []);
+      }
+    } catch (err) {
+      console.error('Error loading coach products:', err);
+    } finally {
+      setCoachStoreLoading(false);
+    }
+  };
+
+  // Coach Store: show toast notification
+  const showCoachToast = (message, product) => {
+    setCoachToast({ message, product });
+    setTimeout(() => setCoachToast(null), 3000);
+  };
+
+  // Coach Store: determine if product supports personalization
+  const supportsPersonalization = (productName) => {
+    const name = productName.toLowerCase();
+    return name.includes('hoodie') || name.includes('scuba') || name.includes('sleeve shirt');
+  };
+
+  // Coach Store: strip team name from product name for cleaner display
+  const getCleanProductName = (productName) => {
+    if (!team?.teamName) return productName;
+    const teamName = team.teamName;
+    // Try case-insensitive prefix removal
+    if (productName.toLowerCase().startsWith(teamName.toLowerCase() + ' ')) {
+      return productName.substring(teamName.length + 1);
+    }
+    // For partial matches (e.g., "Champions" in "Champions Cricket Academy")
+    const words = teamName.split(' ');
+    if (words.length > 1) {
+      const firstName = words[0];
+      if (productName.startsWith(firstName + ' ') && !productName.toLowerCase().startsWith('winter') && !productName.toLowerCase().startsWith('limited')) {
+        // Check if product name starts with a known shorter version of the team name
+        const productTypes = ['Hoodie', 'Scuba', 'Pants', 'Long Sleeve Shirt', 'Short Sleeve Shirt', 'Cap', 'Beanie'];
+        for (const pt of productTypes) {
+          if (productName.endsWith(pt)) {
+            return pt;
+          }
+        }
+      }
+    }
+    return productName;
+  };
+
   const handleMovePlayer = async (playerId, currentSubTeam, newSubTeam) => {
     if (isPreviewMode) return;
     if (team?.id) {
@@ -1104,7 +1272,29 @@ export default function TeamPortal() {
   }).format(Number(value || 0));
   const teamLogoUrl = team?.teamLogo || team?.submissionData?.teamLogo || team?.submissionData?.['22'] || team?.submissionData?.[22] || '';
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isAdminMode) {
+    // Still recovering session — show loading spinner, not login form
+    if (!sessionChecked || hasSavedSession) {
+      return (
+        <>
+          <Head>
+            <title>Team Portal</title>
+          </Head>
+          <div style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #dc0000 100%)'
+          }}>
+            <div style={{ textAlign: 'center', color: '#f9fafb' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🏏</div>
+              <p style={{ fontSize: '1.1rem', color: '#94a3b8' }}>Loading...</p>
+            </div>
+          </div>
+        </>
+      );
+    }
     return (
       <>
         <Head>
@@ -1978,6 +2168,148 @@ export default function TeamPortal() {
                     Revenue & Payouts
                   </div>
                 </button>
+
+
+                {/* Competition Card */}
+                <button
+                  type="button"
+                  onClick={() => { setCompetitionSelectedAg(null); setActiveTab('competition'); }}
+                  className="teamDashboardCard"
+                  style={{
+                    background: '#111827',
+                    padding: '1.5rem',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                  onMouseEnter={(e) => applyDashboardCardHover(e.currentTarget, true)}
+                  onMouseLeave={(e) => applyDashboardCardHover(e.currentTarget, false)}
+                >
+                  <span
+                    data-card-shine="true"
+                    style={{
+                      position: 'absolute',
+                      top: '-50%',
+                      left: '-120%',
+                      width: '60%',
+                      height: '200%',
+                      background: 'linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.45), transparent)',
+                      transform: 'skewX(-20deg)',
+                      transition: 'left 0.5s ease',
+                      pointerEvents: 'none'
+                    }}
+                  />
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    marginBottom: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '12px',
+                    color: '#f87171',
+                    background: 'rgba(239, 68, 68, 0.14)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)'
+                  }}>
+                    {portalIcons.players}
+                  </div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#f9fafb', marginBottom: '0.25rem' }}>
+                    Competition
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: '#9ca3af', fontWeight: '600' }}>
+                    See who you&apos;re competing against
+                  </div>
+                  {competitionData?.ageGroups?.length > 0 && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '1rem',
+                      right: '1rem',
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      color: '#f87171',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '999px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700
+                    }}>
+                      {competitionData.ageGroups.length} {competitionData.ageGroups.length === 1 ? 'age group' : 'age groups'}
+                    </span>
+                  )}
+                </button>
+
+                {/* Coach Store Card — hidden until preview gate enabled */}
+                {coachStoreEnabled && <button
+                  type="button"
+                  onClick={() => setActiveTab('coach-store')}
+                  className="teamDashboardCard"
+                  style={{
+                    background: 'linear-gradient(135deg, #111827 0%, rgba(168,85,247,0.08) 100%)',
+                    padding: '1.5rem',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(168,85,247,0.25)',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                  onMouseEnter={(e) => applyDashboardCardHover(e.currentTarget, true)}
+                  onMouseLeave={(e) => applyDashboardCardHover(e.currentTarget, false)}
+                >
+                  <span
+                    data-card-shine="true"
+                    style={{
+                      position: 'absolute',
+                      top: '-50%',
+                      left: '-120%',
+                      width: '60%',
+                      height: '200%',
+                      background: 'linear-gradient(120deg, transparent, rgba(168, 85, 247, 0.35), transparent)',
+                      transform: 'skewX(-20deg)',
+                      transition: 'left 0.5s ease',
+                      pointerEvents: 'none'
+                    }}
+                  />
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    marginBottom: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '12px',
+                    color: '#c4b5fd',
+                    background: 'rgba(168, 85, 247, 0.14)',
+                    border: '1px solid rgba(168, 85, 247, 0.35)'
+                  }}>
+                    {portalIcons.store}
+                  </div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f9fafb', marginBottom: '0.25rem' }}>
+                    Coach Store
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: '#9ca3af', fontWeight: '600' }}>
+                    Official team apparel
+                  </div>
+                  <span style={{
+                    position: 'absolute',
+                    top: '1rem',
+                    right: '1rem',
+                    background: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',
+                    color: '#ffffff',
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '999px',
+                    fontSize: '0.7rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.05em'
+                  }}>
+                    NEW
+                  </span>
+                </button>}
               </div>
 
               {/* Recent Activity */}
@@ -3135,6 +3467,1048 @@ export default function TeamPortal() {
               })()}
             </div>
           )}
+
+          {/* Coach Store Tab — gated behind preview */}
+          {activeTab === 'coach-store' && coachStoreEnabled && (
+            <div style={{ paddingBottom: '5rem' }}>
+              {/* Toast Notification */}
+              {coachToast && (
+                <div style={{
+                  position: 'fixed', top: '1.5rem', right: isMobile ? '0.75rem' : '1.5rem',
+                  left: isMobile ? '0.75rem' : 'auto', zIndex: 9999,
+                  background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
+                  border: '1px solid rgba(168,85,247,0.4)',
+                  borderRadius: '14px', padding: isMobile ? '0.85rem 1rem' : '1rem 1.5rem',
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                  animation: 'slideInRight 0.3s ease-out',
+                  maxWidth: isMobile ? 'none' : '380px'
+                }}>
+                  <div style={{
+                    width: '36px', height: '36px', borderRadius: '8px',
+                    background: 'rgba(168,85,247,0.2)', border: '1px solid rgba(168,85,247,0.3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '1.1rem', flexShrink: 0
+                  }}>✓</div>
+                  <div>
+                    <div style={{ color: '#e9d5ff', fontWeight: 700, fontSize: '0.88rem' }}>{coachToast.message}</div>
+                    {coachToast.product && (
+                      <div style={{ color: '#a78bfa', fontSize: '0.78rem', marginTop: '0.15rem' }}>{coachToast.product}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Hero Banner */}
+              {(() => { const tc = team?.primaryColor || '#8b5cf6'; const tc2 = team?.secondaryColor || '#1e1b4b'; return (
+              <div style={{
+                background: `linear-gradient(135deg, ${tc}22 0%, rgba(17,24,39,0.98) 40%, ${tc2}15 100%)`,
+                borderRadius: isMobile ? '12px' : '16px',
+                padding: isMobile ? '1.25rem 1rem' : '2rem 2.5rem',
+                marginBottom: '1.5rem',
+                border: `1px solid ${tc}40`,
+                boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+                position: 'relative', overflow: 'hidden'
+              }}>
+                <div style={{
+                  position: 'absolute', top: 0, right: 0, width: '200px', height: '100%',
+                  background: `linear-gradient(135deg, transparent, ${tc}0a)`,
+                  pointerEvents: 'none'
+                }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.85rem' : '1.25rem', position: 'relative', zIndex: 1 }}>
+                  {team?.teamLogo ? (
+                    <img src={team.teamLogo} alt={team.teamName} style={{
+                      width: isMobile ? '44px' : '64px', height: isMobile ? '44px' : '64px',
+                      borderRadius: isMobile ? '10px' : '14px', objectFit: 'cover',
+                      border: `2px solid ${tc}66`,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                      flexShrink: 0
+                    }} />
+                  ) : (
+                    <div style={{
+                      width: isMobile ? '44px' : '64px', height: isMobile ? '44px' : '64px',
+                      borderRadius: isMobile ? '10px' : '14px',
+                      background: `linear-gradient(135deg, ${tc}, ${tc2 || tc})`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: isMobile ? '1.3rem' : '1.8rem', border: `2px solid ${tc}66`,
+                      flexShrink: 0
+                    }}>🏏</div>
+                  )}
+                  <div style={{ minWidth: 0 }}>
+                    <h2 style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.6rem', fontWeight: 900, color: '#f9fafb', letterSpacing: '-0.02em' }}>
+                      {team?.teamName} Official Apparel
+                    </h2>
+                    <p style={{ margin: '0.3rem 0 0 0', color: `${tc}cc`, fontSize: isMobile ? '0.78rem' : '0.9rem', fontWeight: 600 }}>
+                      Premium coach and management wear
+                    </p>
+                  </div>
+                </div>
+              </div>
+              ); })()}
+
+
+              {coachStoreLoading ? (
+                <div style={{ textAlign: 'center', padding: '4rem', color: '#9ca3af' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
+                  Loading your team apparel...
+                </div>
+              ) : coachProducts.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '4rem', color: '#9ca3af' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>👕</div>
+                  No apparel items available for your team yet.
+                </div>
+              ) : (
+                /* ═══════ GRID / CARD VIEW ═══════ */
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))',
+                  gap: isMobile ? '1rem' : '1.25rem'
+                }}>
+                  {[...coachProducts].sort((a, b) => {
+                    const aGeneric = a.name.toLowerCase().startsWith('winter league') || a.name.toLowerCase().startsWith('limited');
+                    const bGeneric = b.name.toLowerCase().startsWith('winter league') || b.name.toLowerCase().startsWith('limited');
+                    if (aGeneric !== bGeneric) return aGeneric ? 1 : -1;
+                    return a.name.localeCompare(b.name);
+                  }).map(product => {
+                    const cleanName = getCleanProductName(product.name);
+                    const hasPers = supportsPersonalization(product.name);
+                    const cartKey = product.id;
+                    const items = coachCart[cartKey] || [{ size: product.sizes?.[0] || '', personalization: 'None' }];
+
+                    return (
+                      <div key={product.id} style={{
+                        background: '#111827', borderRadius: '14px',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        overflow: 'hidden', transition: 'all 0.25s',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                        display: 'flex', flexDirection: 'column'
+                      }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.borderColor = 'rgba(168,85,247,0.35)';
+                          e.currentTarget.style.boxShadow = '0 8px 25px rgba(168,85,247,0.12)';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        {/* Product Image */}
+                        <div style={{
+                          position: 'relative', paddingTop: '100%', background: '#0a0a0a',
+                          overflow: 'hidden'
+                        }}>
+                          <img
+                            src={product.image || '/images/placeholder.svg'}
+                            alt={product.name}
+                            style={{
+                              position: 'absolute', inset: 0, width: '100%', height: '100%',
+                              objectFit: product.name?.toLowerCase().includes('pants') ? 'contain' : 'cover',
+                              objectPosition: product.name?.toLowerCase().includes('pants') ? 'center' : 'center'
+                            }}
+                          />
+
+                          {/* Quantity Badge */}
+                          {items.length > 0 && (
+                            <div style={{
+                              position: 'absolute', top: '0.75rem', left: '0.75rem',
+                              background: 'rgba(139,92,246,0.9)', color: '#fff',
+                              padding: '0.2rem 0.6rem', borderRadius: '6px',
+                              fontSize: '0.72rem', fontWeight: 800
+                            }}>
+                              Qty: {items.length}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Product Details */}
+                        <div style={{ padding: '1.25rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          <div>
+                            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f9fafb', marginBottom: '0.15rem' }}>
+                              {cleanName}
+                            </div>
+                            {product.description && (
+                              <div style={{ fontSize: '0.78rem', color: '#6b7280', lineHeight: 1.4 }}>
+                                {product.description.length > 80 ? product.description.substring(0, 80) + '...' : product.description}
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{
+                            fontSize: '1.4rem', fontWeight: 900, color: '#c4b5fd',
+                            letterSpacing: '-0.02em'
+                          }}>
+                            R{product.price.toFixed(2)}
+                          </div>
+
+                          {/* Per-Item Sizing Rows */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              Individual Items ({items.length})
+                            </label>
+                            {items.map((item, idx) => (
+                              <div key={idx} style={{
+                                display: 'flex', gap: '0.4rem', alignItems: isMobile ? 'stretch' : 'center',
+                                flexWrap: isMobile ? 'wrap' : 'nowrap',
+                                background: 'rgba(255,255,255,0.03)', borderRadius: '8px',
+                                padding: isMobile ? '0.5rem' : '0.4rem', border: '1px solid rgba(255,255,255,0.06)'
+                              }}>
+                                <span style={{ fontSize: '0.72rem', color: '#6b7280', fontWeight: 700, minWidth: '18px', textAlign: 'center', ...(isMobile ? { display: 'flex', alignItems: 'center' } : {}) }}>
+                                  {idx + 1}
+                                </span>
+                                {/* Size */}
+                                {product.sizes && product.sizes.length > 0 && (
+                                  <select
+                                    value={item.size}
+                                    onChange={e => {
+                                      const newItems = [...items];
+                                      newItems[idx] = { ...newItems[idx], size: e.target.value };
+                                      setCoachCart(prev => ({ ...prev, [cartKey]: newItems }));
+                                    }}
+                                    style={{
+                                      flex: 1, padding: '0.4rem 0.5rem',
+                                      background: '#1f2937', border: '1px solid rgba(255,255,255,0.12)',
+                                      borderRadius: '6px', color: '#f9fafb', fontSize: isMobile ? '0.85rem' : '0.8rem',
+                                      cursor: 'pointer', outline: 'none',
+                                      minWidth: isMobile ? '0' : '0',
+                                      height: isMobile ? '38px' : 'auto'
+                                    }}
+                                  >
+                                    {product.sizes.map(s => <option key={s} value={s}>{s}</option>)}
+                                  </select>
+                                )}
+                                {/* Personalization */}
+                                {hasPers && (
+                                  <select
+                                    value={item.personalization}
+                                    onChange={e => {
+                                      const newItems = [...items];
+                                      newItems[idx] = { ...newItems[idx], personalization: e.target.value };
+                                      setCoachCart(prev => ({ ...prev, [cartKey]: newItems }));
+                                    }}
+                                    style={{
+                                      flex: 1, padding: '0.4rem 0.5rem',
+                                      background: '#1f2937', border: '1px solid rgba(168,85,247,0.2)',
+                                      borderRadius: '6px', color: '#f9fafb', fontSize: isMobile ? '0.85rem' : '0.8rem',
+                                      cursor: 'pointer', outline: 'none',
+                                      minWidth: isMobile ? '0' : '0',
+                                      height: isMobile ? '38px' : 'auto'
+                                    }}
+                                  >
+                                    <option value="None">None</option>
+                                    <option value="Coach">Coach</option>
+                                    <option value="Manager">Manager</option>
+                                  </select>
+                                )}
+                                {/* Remove button (only if more than 1 item) */}
+                                {items.length > 1 && (
+                                  <button
+                                    onClick={() => {
+                                      const newItems = items.filter((_, i) => i !== idx);
+                                      setCoachCart(prev => ({ ...prev, [cartKey]: newItems }));
+                                    }}
+                                    style={{
+                                      width: '26px', height: '26px', borderRadius: '6px',
+                                      background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)',
+                                      color: '#f87171', cursor: 'pointer', fontSize: '0.85rem',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      flexShrink: 0
+                                    }}
+                                  >×</button>
+                                )}
+                              </div>
+                            ))}
+                            {/* Add Another button */}
+                            <button
+                              onClick={() => {
+                                const newItem = { size: product.sizes?.[0] || '', personalization: 'None' };
+                                setCoachCart(prev => ({
+                                  ...prev,
+                                  [cartKey]: [...items, newItem]
+                                }));
+                              }}
+                              style={{
+                                padding: '0.35rem', background: 'rgba(255,255,255,0.04)',
+                                border: '1px dashed rgba(255,255,255,0.15)', borderRadius: '6px',
+                                color: '#9ca3af', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600,
+                                transition: 'all 0.15s'
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(168,85,247,0.4)'; e.currentTarget.style.color = '#c4b5fd'; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#9ca3af'; }}
+                            >
+                              + Add Another
+                            </button>
+                          </div>
+
+                          {/* Add to Cart */}
+                          <button
+                            onClick={() => {
+                              const existingCart = JSON.parse(localStorage.getItem('cricket-cart') || '[]');
+                              items.forEach(item => {
+                                const pers = hasPers && item.personalization !== 'None' ? item.personalization : null;
+                                const cartItem = {
+                                  id: product.id, name: product.name, price: product.price,
+                                  image: product.image, selectedSize: item.size, quantity: 1,
+                                  teamId: team?.id, category: 'coach-apparel'
+                                };
+                                if (pers) cartItem.personalization = pers;
+                                existingCart.push(cartItem);
+                              });
+                              localStorage.setItem('cricket-cart', JSON.stringify(existingCart));
+                              const summary = items.length === 1
+                                ? `${cleanName} — ${items[0].size}${hasPers && items[0].personalization !== 'None' ? ' — ' + items[0].personalization : ''}`
+                                : `${cleanName} × ${items.length} items`;
+                              showCoachToast('Added to cart!', summary);
+                              setCoachCartRefresh(p => p + 1);
+                              setCoachCart(prev => ({
+                                ...prev,
+                                [cartKey]: [{ size: product.sizes?.[0] || '', personalization: 'None' }]
+                              }));
+                            }}
+                            style={{
+                              width: '100%', padding: '0.65rem 1rem', marginTop: 'auto',
+                              background: `linear-gradient(135deg, ${team?.primaryColor || '#7c3aed'} 0%, ${team?.primaryColor || '#8b5cf6'}cc 100%)`,
+                              border: 'none', borderRadius: '8px',
+                              color: '#fff', fontWeight: 800, fontSize: '0.88rem',
+                              cursor: 'pointer', transition: 'all 0.2s',
+                              boxShadow: `0 2px 8px ${team?.primaryColor || '#8b5cf6'}44`
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.boxShadow = `0 4px 16px ${team?.primaryColor || '#8b5cf6'}66`}
+                            onMouseLeave={e => e.currentTarget.style.boxShadow = `0 2px 8px ${team?.primaryColor || '#8b5cf6'}44`}
+                          >
+                            Add {items.length} {items.length === 1 ? 'Item' : 'Items'} to Cart
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ═══════ CART MODAL ═══════ */}
+              {showCartModal && (() => {
+                const storedCart = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('cricket-cart') || '[]') : [];
+                const coachItems = storedCart.filter(item => coachProducts.some(p => p.id === item.id));
+                const totalAmount = coachItems.reduce((s, i) => s + i.price * (i.quantity || 1), 0);
+                void coachCartRefresh;
+                const tc = team?.primaryColor || '#8b5cf6';
+                return (
+                  <div
+                    style={{
+                      position: 'fixed', inset: 0, zIndex: 10000,
+                      background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '1rem'
+                    }}
+                    onClick={e => { if (e.target === e.currentTarget) setShowCartModal(false); }}
+                  >
+                    <div style={{
+                      background: '#111827', borderRadius: '16px',
+                      border: `1px solid ${tc}33`,
+                      width: '100%', maxWidth: '520px', maxHeight: '80vh',
+                      display: 'flex', flexDirection: 'column',
+                      boxShadow: `0 24px 48px rgba(0,0,0,0.5), 0 0 0 1px ${tc}22`
+                    }}>
+                      {/* Modal Header */}
+                      <div style={{
+                        padding: '1.25rem 1.5rem',
+                        borderBottom: `1px solid ${tc}22`,
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                      }}>
+                        <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f9fafb' }}>
+                          🛒 Your Cart
+                        </h3>
+                        <button
+                          onClick={() => setShowCartModal(false)}
+                          style={{
+                            width: '32px', height: '32px', borderRadius: '8px',
+                            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                            color: '#9ca3af', cursor: 'pointer', fontSize: '1.1rem',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}
+                        >×</button>
+                      </div>
+
+                      {/* Modal Body */}
+                      <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem 1rem' }}>
+                        {coachItems.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#6b7280' }}>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🛒</div>
+                            <div style={{ fontWeight: 700, fontSize: '1rem', color: '#9ca3af' }}>Your cart is empty</div>
+                            <div style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}>Add items from the store above</div>
+                          </div>
+                        ) : (
+                          coachItems.map((item, idx) => (
+                            <div key={`${item.id}-${item.selectedSize}-${item.personalization || ''}-${idx}`} style={{
+                              display: 'flex', alignItems: 'center', gap: isMobile ? '0.65rem' : '1rem',
+                              padding: isMobile ? '0.7rem 0.15rem' : '0.85rem 0.25rem',
+                              borderBottom: idx < coachItems.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none'
+                            }}>
+                              <img
+                                src={item.image || '/images/placeholder.svg'}
+                                alt={item.name}
+                                style={{
+                                  width: isMobile ? '40px' : '52px', height: isMobile ? '40px' : '52px',
+                                  borderRadius: isMobile ? '8px' : '10px',
+                                  objectFit: 'cover', border: '1px solid rgba(255,255,255,0.08)',
+                                  flexShrink: 0
+                                }}
+                              />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: isMobile ? '0.82rem' : '0.92rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {getCleanProductName(item.name)}
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.3rem', flexWrap: 'wrap' }}>
+                                  {item.selectedSize && (
+                                    <span style={{
+                                      fontSize: '0.75rem', fontWeight: 700, color: '#d1d5db',
+                                      background: 'rgba(255,255,255,0.08)', padding: '0.15rem 0.5rem',
+                                      borderRadius: '5px'
+                                    }}>Size: {item.selectedSize}</span>
+                                  )}
+                                  {item.personalization && (
+                                    <span style={{
+                                      fontSize: '0.75rem', fontWeight: 700, color: tc,
+                                      background: `${tc}18`, padding: '0.15rem 0.5rem',
+                                      borderRadius: '5px'
+                                    }}>{item.personalization}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div style={{ color: '#f9fafb', fontWeight: 800, fontSize: '0.95rem', flexShrink: 0 }}>
+                                R{item.price?.toFixed(2)}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const cart = JSON.parse(localStorage.getItem('cricket-cart') || '[]');
+                                  const ci = cart.findIndex(c =>
+                                    c.id === item.id && c.selectedSize === item.selectedSize && (c.personalization || null) === (item.personalization || null)
+                                  );
+                                  if (ci > -1) {
+                                    cart.splice(ci, 1);
+                                    localStorage.setItem('cricket-cart', JSON.stringify(cart));
+                                    setCoachCartRefresh(p => p + 1);
+                                  }
+                                }}
+                                style={{
+                                  width: '30px', height: '30px', borderRadius: '8px',
+                                  background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
+                                  color: '#f87171', cursor: 'pointer', fontSize: '1rem',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  flexShrink: 0
+                                }}
+                              >×</button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Modal Footer */}
+                      {coachItems.length > 0 && (
+                        <div style={{
+                          padding: '1rem 1.5rem',
+                          borderTop: `1px solid ${tc}22`,
+                          background: `${tc}08`
+                        }}>
+                          <div style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            marginBottom: '0.85rem'
+                          }}>
+                            <span style={{ color: '#d1d5db', fontWeight: 700, fontSize: '0.9rem' }}>
+                              {coachItems.length} item{coachItems.length !== 1 ? 's' : ''}
+                            </span>
+                            <span style={{ color: '#f9fafb', fontWeight: 900, fontSize: '1.15rem' }}>
+                              R{totalAmount.toFixed(2)}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.65rem' }}>
+                            <button
+                              onClick={() => {
+                                const cart = JSON.parse(localStorage.getItem('cricket-cart') || '[]');
+                                const nonCoach = cart.filter(ci => !coachProducts.some(p => p.id === ci.id));
+                                localStorage.setItem('cricket-cart', JSON.stringify(nonCoach));
+                                setCoachCartRefresh(p => p + 1);
+                                showCoachToast('Cart cleared', '');
+                              }}
+                              style={{
+                                flex: 1, padding: '0.7rem', borderRadius: '10px',
+                                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
+                                color: '#f87171', fontWeight: 700, fontSize: '0.85rem',
+                                cursor: 'pointer'
+                              }}
+                            >Clear All</button>
+                            <a
+                              href="/checkout/apparel"
+                              style={{
+                                flex: 2, padding: '0.7rem', borderRadius: '10px',
+                                background: `linear-gradient(135deg, ${tc} 0%, ${tc}cc 100%)`,
+                                color: '#fff', fontWeight: 800, fontSize: '0.9rem',
+                                textDecoration: 'none', textAlign: 'center',
+                                boxShadow: `0 4px 12px ${tc}44`
+                              }}
+                            >Proceed to Checkout →</a>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ═══════ STICKY BOTTOM BAR ═══════ */}
+              {(() => {
+                const storedCart = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('cricket-cart') || '[]') : [];
+                const coachItems = storedCart.filter(item => coachProducts.some(p => p.id === item.id));
+                if (coachItems.length === 0) return null;
+                const totalAmount = coachItems.reduce((s, i) => s + i.price * (i.quantity || 1), 0);
+                void coachCartRefresh;
+                const tc = team?.primaryColor || '#8b5cf6';
+                const tc2 = team?.secondaryColor || '#1e1b4b';
+                return (
+                  <div style={{
+                    position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9998,
+                    background: `linear-gradient(135deg, ${tc2} 0%, ${tc}22 100%)`,
+                    borderTop: `2px solid ${tc}55`,
+                    padding: isMobile ? '0.6rem 0.75rem' : '0.75rem 1.5rem',
+                    backdropFilter: 'blur(12px)',
+                    boxShadow: `0 -4px 24px rgba(0,0,0,0.5), 0 -1px 0 ${tc}33`
+                  }}>
+                    <div style={{
+                      maxWidth: '1200px', margin: '0 auto',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      gap: isMobile ? '0.5rem' : '1rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '1rem', flex: 1, minWidth: 0 }}>
+                        {!isMobile && <div style={{
+                          width: '38px', height: '38px', borderRadius: '10px',
+                          background: `${tc}25`, border: `1px solid ${tc}40`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '1.1rem', flexShrink: 0
+                        }}>🛒</div>}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ color: '#f9fafb', fontWeight: 800, fontSize: isMobile ? '0.82rem' : '0.95rem' }}>
+                            {isMobile ? `${coachItems.length} item${coachItems.length !== 1 ? 's' : ''}` : `${coachItems.length} item${coachItems.length !== 1 ? 's' : ''} in cart`}
+                          </div>
+                          <div style={{ color: `${tc}cc`, fontSize: isMobile ? '0.75rem' : '0.82rem', fontWeight: 700 }}>
+                            R{totalAmount.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: isMobile ? '0.4rem' : '0.65rem', flexShrink: 0 }}>
+                        <button
+                          onClick={() => setShowCartModal(true)}
+                          style={{
+                            padding: isMobile ? '0.5rem 0.75rem' : '0.6rem 1.25rem', borderRadius: '10px',
+                            background: 'rgba(255,255,255,0.08)',
+                            border: `1px solid ${tc}44`,
+                            color: '#f9fafb', fontWeight: 700, fontSize: isMobile ? '0.78rem' : '0.85rem',
+                            cursor: 'pointer', transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = `${tc}22`; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+                        >
+                          {isMobile ? 'Cart' : 'View Cart'}
+                        </button>
+                        <a
+                          href="/checkout/apparel"
+                          style={{
+                            padding: isMobile ? '0.5rem 0.85rem' : '0.6rem 1.75rem', borderRadius: '10px',
+                            background: `linear-gradient(135deg, ${tc} 0%, ${tc}cc 100%)`,
+                            color: '#fff', fontWeight: 800, fontSize: isMobile ? '0.78rem' : '0.88rem',
+                            textDecoration: 'none',
+                            boxShadow: `0 4px 14px ${tc}44`,
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          Checkout →
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ═══════ ORDER HISTORY ═══════ */}
+              <div style={{
+                background: '#111827', borderRadius: '14px',
+                border: '1px solid rgba(255,255,255,0.06)',
+                padding: '1.5rem', marginTop: '2rem'
+              }}>
+                <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.05rem', fontWeight: 800, color: '#f9fafb' }}>
+                  📦 Order History
+                </h3>
+                {coachOrders.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6b7280', fontSize: '0.88rem' }}>
+                    No previous coach apparel orders found.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {coachOrders.map(order => {
+                      const isExpanded = expandedOrders[order.id];
+                      const statusColors = {
+                        pending: { bg: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: 'rgba(251,191,36,0.25)' },
+                        processing: { bg: 'rgba(96,165,250,0.12)', color: '#60a5fa', border: 'rgba(96,165,250,0.25)' },
+                        shipped: { bg: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: 'rgba(139,92,246,0.25)' },
+                        delivered: { bg: 'rgba(52,211,153,0.12)', color: '#34d399', border: 'rgba(52,211,153,0.25)' },
+                        completed: { bg: 'rgba(52,211,153,0.12)', color: '#34d399', border: 'rgba(52,211,153,0.25)' },
+                        cancelled: { bg: 'rgba(239,68,68,0.12)', color: '#f87171', border: 'rgba(239,68,68,0.25)' }
+                      };
+                      const sc = statusColors[order.status] || statusColors.pending;
+                      const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+                      return (
+                        <div key={order.id} style={{
+                          background: '#0d1117', borderRadius: '10px',
+                          border: '1px solid rgba(255,255,255,0.06)',
+                          overflow: 'hidden'
+                        }}>
+                          {/* Order summary row */}
+                          <div
+                            style={{
+                              padding: isMobile ? '0.75rem' : '0.85rem 1rem',
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                              cursor: 'pointer', transition: 'background 0.15s',
+                              gap: isMobile ? '0.5rem' : '0'
+                            }}
+                            onClick={() => setExpandedOrders(prev => ({ ...prev, [order.id]: !prev[order.id] }))}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '1rem', flex: 1, minWidth: 0 }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: isMobile ? '0.8rem' : '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {order.orderNumber || `#${order.id.slice(0,8)}`}
+                                </div>
+                                <div style={{ color: '#6b7280', fontSize: isMobile ? '0.68rem' : '0.75rem', marginTop: '0.15rem' }}>
+                                  {orderDate} · {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.4rem' : '0.75rem', flexShrink: 0 }}>
+                              <span style={{
+                                padding: isMobile ? '0.15rem 0.4rem' : '0.2rem 0.6rem', borderRadius: '6px', fontSize: isMobile ? '0.65rem' : '0.72rem',
+                                fontWeight: 700, textTransform: 'capitalize',
+                                background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`
+                              }}>
+                                {order.status}
+                              </span>
+                              <span style={{ color: '#c4b5fd', fontWeight: 800, fontSize: isMobile ? '0.8rem' : '0.88rem' }}>
+                                R{order.total?.toFixed(2) || '0.00'}
+                              </span>
+                              <span style={{
+                                color: '#6b7280', fontSize: isMobile ? '0.7rem' : '0.78rem',
+                                transition: 'transform 0.2s',
+                                transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                display: 'inline-block'
+                              }}>▼</span>
+                            </div>
+                          </div>
+
+                          {/* Expanded details */}
+                          {isExpanded && (
+                            <div style={{
+                              borderTop: '1px solid rgba(255,255,255,0.06)',
+                              padding: isMobile ? '0.75rem' : '1rem'
+                            }}>
+                              {/* Tracking info */}
+                              {order.tracking && (
+                                <div style={{
+                                  background: 'rgba(139,92,246,0.08)', borderRadius: '8px',
+                                  padding: '0.65rem 0.85rem', marginBottom: '0.75rem',
+                                  border: '1px solid rgba(139,92,246,0.15)',
+                                  display: 'flex', alignItems: 'center', gap: '0.75rem'
+                                }}>
+                                  <span style={{ fontSize: '1.1rem' }}>🚚</span>
+                                  <div>
+                                    <div style={{ fontSize: '0.78rem', color: '#c4b5fd', fontWeight: 700 }}>
+                                      {order.tracking.courier || 'Courier'}: {order.tracking.number}
+                                    </div>
+                                    <div style={{ fontSize: '0.72rem', color: '#8b8fa3', marginTop: '0.15rem' }}>
+                                      Track your delivery with the tracking number above
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Status timeline */}
+                              {order.statusHistory && order.statusHistory.length > 0 && (
+                                <div style={{ marginBottom: '0.75rem' }}>
+                                  <div style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 700, marginBottom: '0.4rem', textTransform: 'uppercase' }}>
+                                    Status Timeline
+                                  </div>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                                    {order.statusHistory.map((sh, shIdx) => (
+                                      <div key={shIdx} style={{
+                                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                        fontSize: '0.78rem'
+                                      }}>
+                                        <div style={{
+                                          width: '6px', height: '6px', borderRadius: '50%',
+                                          background: shIdx === order.statusHistory.length - 1 ? '#a78bfa' : '#374151',
+                                          flexShrink: 0
+                                        }} />
+                                        <span style={{
+                                          color: shIdx === order.statusHistory.length - 1 ? '#e9d5ff' : '#6b7280',
+                                          fontWeight: shIdx === order.statusHistory.length - 1 ? 700 : 400,
+                                          textTransform: 'capitalize'
+                                        }}>
+                                          {sh.status}
+                                        </span>
+                                        {sh.notes && <span style={{ color: '#4b5563' }}>— {sh.notes}</span>}
+                                        {sh.timestamp && (
+                                          <span style={{ color: '#374151', marginLeft: 'auto', fontSize: '0.72rem' }}>
+                                            {new Date(sh.timestamp).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Items list */}
+                              <div style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 700, marginBottom: '0.4rem', textTransform: 'uppercase' }}>
+                                Items
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                {(order.items || []).map((item, itemIdx) => (
+                                  <div key={itemIdx} style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.65rem',
+                                    padding: '0.5rem 0.65rem', background: 'rgba(255,255,255,0.02)',
+                                    borderRadius: '6px'
+                                  }}>
+                                    {item.image && (
+                                      <img src={item.image} alt={item.name} style={{
+                                        width: '36px', height: '36px', borderRadius: '6px',
+                                        objectFit: 'cover', border: '1px solid rgba(255,255,255,0.06)',
+                                        flexShrink: 0
+                                      }} />
+                                    )}
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div style={{
+                                        color: '#e2e8f0', fontWeight: 600, fontSize: '0.82rem',
+                                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                                      }}>
+                                        {item.name}
+                                      </div>
+                                      <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.15rem', flexWrap: 'wrap' }}>
+                                        {item.selectedSize && (
+                                          <span style={{
+                                            fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8',
+                                            background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.35rem',
+                                            borderRadius: '3px'
+                                          }}>{item.selectedSize}</span>
+                                        )}
+                                        {item.personalization && (
+                                          <span style={{
+                                            fontSize: '0.7rem', fontWeight: 600, color: '#c4b5fd',
+                                            background: 'rgba(139,92,246,0.1)', padding: '0.1rem 0.35rem',
+                                            borderRadius: '3px'
+                                          }}>{item.personalization}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                      <div style={{ color: '#c4b5fd', fontWeight: 700, fontSize: '0.82rem' }}>
+                                        R{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                                      </div>
+                                      <div style={{ color: '#4b5563', fontSize: '0.72rem' }}>
+                                        × {item.quantity || 1}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Shipping address */}
+                              {order.shippingAddress?.street && (
+                                <div style={{
+                                  marginTop: '0.75rem', padding: '0.5rem 0.65rem',
+                                  background: 'rgba(255,255,255,0.02)', borderRadius: '6px',
+                                  fontSize: '0.78rem', color: '#6b7280'
+                                }}>
+                                  <span style={{ fontWeight: 700, color: '#94a3b8' }}>Ship to: </span>
+                                  {[order.shippingAddress.street, order.shippingAddress.city, order.shippingAddress.province, order.shippingAddress.postalCode].filter(Boolean).join(', ')}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Competition Tab */}
+          {activeTab === 'competition' && (() => {
+            const ageGroups = competitionData?.ageGroups || [];
+            const competition = competitionData?.competition || {};
+            const myTeamId = competitionData?.teamId;
+
+            if (competitionLoading) {
+              return (
+                <div style={{ textAlign: 'center', padding: '3rem', color: '#9ca3af' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>Loading competition...</div>
+                </div>
+              );
+            }
+
+            if (ageGroups.length === 0) {
+              return (
+                <div style={{ textAlign: 'center', padding: '3rem', color: '#9ca3af' }}>
+                  <div style={{
+                    width: '64px', height: '64px', borderRadius: '16px',
+                    background: 'rgba(239, 68, 68, 0.14)', border: '1px solid rgba(239, 68, 68, 0.35)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto 1rem', color: '#f87171'
+                  }}>{portalIcons.players}</div>
+                  <p style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.5rem', color: '#f9fafb' }}>
+                    No Competition Data Yet
+                  </p>
+                  <p style={{ fontSize: '0.9rem' }}>
+                    Once your team is registered in age groups, competition details will appear here.
+                  </p>
+                </div>
+              );
+            }
+
+            // Auto-select if only 1 age group
+            const selectedAg = ageGroups.length === 1 ? ageGroups[0] : competitionSelectedAg;
+
+            // Show age group selection cards
+            if (!selectedAg) {
+              return (
+                <div>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f9fafb', marginBottom: '0.5rem' }}>Competition</h2>
+                  <p style={{ color: '#9ca3af', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+                    Select an age group to see which teams you&apos;ll be competing against
+                  </p>
+                  <div
+                    className="profileCardGrid"
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                      gap: '1rem'
+                    }}
+                  >
+                    {ageGroups.map((ag, idx) => {
+                      const agData = competition[ag] || {};
+                      const totalTeams = agData.totalTeams || 0;
+                      // Cycle through accent colors like profile sub-tabs
+                      const accents = [
+                        { color: '#60a5fa', bg: 'rgba(96, 165, 250, 0.14)', border: '1px solid rgba(96, 165, 250, 0.35)' },
+                        { color: '#f87171', bg: 'rgba(239, 68, 68, 0.14)', border: '1px solid rgba(239, 68, 68, 0.35)' },
+                        { color: '#34d399', bg: 'rgba(52, 211, 153, 0.14)', border: '1px solid rgba(52, 211, 153, 0.35)' },
+                        { color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.14)', border: '1px solid rgba(167, 139, 250, 0.35)' },
+                        { color: '#fb923c', bg: 'rgba(251, 146, 60, 0.14)', border: '1px solid rgba(251, 146, 60, 0.35)' }
+                      ];
+                      const accent = accents[idx % accents.length];
+                      return (
+                        <button
+                          key={ag}
+                          type="button"
+                          onClick={() => setCompetitionSelectedAg(ag)}
+                          className="teamDashboardCard"
+                          style={{
+                            background: '#111827',
+                            padding: '1.5rem',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            animation: 'competitionCardIn 0.4s ease both',
+                            animationDelay: `${idx * 0.06}s`
+                          }}
+                          onMouseEnter={(e) => applyDashboardCardHover(e.currentTarget, true)}
+                          onMouseLeave={(e) => applyDashboardCardHover(e.currentTarget, false)}
+                        >
+                          <span
+                            data-card-shine="true"
+                            style={{
+                              position: 'absolute', top: '-50%', left: '-120%',
+                              width: '60%', height: '200%',
+                              background: 'linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.45), transparent)',
+                              transform: 'skewX(-20deg)', transition: 'left 0.5s ease', pointerEvents: 'none'
+                            }}
+                          />
+                          <div style={{
+                            width: '48px', height: '48px', marginBottom: '0.75rem',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            borderRadius: '12px', color: accent.color,
+                            background: accent.bg, border: accent.border
+                          }}>
+                            {portalIcons.players}
+                          </div>
+                          <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f9fafb', marginBottom: '0.25rem' }}>{ag}</div>
+                          <div style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 600 }}>
+                            {totalTeams} {totalTeams === 1 ? 'team' : 'teams'} competing
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
+            // Show competition teams for the selected age group
+            const agData = competition[selectedAg] || {};
+            const teams = agData.teams || [];
+
+            return (
+              <div>
+                {ageGroups.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setCompetitionSelectedAg(null)}
+                    style={{
+                      background: 'rgba(255,255,255,0.08)',
+                      color: '#e5e7eb',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      marginBottom: '1rem'
+                    }}
+                  >
+                    ← Back to Age Groups
+                  </button>
+                )}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f9fafb', margin: 0 }}>
+                    {selectedAg} Competition
+                  </h2>
+                  <span style={{ color: '#9ca3af', fontSize: '0.95rem', fontWeight: 600 }}>
+                    {teams.length} {teams.length === 1 ? 'team' : 'teams'} competing
+                  </span>
+                </div>
+                <p style={{ color: '#6b7280', marginTop: '0.25rem', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+                  {competitionData?.teamName || 'Your team'}
+                </p>
+                <div className="competitionGrid" style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gap: '1.5rem'
+                }}>
+                  {teams.map((t, idx) => {
+                    const isMyTeam = t.teamId === myTeamId;
+                    return (
+                      <div
+                        key={`${t.teamId}-${idx}`}
+                        className="teamDashboardCard competitionTeamCard"
+                        style={{
+                          background: isMyTeam ? 'linear-gradient(135deg, #111827 0%, rgba(239, 68, 68, 0.08) 100%)' : '#111827',
+                          padding: '1.5rem',
+                          borderRadius: '12px',
+                          border: isMyTeam ? '1px solid rgba(239, 68, 68, 0.5)' : '1px solid rgba(255,255,255,0.08)',
+                          boxShadow: isMyTeam ? '0 4px 20px rgba(220, 0, 0, 0.15)' : '0 1px 3px rgba(0,0,0,0.4)',
+                          transition: 'all 0.3s',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          textAlign: 'center',
+                          animation: 'competitionCardIn 0.4s ease both',
+                          animationDelay: `${idx * 0.04}s`,
+                          cursor: 'default'
+                        }}
+                        onMouseEnter={(e) => applyDashboardCardHover(e.currentTarget, true)}
+                        onMouseLeave={(e) => applyDashboardCardHover(e.currentTarget, false)}
+                      >
+                        <span
+                          data-card-shine="true"
+                          style={{
+                            position: 'absolute', top: '-50%', left: '-120%',
+                            width: '60%', height: '200%',
+                            background: 'linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.45), transparent)',
+                            transform: 'skewX(-20deg)', transition: 'left 0.5s ease', pointerEvents: 'none'
+                          }}
+                        />
+                        {isMyTeam && (
+                          <span style={{
+                            position: 'absolute', top: '0.6rem', left: '0.6rem',
+                            background: 'rgba(239, 68, 68, 0.2)', color: '#f87171',
+                            padding: '0.15rem 0.5rem', borderRadius: '6px',
+                            fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.03em'
+                          }}>Your Team</span>
+                        )}
+                        {t.isNewTeam && (
+                          <span style={{
+                            position: 'absolute', top: '0.6rem', right: '0.6rem',
+                            background: 'rgba(16,185,129,0.2)', color: '#34d399',
+                            padding: '0.15rem 0.5rem', borderRadius: '6px',
+                            fontSize: '0.7rem', fontWeight: 800
+                          }}>New!</span>
+                        )}
+                        <div style={{ position: 'relative', width: '90px', margin: '0.75rem auto 0.75rem' }}>
+                          <div style={{
+                            width: '90px', height: '90px', borderRadius: '50%',
+                            overflow: 'hidden',
+                            border: isMyTeam ? '3px solid rgba(239, 68, 68, 0.4)' : '3px solid rgba(255,255,255,0.15)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)', background: '#1f2937'
+                          }}>
+                            <img
+                              src={t.teamLogo || ''}
+                              alt={t.teamName}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: t.teamLogo ? 'block' : 'none' }}
+                              onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                            />
+                            <div style={{
+                              width: '100%', height: '100%', display: t.teamLogo ? 'none' : 'flex',
+                              alignItems: 'center', justifyContent: 'center',
+                              color: '#6b7280', fontSize: '1.5rem', fontWeight: 900
+                            }}>
+                              {(t.teamName || '?')[0]}
+                            </div>
+                          </div>
+                          {t.shirtDesign && (
+                            <div style={{
+                              position: 'absolute', bottom: '-4px', right: '-8px',
+                              width: '40px', height: '40px', borderRadius: '6px',
+                              overflow: 'hidden', background: '#1f2937',
+                              border: '2px solid #111827',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.4)'
+                            }}>
+                              <img
+                                src={t.shirtDesign}
+                                alt={`${t.teamName} kit`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                              />
+                              <div style={{
+                                width: '100%', height: '100%', display: 'none',
+                                alignItems: 'center', justifyContent: 'center',
+                                background: 'linear-gradient(135deg, #1f2937, #374151)',
+                                color: '#9ca3af', fontSize: '1rem'
+                              }}>
+                                👕
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f9fafb', marginBottom: '0.25rem', lineHeight: 1.3 }}>
+                          {t.teamName}
+                        </div>
+                        {t.cupWins > 0 && (
+                          <div style={{ marginTop: '0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(239, 68, 68, 0.12)', padding: '0.2rem 0.6rem', borderRadius: '999px' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#f87171' }}>{t.cupWins} {t.cupWins === 1 ? 'Cup Win' : 'Cup Wins'}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Profile Tab */}
           {activeTab === 'profile' && (
@@ -4842,7 +6216,6 @@ export default function TeamPortal() {
               opacity: 0.9;
               pointer-events: none;
             }
-            }
 
           @keyframes mobileCardGlow {
             0%, 100% { opacity: 0.65; }
@@ -4857,6 +6230,25 @@ export default function TeamPortal() {
 
           .playersTableWrap table {
             min-width: 720px;
+          }
+
+          @keyframes competitionCardIn {
+            from {
+              opacity: 0;
+              transform: translateY(16px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          .competitionGrid {
+            animation: competitionCardIn 0.3s ease;
+          }
+
+          .competitionTeamCard:hover {
+            transform: translateY(-2px);
           }
         `}</style>
       </div>
