@@ -2668,6 +2668,21 @@ export default function TeamPortal() {
                                           ⚠ Unpaid
                                         </span>
                                       )}
+                                      {player.productionStatus === 'in_production' && (
+                                        <span title={`Batch #${player.batchNumber}${player.batchPaidAt ? ' — ' + new Date(player.batchPaidAt).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short', day: 'numeric' }) : ''}`} style={{ marginLeft: '0.5rem', background: 'rgba(139, 92, 246, 0.2)', color: '#c4b5fd', border: '1px solid rgba(139, 92, 246, 0.4)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '600' }}>
+                                          🏭 In Production
+                                        </span>
+                                      )}
+                                      {player.productionStatus === 'submitted' && (
+                                        <span title={`Batch #${player.batchNumber} — Submitted to manufacturer`} style={{ marginLeft: '0.5rem', background: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', border: '1px solid rgba(59, 130, 246, 0.4)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '600' }}>
+                                          📋 Submitted
+                                        </span>
+                                      )}
+                                      {player.productionStatus === 'batched' && (
+                                        <span title={`Batch #${player.batchNumber} — Awaiting submission`} style={{ marginLeft: '0.5rem', background: 'rgba(75, 85, 99, 0.3)', color: '#9ca3af', border: '1px solid rgba(75, 85, 99, 0.5)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '600' }}>
+                                          📦 Batched
+                                        </span>
+                                      )}
                                     </td>
                                     <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#e2e8f0' }}>
                                       {player.roles || player.registrationData?.roles ? (

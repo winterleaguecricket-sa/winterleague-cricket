@@ -44,12 +44,27 @@ export default async function handler(req, res) {
       }
 
       const result = await query(
-        `SELECT * FROM team_players WHERE team_id = $1 ORDER BY created_at`,
+        `SELECT tp.*, 
+                mb.status as batch_status, 
+                mb.batch_number,
+                mb.paid_at as batch_paid_at
+         FROM team_players tp
+         LEFT JOIN manufacturing_batch_players mbp ON mbp.team_player_id = tp.id
+         LEFT JOIN manufacturing_batches mb ON mb.id = mbp.batch_id
+         WHERE tp.team_id = $1 ORDER BY tp.created_at`,
         [teamId]
       );
       
       return res.status(200).json({ 
-        players: result.rows.map(formatPlayer) 
+        players: result.rows.map(row => ({
+          ...formatPlayer(row),
+          productionStatus: row.batch_status === 'paid' ? 'in_production' 
+            : row.batch_status === 'submitted' ? 'submitted' 
+            : row.batch_status === 'created' ? 'batched' 
+            : null,
+          batchNumber: row.batch_number || null,
+          batchPaidAt: row.batch_paid_at || null
+        }))
       });
       
     } catch (error) {
