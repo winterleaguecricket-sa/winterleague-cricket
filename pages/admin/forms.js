@@ -65,6 +65,7 @@ export default function AdminForms() {
   const [backgroundMessage, setBackgroundMessage] = useState('');
   const [backgroundDragActive, setBackgroundDragActive] = useState(false);
   const [backgroundTransparency, setBackgroundTransparency] = useState(false);
+  const [submissionSearch, setSubmissionSearch] = useState('');
 
 
   useEffect(() => {
@@ -1128,8 +1129,16 @@ export default function AdminForms() {
   };
 
   const needsOptions = ['radio', 'checkbox', 'select', 'image-select'].includes(fieldData.type);
-  // No client-side filtering needed — API already filters by formId
+  // Client-side filtering by search term across all submission data values
   const filteredSubmissions = submissions
+    .filter(s => {
+      if (!submissionSearch.trim()) return true;
+      const term = submissionSearch.trim().toLowerCase();
+      const data = s.data || {};
+      return Object.values(data).some(val => 
+        String(val).toLowerCase().includes(term)
+      );
+    })
     .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
   const submissionFieldLabels = getSubmissionFieldLabels(filteredSubmissions);
 
@@ -2526,6 +2535,31 @@ export default function AdminForms() {
               </button>
             </div>
             
+            {/* Search Filter */}
+            <div style={{ marginBottom: '1rem' }}>
+              <input
+                type="text"
+                placeholder="Search by name, email, phone..."
+                value={submissionSearch}
+                onChange={(e) => setSubmissionSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  maxWidth: '400px',
+                  padding: '0.6rem 1rem',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+              />
+              {submissionSearch && (
+                <span style={{ marginLeft: '0.75rem', color: '#6b7280', fontSize: '0.85rem' }}>
+                  {filteredSubmissions.length} result{filteredSubmissions.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+
             {/* Form Filter Tabs */}
             <div className={styles.submissionTabs}>
               <button

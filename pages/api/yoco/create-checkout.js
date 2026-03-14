@@ -138,7 +138,7 @@ export default async function handler(req, res) {
     const checkoutPayload = {
       amount: amountInCents,
       currency: 'ZAR',
-      successUrl: `${origin}/checkout/success?order=${orderId}&gateway=yoco`,
+      successUrl: `${origin}/checkout/success?order=${orderId}&gateway=yoco${orderData?.orderType === 'parent-apparel' ? '&source=parent-store' : ''}`,
       cancelUrl: `${origin}/checkout`,
       failureUrl: `${origin}/checkout?error=payment_failed`,
       metadata: {

@@ -30,12 +30,12 @@ export async function getActiveGateway() {
       [SETTINGS_KEY]
     );
     if (result.rows.length > 0) {
-      return result.rows[0].value?.gateway || 'payfast';
+      return result.rows[0].value?.gateway || 'yoco';
     }
   } catch (error) {
     console.error('Error reading active gateway from DB:', error);
   }
-  return 'payfast'; // Default to PayFast
+  return 'yoco'; // Default to Yoco
 }
 
 export default async function handler(req, res) {

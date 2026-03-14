@@ -1,1 +1,763 @@
-{"pageViews":[],"dailyStats":{}}
+{
+  "pageViews": [
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-04T15:15:03.568Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-04T15:15:03.568Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-04T15:15:53.867Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-04T15:15:53.893Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-04T15:16:05.791Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-04T15:16:05.817Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-04T15:19:40.352Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-04T15:19:40.388Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-04T15:19:51.698Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-04T15:19:51.698Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T15:31:16.665Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T15:31:16.666Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T15:32:33.189Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T15:32:33.217Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T15:49:40.427Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T15:49:40.913Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T15:49:46.572Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T15:49:46.583Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T15:57:59.369Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T15:57:59.370Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T15:58:05.083Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T15:58:05.091Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:01:07.731Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:01:07.732Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:01:16.175Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:01:16.180Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:01:39.471Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:01:39.483Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:06:21.457Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:06:21.457Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:06:25.763Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:06:25.779Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:06:39.394Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:06:39.403Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:09:20.128Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:09:20.128Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:09:23.715Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:09:23.729Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:12:10.883Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:12:10.884Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:12:46.934Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:12:46.970Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:12:58.326Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:12:58.341Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:16:02.998Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:16:02.999Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:16:08.606Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev/team-portal",
+      "timestamp": "2026-03-04T16:16:08.617Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/parent-portal",
+      "referrer": "",
+      "timestamp": "2026-03-04T16:22:19.609Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/parent-portal",
+      "referrer": "",
+      "timestamp": "2026-03-04T16:22:19.610Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/parent-portal",
+      "referrer": "",
+      "timestamp": "2026-03-04T16:29:54.977Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/parent-portal",
+      "referrer": "",
+      "timestamp": "2026-03-04T16:29:54.977Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/parent-portal",
+      "referrer": "",
+      "timestamp": "2026-03-04T16:29:59.869Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/parent-portal",
+      "referrer": "",
+      "timestamp": "2026-03-04T16:29:59.882Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-05T12:28:38.409Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-05T12:28:38.411Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T12:28:49.286Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T12:28:49.286Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T12:33:13.661Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T12:33:13.662Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T12:40:30.129Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T12:40:30.130Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/forms/player-registration",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/checkout",
+      "timestamp": "2026-03-05T12:40:32.928Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/forms/player-registration",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/checkout",
+      "timestamp": "2026-03-05T12:40:32.928Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-05T13:25:14.403Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-05T13:25:14.712Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T13:25:32.191Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T13:25:32.192Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T13:36:23.089Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T13:36:23.089Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T13:50:54.028Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T13:50:54.029Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T14:24:10.942Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T14:24:10.943Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T14:25:22.555Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T14:25:22.556Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T14:30:51.218Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T14:30:51.219Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T14:57:07.479Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T14:57:07.480Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T14:57:45.443Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T14:57:45.603Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-05T15:35:11.548Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-05T15:35:11.549Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T15:35:24.160Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T15:35:24.498Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T15:36:05.510Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T15:36:05.850Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T15:36:15.696Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "",
+      "timestamp": "2026-03-05T15:36:15.700Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T15:36:59.277Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T15:36:59.289Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T15:38:26.694Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T15:41:41.402Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T15:41:41.403Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T15:58:52.586Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T15:58:52.587Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal?tab=coach-store",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal",
+      "timestamp": "2026-03-05T15:58:54.444Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T15:59:43.733Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T15:59:43.752Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal?tab=coach-store",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T15:59:56.454Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:04:39.013Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:04:39.014Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal?tab=coach-store",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:04:44.131Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:04:50.836Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:04:50.868Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:05:21.435Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:05:21.454Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal?tab=coach-store",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:05:27.964Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:09:09.060Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:09:09.061Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:09:11.583Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:09:11.692Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:09:33.777Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/checkout/apparel",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:09:33.778Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/team-portal?tab=coach-store",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev/team-portal?tab=coach-store",
+      "timestamp": "2026-03-05T16:09:40.390Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-07T16:12:48.915Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/",
+      "referrer": "https://automatic-space-dollop-97r9gq9px449hppw9.github.dev/",
+      "timestamp": "2026-03-07T16:12:48.916Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/parent-portal",
+      "referrer": "",
+      "timestamp": "2026-03-07T16:12:59.205Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    },
+    {
+      "page": "/parent-portal",
+      "referrer": "",
+      "timestamp": "2026-03-07T16:12:59.220Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    }
+  ],
+  "dailyStats": {
+    "2026-03-04": {
+      "totalViews": 54,
+      "uniquePages": {
+        "/": 8,
+        "/team-portal": 40,
+        "/parent-portal": 6
+      },
+      "referrers": {
+        "automatic-space-dollop-97r9gq9px449hppw9.github.dev": 8,
+        "automatic-space-dollop-97r9gq9px449hppw9-3001.app.github.dev": 38
+      }
+    },
+    "2026-03-05": {
+      "totalViews": 62,
+      "uniquePages": {
+        "/": 6,
+        "/team-portal": 27,
+        "/checkout": 4,
+        "/forms/player-registration": 2,
+        "/checkout/apparel": 18,
+        "/team-portal?tab=coach-store": 5
+      },
+      "referrers": {
+        "automatic-space-dollop-97r9gq9px449hppw9.github.dev": 6,
+        "automatic-space-dollop-97r9gq9px449hppw9-3000.app.github.dev": 36
+      }
+    },
+    "2026-03-07": {
+      "totalViews": 4,
+      "uniquePages": {
+        "/": 2,
+        "/parent-portal": 2
+      },
+      "referrers": {
+        "automatic-space-dollop-97r9gq9px449hppw9.github.dev": 2
+      }
+    }
+  }
+}

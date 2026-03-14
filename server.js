@@ -173,6 +173,48 @@ app.prepare().then(() => {
           })
         }, RECONCILE_INTERVAL)
       }, 30000)
+
+      // ============================================================
+      // SLA Monitoring (every 15 minutes)
+      // Detects breached deadlines, escalates warnings & suspensions
+      // ============================================================
+      const SLA_CHECK_INTERVAL = 15 * 60 * 1000 // 15 minutes
+      const slaCheckUrl = `http://${hostname}:${port}/api/cron/sla-check?secret=wlc-sla-2026`
+
+      setTimeout(() => {
+        logWithTimestamp('INFO', 'Starting SLA monitoring scheduler (every 15 min)')
+
+        fetch(slaCheckUrl).catch(err => {
+          logWithTimestamp('ERROR', `Initial SLA check failed: ${err.message}`)
+        })
+
+        setInterval(() => {
+          fetch(slaCheckUrl).catch(err => {
+            logWithTimestamp('ERROR', `Scheduled SLA check failed: ${err.message}`)
+          })
+        }, SLA_CHECK_INTERVAL)
+      }, 45000)
+
+      // ============================================================
+      // Performance Tier Evaluation (every 6 hours)
+      // Calculates scores, auto-promotes/demotes supplier tiers
+      // ============================================================
+      const PERF_EVAL_INTERVAL = 6 * 60 * 60 * 1000 // 6 hours
+      const perfEvalUrl = `http://${hostname}:${port}/api/cron/performance-tiers?secret=wlc-perf-2026`
+
+      setTimeout(() => {
+        logWithTimestamp('INFO', 'Starting performance tier evaluation scheduler (every 6 hours)')
+
+        fetch(perfEvalUrl).catch(err => {
+          logWithTimestamp('ERROR', `Initial performance evaluation failed: ${err.message}`)
+        })
+
+        setInterval(() => {
+          fetch(perfEvalUrl).catch(err => {
+            logWithTimestamp('ERROR', `Scheduled performance evaluation failed: ${err.message}`)
+          })
+        }, PERF_EVAL_INTERVAL)
+      }, 60000)
     })
 }).catch((err) => {
   logWithTimestamp('FATAL', `Failed to prepare Next.js app: ${err.message}`, err)

@@ -159,6 +159,30 @@
   transform: none;
 }
 
+.soldOutCard {
+  opacity: 0.85;
+}
+
+.soldOutCard:hover {
+  border-color: #9ca3af;
+}
+
+.soldOutBadge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  background: #dc2626;
+  color: white;
+  font-weight: 900;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 6px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+}
+
 @media (max-width: 768px) {
   .card {
     border-radius: 12px;

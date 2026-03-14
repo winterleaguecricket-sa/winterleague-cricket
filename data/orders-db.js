@@ -241,7 +241,7 @@ function computeStats(ordersList) {
     delivered_to_manager: ordersList.filter(o => o.status === 'delivered_to_manager').length,
     cancelled: ordersList.filter(o => o.status === 'cancelled').length,
     totalRevenue: ordersList
-      .filter(o => o.paymentStatus === 'paid')
+      .filter(o => o.paymentStatus === 'paid' && o.refundStatus !== 'completed')
       .reduce((sum, o) => sum + (o.total || 0), 0)
   };
 }

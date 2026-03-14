@@ -127,6 +127,22 @@ const dashboardIcons = {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
       <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
     </svg>
+  ),
+  competition: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3" />
+      <path d="M18 9h3a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1h-3" />
+      <path d="M6 4h12v6a6 6 0 0 1-12 0V4Z" />
+      <path d="M9 20h6" />
+      <path d="M12 16v4" />
+    </svg>
+  ),
+  suppliers: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
+    </svg>
   )
 };
 
@@ -205,6 +221,7 @@ export default function Admin() {
             <input
               type="password"
               placeholder="Enter admin password"
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={styles.loginInput}
@@ -367,6 +384,11 @@ export default function Admin() {
             <h3 className={styles.cardTitle}>Revenue</h3>
             <p className={styles.cardDescription}>Admin revenue accounting — kit margins &amp; apparel profit</p>
           </Link>
+          <Link href="/admin/competition" className={styles.card}>
+            <div className={styles.cardIcon}>{dashboardIcons.competition}</div>
+            <h3 className={styles.cardTitle}>Competition</h3>
+            <p className={styles.cardDescription}>Manage cup wins and new team flags for competition display</p>
+          </Link>
           <Link href="/admin/error-logs" className={styles.card}>
             <div className={styles.cardIcon}>
               <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
@@ -381,6 +403,12 @@ export default function Admin() {
             <h3 className={styles.cardTitle}>Manufacturing</h3>
             <p className={styles.cardDescription}>Batch kit orders for manufacturer — Excel export &amp; tracking</p>
           </Link>
+          <Link href="/admin/suppliers" className={styles.card}>
+            <div className={styles.cardIcon}>{dashboardIcons.suppliers}</div>
+            <h3 className={styles.cardTitle}>Suppliers</h3>
+            <p className={styles.cardDescription}>Manage supplier applications, products, SLA tiers, and payouts</p>
+          </Link>
+
           <Link href="/admin/analytics" className={styles.card}>
             <div className={styles.cardIcon}>
               <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>

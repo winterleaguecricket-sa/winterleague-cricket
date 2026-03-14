@@ -79,16 +79,59 @@ export default async function handler(req, res) {
       }
 
       if (action === 'update-refund-status') {
-        const { orderId, refundStatus } = req.body;
+        const { orderId, refundStatus, removePlayer } = req.body;
         if (!orderId || !['pending', 'completed'].includes(refundStatus)) {
           return res.status(400).json({ error: 'orderId and valid refundStatus (pending/completed) required' });
         }
-        const result = await import('../../lib/db').then(m => m.query(
+        const db = await import('../../lib/db');
+        const result = await db.query(
           'UPDATE orders SET refund_status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
           [refundStatus, orderId]
-        ));
+        );
         if (!result.rows[0]) return res.status(404).json({ error: 'Order not found' });
-        return res.status(200).json({ success: true, refundStatus });
+
+        const removedPlayers = [];
+        // When refund is completed on a registration order AND removePlayer is true, remove the player from the team
+        if (refundStatus === 'completed' && removePlayer === true) {
+          const order = result.rows[0];
+          const orderType = order.order_type || '';
+          if (orderType === 'registration') {
+            const email = order.customer_email;
+            // Extract player names from order items (format: "Player 1 - NAME | ...")
+            const items = typeof order.items === 'string' ? JSON.parse(order.items) : (order.items || []);
+            const playerNames = [];
+            for (const item of items) {
+              const sizeStr = item.selectedSize || item.selected_size || '';
+              const match = sizeStr.match(/Player\s*\d+\s*-\s*([^|]+)/i);
+              if (match) playerNames.push(match[1].trim());
+            }
+
+            if (email && playerNames.length > 0) {
+              for (const playerName of playerNames) {
+                // Remove from team_players
+                const tpResult = await db.query(
+                  `DELETE FROM team_players WHERE LOWER(player_email) = LOWER($1) AND LOWER(player_name) = LOWER($2) RETURNING id, team_id, player_name`,
+                  [email, playerName]
+                );
+                // Remove from new_players
+                await db.query(
+                  `DELETE FROM new_players WHERE LOWER(email) = LOWER($1) AND LOWER(player_name) = LOWER($2)`,
+                  [email, playerName]
+                );
+                // Mark form_submissions as refunded
+                await db.query(
+                  `UPDATE form_submissions SET status = 'refunded' WHERE LOWER(customer_email) = LOWER($1) AND LOWER(data->>'6') = LOWER($2) AND form_id = '2'`,
+                  [email, playerName]
+                );
+                if (tpResult.rows.length > 0) {
+                  removedPlayers.push(tpResult.rows[0].player_name);
+                }
+              }
+            }
+          }
+        }
+
+        return res.status(200).json({ success: true, refundStatus, removedPlayers });
       }
 
       return res.status(400).json({ error: 'Unknown action' });

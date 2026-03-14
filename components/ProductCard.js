@@ -19,9 +19,15 @@ export default function ProductCard({ product }) {
     setShowSizeError(false);
   };
 
+  const isSoldOut = product.soldOut || product.sold_out;
+  const isDisabled = product.stock === 0 || isSoldOut;
+
   return (
-    <div className={styles.card}>
+    <div className={`${styles.card} ${isSoldOut ? styles.soldOutCard : ''}`}>
       <div className={styles.imageContainer}>
+        {isSoldOut && (
+          <div className={styles.soldOutBadge}>SOLD OUT</div>
+        )}
         <div className={styles.imagePlaceholder}>
           <span>🏏</span>
         </div>
@@ -55,15 +61,15 @@ export default function ProductCard({ product }) {
         <div className={styles.footer}>
           <span className={styles.price}>R{product.price}</span>
           <span className={styles.stock}>
-            {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+            {isSoldOut ? 'Sold Out' : product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
           </span>
         </div>
         <button 
           className={styles.addButton}
           onClick={handleAddToCart}
-          disabled={product.stock === 0}
+          disabled={isDisabled}
         >
-          {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+          {isSoldOut ? 'Sold Out' : product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
         </button>
       </div>
     </div>

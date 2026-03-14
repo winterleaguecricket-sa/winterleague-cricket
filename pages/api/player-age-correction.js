@@ -117,7 +117,14 @@ export default async function handler(req, res) {
         // Standard age verification check — player too old for their age group
         if (dob && ageGroup && ageGroup !== 'Senior') {
           const birthYear = parseInt(dob.substring(0, 4), 10);
-          const cutoff = AGE_CUTOFFS[ageGroup];
+          // Girls are allowed to be 2 years older than boys
+          let parsedGender = '';
+          if (subTeamRaw && typeof subTeamRaw === 'string') {
+            try { const pg = JSON.parse(subTeamRaw); parsedGender = (pg.gender || '').toLowerCase(); } catch(e) {}
+          }
+          const isFemale = parsedGender === 'female' || parsedGender === 'girls';
+          const baseCutoff = AGE_CUTOFFS[ageGroup];
+          const cutoff = baseCutoff ? (isFemale ? baseCutoff - 2 : baseCutoff) : null;
           if (cutoff && birthYear < cutoff) {
             flaggedPlayers.push({
               submissionId: row.id,

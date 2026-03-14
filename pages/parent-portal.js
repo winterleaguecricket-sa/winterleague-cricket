@@ -72,6 +72,17 @@ export default function ParentPortal() {
   // Shortfall payment state
   const [shortfalls, setShortfalls] = useState([]);
   const [shortfallPaying, setShortfallPaying] = useState(false);
+
+  // Apparel Store state
+  const [apparelStoreEnabled, setApparelStoreEnabled] = useState(true);
+  const [apparelProducts, setApparelProducts] = useState([]);
+  const [apparelStoreLoading, setApparelStoreLoading] = useState(false);
+  const [apparelCart, setApparelCart] = useState({}); // { [productId]: [{ size, personalization }] }
+  const [apparelToast, setApparelToast] = useState(null);
+  const [selectedStoreTeamId, setSelectedStoreTeamId] = useState(null);
+  const [showApparelCartModal, setShowApparelCartModal] = useState(false);
+  const [apparelCartRefresh, setApparelCartRefresh] = useState(0);
+  const [apparelBannerDismissed, setApparelBannerDismissed] = useState(false);
   const [ageCorrectionMode, setAgeCorrectionMode] = useState(''); // 'correct_dob' | 'correct_age_group'
   const [ageCorrectionData, setAgeCorrectionData] = useState({ dob: '', ageGroup: '', teamName: '', gender: 'Male', coachName: '', coachContact: '', birthCertificate: '', teamFormSubmissionUuid: '', playerName: '' });
   const [ageCorrectionSubmitting, setAgeCorrectionSubmitting] = useState(false);
@@ -170,6 +181,61 @@ export default function ParentPortal() {
     e.currentTarget.style.filter = 'none';
     const shine = e.currentTarget.querySelector('[data-card-shine]');
     if (shine) shine.style.left = '-120%';
+  };
+
+  // Apparel Store: determine if product supports personalization
+  const supportsPersonalization = (productName) => {
+    const name = productName.toLowerCase();
+    return name.includes('hoodie') || name.includes('scuba') || name.includes('sleeve shirt');
+  };
+
+  // Apparel Store: clean product name by stripping team name prefix
+  const getCleanProductName = (productName, teamId) => {
+    const teamData = parentTeams[teamId];
+    const teamName = teamData?.teamName || teamData?.team_name || '';
+    if (!teamName) return productName;
+    if (productName.toLowerCase().startsWith(teamName.toLowerCase() + ' ')) {
+      return productName.substring(teamName.length + 1);
+    }
+    const words = teamName.split(' ');
+    if (words.length > 1) {
+      const firstName = words[0];
+      if (productName.startsWith(firstName + ' ') && !productName.toLowerCase().startsWith('winter') && !productName.toLowerCase().startsWith('limited')) {
+        const productTypes = ['Hoodie', 'Scuba', 'Pants', 'Long Sleeve Shirt', 'Short Sleeve Shirt', 'Cap', 'Beanie'];
+        for (const pt of productTypes) {
+          if (productName.endsWith(pt)) return pt;
+        }
+      }
+    }
+    return productName;
+  };
+
+  // Apparel Store: load products for selected team
+  const loadApparelProducts = async (teamId) => {
+    if (!teamId) return;
+    setApparelStoreLoading(true);
+    try {
+      const res = await fetch(`/api/products?category=coach-apparel&teamId=${encodeURIComponent(teamId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setApparelProducts(data.products || []);
+      } else {
+        setApparelProducts([]);
+        showApparelToast('Error', 'Could not load products. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error loading apparel products:', err);
+      setApparelProducts([]);
+      showApparelToast('Error', 'Could not load products. Please try again.');
+    } finally {
+      setApparelStoreLoading(false);
+    }
+  };
+
+  // Apparel Store: toast notification
+  const showApparelToast = (title, message) => {
+    setApparelToast({ title, message });
+    setTimeout(() => setApparelToast(null), 3000);
   };
 
   // Handle recovery form file uploads
@@ -355,7 +421,15 @@ export default function ParentPortal() {
         const ordersRes = await fetch(`/api/orders?email=${encodeURIComponent(email)}`);
         const ordersData = await ordersRes.json();
         setOrders(ordersData.orders || []);
-        setActiveTab('dashboard');
+        // Restore tab from URL params (e.g., returning from checkout)
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = urlParams.get('tab');
+        if (tabParam === 'apparel-store') {
+          setApparelStoreEnabled(true);
+          setActiveTab('apparel-store');
+        } else {
+          setActiveTab('dashboard');
+        }
       } else {
         setError(result.error || 'Invalid email or password');
       }
@@ -608,6 +682,20 @@ export default function ParentPortal() {
     if (typeof window === 'undefined') return;
     const urlParams = new URLSearchParams(window.location.search);
     const adminBypass = urlParams.get('admin') === 'true';
+
+    // Apparel Store preview gate
+    if (urlParams.get('preview') === 'parentstore') {
+      setApparelStoreEnabled(true);
+    }
+    // Restore apparel store tab from checkout return
+    const tabParam = urlParams.get('tab');
+    if (tabParam === 'apparel-store') {
+      setApparelStoreEnabled(true);
+    }
+    // Check if apparel banner was already dismissed
+    if (localStorage.getItem('apparel_banner_dismissed') === 'true') {
+      setApparelBannerDismissed(true);
+    }
 
     if (adminBypass) {
       setIsAdminMode(true);
@@ -1322,7 +1410,7 @@ export default function ParentPortal() {
           </a>
           <div style={{ marginTop: '1rem' }}>
             <button
-              onClick={() => { setProfile(null); setParentPlayers([]); setParentTeams({}); }}
+              onClick={() => { setProfile(null); setParentPlayers([]); setParentTeams({}); try { localStorage.removeItem('parentProfile'); } catch(e) {} }}
               style={{
                 background: 'none',
                 border: 'none',
@@ -1411,6 +1499,7 @@ export default function ParentPortal() {
                 setPassword('');
                 setError('');
                 setActiveTab('dashboard');
+                try { localStorage.removeItem('parentProfile'); } catch(e) {}
               }}
               onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
@@ -2830,6 +2919,50 @@ export default function ParentPortal() {
               </div>
             )}
 
+            {/* Apparel Store Notification Banner — one-time dismissible */}
+            {apparelStoreEnabled && !apparelBannerDismissed && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.08))',
+                border: '1px solid rgba(139,92,246,0.4)',
+                borderRadius: '12px',
+                padding: '1.25rem 1.5rem',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem'
+              }}>
+                <span style={{ fontSize: '1.5rem' }}>🛍️</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 800, color: '#c4b5fd', fontSize: '1rem' }}>
+                    Apparel Store Now Available!
+                  </div>
+                  <div style={{ color: '#a78bfa', fontSize: '0.85rem', fontWeight: 600, marginTop: '0.25rem', lineHeight: 1.5 }}>
+                    You can now purchase official team apparel — hoodies, pants, caps and more — directly from your parent portal. Head to the <strong>Apparel Store</strong> card below to browse your team&apos;s collection.
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setApparelBannerDismissed(true);
+                    localStorage.setItem('apparel_banner_dismissed', 'true');
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '0.6rem 1.5rem',
+                    borderRadius: '8px',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
+                  }}
+                >
+                  OK
+                </button>
+              </div>
+            )}
+
           <div className="parentDashboardGrid" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
@@ -3063,6 +3196,54 @@ export default function ParentPortal() {
                 </div>
               );
             })()}
+
+            {/* Apparel Store Card — gated by preview */}
+            {apparelStoreEnabled && (
+              <div
+                className="parentDashboardCard"
+                onClick={() => setActiveTab('apparel-store')}
+                onMouseEnter={applyDashboardCardHover}
+                onMouseLeave={removeDashboardCardHover}
+                style={{
+                  background: '#111827',
+                  padding: '1.5rem',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+              >
+                <ShineEffect />
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '12px',
+                  background: 'rgba(139,92,246,0.14)',
+                  border: '1px solid rgba(139,92,246,0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '1rem',
+                  color: '#a78bfa',
+                  fontSize: '1.4rem'
+                }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <path d="M16 10a4 4 0 01-8 0" />
+                  </svg>
+                </div>
+                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', fontWeight: 800, color: '#f9fafb' }}>
+                  Apparel Store
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.9rem', color: '#9ca3af', fontWeight: 600 }}>
+                  Purchase official team apparel
+                </p>
+              </div>
+            )}
           </div>
           </div>
         )}
@@ -3295,6 +3476,521 @@ export default function ParentPortal() {
                   );
                 })}
               </div>
+            </div>
+          );
+        })()}
+
+        {/* APPAREL STORE VIEW */}
+        {activeTab === 'apparel-store' && apparelStoreEnabled && (() => {
+          // Get unique teams from parent's players
+          const uniqueTeamIds = [...new Set(parentPlayers.filter(p => p.teamId).map(p => p.teamId))];
+          const teams = uniqueTeamIds.map(tid => parentTeams[tid]).filter(Boolean);
+
+          // Auto-select if only one team (deferred to avoid setState during render)
+          if (teams.length === 1 && !selectedStoreTeamId && !apparelStoreLoading) {
+            const tid = teams[0].id || parseInt(Object.keys(parentTeams).find(k => parentTeams[k] === teams[0]));
+            Promise.resolve().then(() => {
+              setSelectedStoreTeamId(tid);
+              loadApparelProducts(tid);
+            });
+          }
+
+          const selectedTeam = selectedStoreTeamId ? parentTeams[selectedStoreTeamId] : null;
+          const teamName = selectedTeam?.teamName || selectedTeam?.team_name || '';
+          const teamLogo = selectedTeam?.teamLogo || selectedTeam?.submissionData?.teamLogo || selectedTeam?.submissionData?.['22'] || selectedTeam?.submissionData?.[22] || '';
+
+          // Product sort: shirts first, then hoodies, then pants, then rest
+          const sortProducts = (a, b) => {
+            const order = ['shirt', 'hoodie', 'scuba', 'pants', 'cap', 'beanie'];
+            const aIdx = order.findIndex(k => a.name.toLowerCase().includes(k));
+            const bIdx = order.findIndex(k => b.name.toLowerCase().includes(k));
+            return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);
+          };
+
+          return (
+            <div>
+              {/* Back to Dashboard */}
+              <button
+                onClick={() => { setActiveTab('dashboard'); setSelectedStoreTeamId(null); setApparelProducts([]); }}
+                style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, marginBottom: '1.5rem', padding: 0, display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                ← Back to Dashboard
+              </button>
+
+              {/* No teams message */}
+              {!selectedStoreTeamId && teams.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '3rem 1.5rem', background: '#111827', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🏏</div>
+                  <h3 style={{ color: '#f9fafb', fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.5rem' }}>No Teams Found</h3>
+                  <p style={{ color: '#9ca3af', fontSize: '0.95rem' }}>Your players need to be registered with a team before you can browse their apparel store.</p>
+                </div>
+              )}
+
+              {/* Team Selection View */}
+              {!selectedStoreTeamId && teams.length > 1 && (
+                <div>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#f9fafb', marginBottom: '0.5rem' }}>Apparel Store</h2>
+                  <p style={{ color: '#9ca3af', fontSize: '0.95rem', marginBottom: '1.5rem' }}>Select a team to browse their official apparel collection</p>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                    gap: '1rem'
+                  }}>
+                    {teams.map((t, idx) => {
+                      const tid = parseInt(Object.keys(parentTeams).find(k => parentTeams[k] === t)) || t.id;
+                      const logo = t?.teamLogo || t?.submissionData?.teamLogo || t?.submissionData?.['22'] || t?.submissionData?.[22] || '';
+                      return (
+                        <button
+                          key={tid || idx}
+                          type="button"
+                          onClick={() => {
+                            setSelectedStoreTeamId(tid);
+                            loadApparelProducts(tid);
+                          }}
+                          onMouseEnter={applyDashboardCardHover}
+                          onMouseLeave={removeDashboardCardHover}
+                          style={{
+                            background: '#111827',
+                            padding: '1.5rem',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            color: '#ffffff'
+                          }}
+                        >
+                          <span data-card-shine="true" style={{
+                            position: 'absolute', top: '-50%', left: '-120%', width: '60%', height: '200%',
+                            background: 'linear-gradient(120deg, transparent, rgba(255,255,255,0.45), transparent)',
+                            transform: 'skewX(-20deg)', transition: 'left 0.5s ease', pointerEvents: 'none'
+                          }} />
+                          <div style={{
+                            width: '48px', height: '48px', marginBottom: '0.75rem',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            borderRadius: '50%', overflow: 'hidden',
+                            border: '2px solid rgba(139,92,246,0.5)', background: '#1f2937', flexShrink: 0
+                          }}>
+                            {logo ? (
+                              <img src={logo} alt="Team logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <span style={{ fontSize: '1.4rem' }}>🏏</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f9fafb', marginBottom: '0.25rem' }}>
+                            {t.teamName || t.team_name || 'Team'}
+                          </div>
+                          <div style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 600 }}>
+                            Browse official apparel
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Product Grid View */}
+              {selectedStoreTeamId && (
+                <div>
+                  {/* Back to team selection (only if multiple teams) */}
+                  {teams.length > 1 && (
+                    <button
+                      onClick={() => { setSelectedStoreTeamId(null); setApparelProducts([]); setApparelCart({}); }}
+                      style={{ background: 'none', border: 'none', color: '#a78bfa', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, marginBottom: '1rem', padding: 0 }}
+                    >
+                      ← Choose different team
+                    </button>
+                  )}
+
+                  {/* Hero Banner */}
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(17,24,39,0.95) 60%)',
+                    borderRadius: '16px', padding: '2rem', marginBottom: '2rem',
+                    border: '1px solid rgba(139,92,246,0.3)',
+                    display: 'flex', alignItems: 'center', gap: '1.25rem'
+                  }}>
+                    {teamLogo && (
+                      <div style={{
+                        width: '64px', height: '64px', borderRadius: '50%', overflow: 'hidden',
+                        border: '2px solid rgba(139,92,246,0.5)', background: '#1f2937', flexShrink: 0
+                      }}>
+                        <img src={teamLogo} alt="Team" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    )}
+                    <div>
+                      <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 900, color: '#f9fafb' }}>
+                        {teamName || 'Team'} — Official Apparel
+                      </h2>
+                      <p style={{ margin: '0.25rem 0 0', color: '#a78bfa', fontSize: '0.9rem', fontWeight: 600 }}>
+                        Browse and purchase your team&apos;s official clothing
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Products */}
+                  {apparelStoreLoading ? (
+                    <div style={{ textAlign: 'center', padding: '3rem', color: '#9ca3af' }}>
+                      <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⏳</div>
+                      Loading products...
+                    </div>
+                  ) : apparelProducts.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '3rem', color: '#9ca3af' }}>
+                      <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🏏</div>
+                      No apparel items available for this team yet.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem' }}>
+                      {[...apparelProducts].sort(sortProducts).map(product => {
+                        const cartKey = product.id;
+                        const items = apparelCart[cartKey] || [{ size: product.sizes?.[0] || '', personalization: 'None' }];
+                        const hasPers = supportsPersonalization(product.name);
+                        const cleanName = getCleanProductName(product.name, selectedStoreTeamId);
+                        const isParentSoldOut = product.soldOut || product.sold_out;
+
+                        return (
+                          <div key={product.id} style={{
+                            background: '#111827', borderRadius: '12px',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            overflow: 'hidden', display: 'flex', flexDirection: 'column'
+                          }}>
+                            {/* Product Image */}
+                            <div style={{ position: 'relative', background: '#0f172a', aspectRatio: '1', overflow: 'hidden' }}>
+                              {product.image || product.images?.[0] ? (
+                                <img
+                                  src={product.image || product.images[0]}
+                                  alt={cleanName}
+                                  style={{ width: '100%', height: '100%', objectFit: product.name?.toLowerCase().includes('pants') ? 'contain' : 'cover' }}
+                                />
+                              ) : (
+                                <span style={{ fontSize: '3rem', color: '#374151' }}>🏏</span>
+                              )}
+                              {items.length > 1 && !isParentSoldOut && (
+                                <span style={{
+                                  position: 'absolute', top: '0.5rem', right: '0.5rem',
+                                  background: 'rgba(139,92,246,0.9)', color: '#fff',
+                                  borderRadius: '999px', padding: '0.2rem 0.6rem',
+                                  fontSize: '0.75rem', fontWeight: 800
+                                }}>
+                                  ×{items.length}
+                                </span>
+                              )}
+                              {isParentSoldOut && (
+                                <div style={{
+                                  position: 'absolute', top: '0.5rem', right: '0.5rem', zIndex: 10,
+                                  background: '#dc2626', color: 'white', fontWeight: 900,
+                                  fontSize: '0.8rem', padding: '0.3rem 0.8rem', borderRadius: '6px',
+                                  letterSpacing: '1px', textTransform: 'uppercase',
+                                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.4)'
+                                }}>SOLD OUT</div>
+                              )}
+                            </div>
+
+                            {/* Product Details */}
+                            <div style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                              <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 800, color: '#f9fafb' }}>{cleanName}</h3>
+                              {product.description && <p style={{ margin: '0 0 0.5rem', fontSize: '0.82rem', color: '#9ca3af', lineHeight: 1.4 }}>{product.description}</p>}
+                              <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#a78bfa', marginBottom: '0.75rem' }}>R{product.price?.toFixed(2)}</div>
+
+                              {isParentSoldOut ? (
+                                <div style={{
+                                  padding: '0.75rem', borderRadius: '8px',
+                                  background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)',
+                                  color: '#fca5a5', fontSize: '0.88rem', fontWeight: 700, textAlign: 'center'
+                                }}>Sold Out — No longer available</div>
+                              ) : (
+                              <>
+                              {/* Per-item rows */}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                                {items.map((item, idx) => (
+                                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    {items.length > 1 && (
+                                      <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 700, minWidth: '18px' }}>{idx + 1}.</span>
+                                    )}
+                                    {/* Size select */}
+                                    {product.sizes && product.sizes.length > 0 && (
+                                      <select
+                                        value={item.size}
+                                        onChange={e => {
+                                          const newItems = [...items];
+                                          newItems[idx] = { ...newItems[idx], size: e.target.value };
+                                          setApparelCart(prev => ({ ...prev, [cartKey]: newItems }));
+                                        }}
+                                        style={{
+                                          flex: 1, padding: '0.4rem 0.5rem',
+                                          background: '#1f2937', border: '1px solid rgba(139,92,246,0.2)',
+                                          borderRadius: '6px', color: '#f9fafb', fontSize: '0.8rem', cursor: 'pointer', outline: 'none'
+                                        }}
+                                      >
+                                        {product.sizes.map(s => <option key={s} value={s}>{s}</option>)}
+                                      </select>
+                                    )}
+                                    {/* Personalization select */}
+                                    {hasPers && (
+                                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                        <select
+                                          value={item.personalization}
+                                          onChange={e => {
+                                            const newItems = [...items];
+                                            newItems[idx] = { ...newItems[idx], personalization: e.target.value };
+                                            setApparelCart(prev => ({ ...prev, [cartKey]: newItems }));
+                                          }}
+                                          style={{
+                                            width: '100%', padding: '0.4rem 0.5rem',
+                                            background: '#1f2937', border: '1px solid rgba(139,92,246,0.2)',
+                                            borderRadius: '6px', color: '#f9fafb', fontSize: '0.8rem', cursor: 'pointer', outline: 'none'
+                                          }}
+                                        >
+                                          <option value="None">None</option>
+                                          <option value="Supporter">Supporter</option>
+                                        </select>
+                                        {item.personalization === 'Supporter' && (
+                                          <span style={{ fontSize: '0.7rem', color: '#a78bfa', fontStyle: 'italic' }}>
+                                            &quot;Supporter&quot; will be printed on this item
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                    {/* Remove button */}
+                                    {items.length > 1 && (
+                                      <button
+                                        onClick={() => {
+                                          const newItems = items.filter((_, i) => i !== idx);
+                                          setApparelCart(prev => ({ ...prev, [cartKey]: newItems }));
+                                        }}
+                                        style={{
+                                          background: 'rgba(239,68,68,0.15)', border: 'none', color: '#f87171',
+                                          borderRadius: '6px', padding: '0.3rem 0.5rem', cursor: 'pointer',
+                                          fontSize: '0.75rem', fontWeight: 700
+                                        }}
+                                      >×</button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Add Another */}
+                              <button
+                                onClick={() => {
+                                  const newItems = [...items, { size: product.sizes?.[0] || '', personalization: 'None' }];
+                                  setApparelCart(prev => ({ ...prev, [cartKey]: newItems }));
+                                }}
+                                style={{
+                                  background: 'rgba(139,92,246,0.1)', border: '1px dashed rgba(139,92,246,0.3)',
+                                  borderRadius: '6px', padding: '0.4rem', color: '#a78bfa',
+                                  fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', marginBottom: '0.75rem'
+                                }}
+                              >
+                                + Add Another
+                              </button>
+
+                              {/* Add to Cart */}
+                              <button
+                                onClick={() => {
+                                  const existingCart = JSON.parse(localStorage.getItem('cricket-cart') || '[]');
+                                  const addedNames = [];
+                                  items.forEach(item => {
+                                    const pers = hasPers && item.personalization !== 'None' ? item.personalization : null;
+                                    const cartItem = {
+                                      id: product.id,
+                                      name: product.name,
+                                      price: product.price,
+                                      image: product.image || product.images?.[0] || '',
+                                      selectedSize: item.size,
+                                      quantity: 1,
+                                      teamId: selectedStoreTeamId,
+                                      category: 'parent-apparel',
+                                      source: 'parent-store'
+                                    };
+                                    if (pers) cartItem.personalization = pers;
+                                    existingCart.push(cartItem);
+                                    addedNames.push(`${cleanName}${item.size ? ` (${item.size})` : ''}${pers ? ` — ${pers}` : ''}`);
+                                  });
+                                  localStorage.setItem('cricket-cart', JSON.stringify(existingCart));
+                                  // Store parent profile for checkout auto-fill
+                                  if (profile) {
+                                    localStorage.setItem('parentProfile', JSON.stringify(profile));
+                                  }
+                                  showApparelToast('Added to cart!', addedNames.join(', '));
+                                  setApparelCartRefresh(p => p + 1);
+                                  setApparelCart(prev => ({ ...prev, [cartKey]: [{ size: product.sizes?.[0] || '', personalization: 'None' }] }));
+                                }}
+                                style={{
+                                  background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                                  color: '#fff', border: 'none', borderRadius: '8px',
+                                  padding: '0.7rem 1rem', fontWeight: 800, fontSize: '0.9rem',
+                                  cursor: 'pointer', marginTop: 'auto'
+                                }}
+                              >
+                                Add to Cart{items.length > 1 ? ` (${items.length})` : ''}
+                              </button>
+                              </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Cart Modal */}
+                  {showApparelCartModal && (() => {
+                    const storedCart = JSON.parse(localStorage.getItem('cricket-cart') || '[]');
+                    const parentItems = storedCart.filter(item => item.source === 'parent-store');
+                    const totalAmount = parentItems.reduce((s, i) => s + (i.price * (i.quantity || 1)), 0);
+
+                    return (
+                      <div style={{
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+                        zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '1rem'
+                      }} onClick={() => setShowApparelCartModal(false)}>
+                        <div style={{
+                          background: '#111827', borderRadius: '16px', width: '100%', maxWidth: '500px',
+                          maxHeight: '80vh', overflow: 'auto',
+                          border: '1px solid rgba(139,92,246,0.3)',
+                          boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+                        }} onClick={e => e.stopPropagation()}>
+                          <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#f9fafb' }}>
+                              🛍️ Your Cart ({parentItems.length} item{parentItems.length !== 1 ? 's' : ''})
+                            </h3>
+                          </div>
+
+                          {parentItems.length === 0 ? (
+                            <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+                              Your cart is empty
+                            </div>
+                          ) : (
+                            <div style={{ padding: '0.75rem 1.25rem' }}>
+                              {parentItems.map((item, idx) => (
+                                <div key={`${item.id}-${item.selectedSize}-${item.personalization || ''}-${idx}`} style={{
+                                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                  padding: '0.75rem 0',
+                                  borderBottom: idx < parentItems.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none'
+                                }}>
+                                  <div style={{ width: '48px', height: '48px', borderRadius: '8px', overflow: 'hidden', background: '#0f172a', flexShrink: 0 }}>
+                                    {item.image && <img src={item.image} alt="" style={{ width: '100%', height: '100%', objectFit: item.name?.toLowerCase().includes('pants') ? 'contain' : 'cover' }} />}
+                                  </div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f9fafb', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {getCleanProductName(item.name, selectedStoreTeamId)}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
+                                      {item.selectedSize && <span style={{ fontSize: '0.75rem', color: '#a78bfa', background: 'rgba(139,92,246,0.15)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>Size: {item.selectedSize}</span>}
+                                      {item.personalization && item.personalization !== 'None' && <span style={{ fontSize: '0.75rem', color: '#c4b5fd', background: 'rgba(139,92,246,0.15)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{item.personalization}</span>}
+                                    </div>
+                                  </div>
+                                  <span style={{ fontWeight: 800, color: '#a78bfa', fontSize: '0.95rem', whiteSpace: 'nowrap' }}>R{item.price?.toFixed(2)}</span>
+                                  <button onClick={() => {
+                                    const cart = JSON.parse(localStorage.getItem('cricket-cart') || '[]');
+                                    const ci = cart.findIndex(c =>
+                                      c.id === item.id && c.selectedSize === item.selectedSize &&
+                                      (c.personalization || null) === (item.personalization || null) &&
+                                      c.source === 'parent-store'
+                                    );
+                                    if (ci > -1) { cart.splice(ci, 1); localStorage.setItem('cricket-cart', JSON.stringify(cart)); setApparelCartRefresh(p => p + 1); }
+                                  }} style={{
+                                    background: 'rgba(239,68,68,0.15)', border: 'none', color: '#f87171',
+                                    borderRadius: '6px', padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 700
+                                  }}>×</button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <div style={{
+                            padding: '1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.08)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                          }}>
+                            <div>
+                              <span style={{ color: '#9ca3af', fontSize: '0.85rem' }}>Total: </span>
+                              <span style={{ fontWeight: 900, color: '#f9fafb', fontSize: '1.1rem' }}>R{totalAmount.toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              {parentItems.length > 0 && (
+                                <button onClick={() => {
+                                  const cart = JSON.parse(localStorage.getItem('cricket-cart') || '[]');
+                                  const filtered = cart.filter(c => c.source !== 'parent-store');
+                                  localStorage.setItem('cricket-cart', JSON.stringify(filtered));
+                                  setApparelCartRefresh(p => p + 1);
+                                }} style={{
+                                  background: 'rgba(239,68,68,0.15)', border: 'none', color: '#f87171',
+                                  borderRadius: '8px', padding: '0.6rem 1rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem'
+                                }}>Clear All</button>
+                              )}
+                              {parentItems.length > 0 && (
+                                <Link href="/checkout/apparel" style={{
+                                  background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                                  color: '#fff', borderRadius: '8px', padding: '0.6rem 1.25rem',
+                                  fontWeight: 800, fontSize: '0.85rem', textDecoration: 'none',
+                                  display: 'inline-block'
+                                }}>
+                                  Proceed to Checkout →
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Sticky Bottom Bar */}
+                  {(() => {
+                    const storedCart = JSON.parse(localStorage.getItem('cricket-cart') || '[]');
+                    const parentItems = storedCart.filter(item => item.source === 'parent-store');
+                    const totalAmount = parentItems.reduce((s, i) => s + (i.price * (i.quantity || 1)), 0);
+
+                    if (parentItems.length === 0) return null;
+
+                    return (
+                      <div style={{
+                        position: 'fixed', bottom: 0, left: 0, right: 0,
+                        background: 'rgba(17,24,39,0.95)', borderTop: '1px solid rgba(139,92,246,0.3)',
+                        backdropFilter: 'blur(10px)', padding: '0.75rem 1.5rem',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        zIndex: 9998, gap: '1rem'
+                      }}>
+                        <div>
+                          <span style={{ color: '#c4b5fd', fontWeight: 800, fontSize: '0.9rem' }}>
+                            {parentItems.length} item{parentItems.length !== 1 ? 's' : ''} — R{totalAmount.toFixed(2)}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button onClick={() => setShowApparelCartModal(true)} style={{
+                            background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.4)',
+                            color: '#c4b5fd', borderRadius: '8px', padding: '0.5rem 1rem',
+                            cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem'
+                          }}>View Cart</button>
+                          <Link href="/checkout/apparel" style={{
+                            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                            color: '#fff', borderRadius: '8px', padding: '0.5rem 1rem',
+                            fontWeight: 800, fontSize: '0.85rem', textDecoration: 'none'
+                          }}>Checkout →</Link>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Toast Notification */}
+                  {apparelToast && (
+                    <div style={{
+                      position: 'fixed', top: '1.5rem', right: '1.5rem', zIndex: 9999,
+                      background: 'rgba(139,92,246,0.95)', borderRadius: '12px',
+                      padding: '1rem 1.25rem', maxWidth: '320px',
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+                      animation: 'fadeIn 0.3s ease'
+                    }}>
+                      <div style={{ fontWeight: 800, color: '#fff', fontSize: '0.9rem', marginBottom: '0.25rem' }}>{apparelToast.title}</div>
+                      <div style={{ color: '#e9d5ff', fontSize: '0.8rem' }}>{apparelToast.message}</div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })()}
@@ -3960,39 +4656,80 @@ export default function ParentPortal() {
                           </div>
                         </div>
                         {(isAdminMode || isPreviewMode) && order.refundStatus === 'pending' && (
-                          <button
-                            onClick={async () => {
-                              if (!confirm('Mark this refund as PAID? This will update the status visible to the parent.')) return;
-                              try {
-                                const res = await fetch('/api/orders', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ action: 'update-refund-status', orderId: order.id, refundStatus: 'completed' })
-                                });
-                                if (res.ok) {
-                                  setOrders(prev => prev.map(o => o.id === order.id ? { ...o, refundStatus: 'completed' } : o));
-                                } else {
-                                  alert('Failed to update refund status');
+                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <button
+                              onClick={async () => {
+                                if (!confirm('Mark refund as PAID (order only)? The player will remain registered on their team.')) return;
+                                try {
+                                  const res = await fetch('/api/orders', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ action: 'update-refund-status', orderId: order.id, refundStatus: 'completed', removePlayer: false })
+                                  });
+                                  if (res.ok) {
+                                    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, refundStatus: 'completed' } : o));
+                                  } else {
+                                    alert('Failed to update refund status');
+                                  }
+                                } catch (err) {
+                                  alert('Error: ' + err.message);
                                 }
-                              } catch (err) {
-                                alert('Error: ' + err.message);
-                              }
-                            }}
-                            style={{
-                              padding: '0.5rem 1.25rem',
-                              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '8px',
-                              fontWeight: 700,
-                              fontSize: '0.8rem',
-                              cursor: 'pointer',
-                              whiteSpace: 'nowrap',
-                              boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
-                            }}
-                          >
-                            ✅ Mark Refund Paid
-                          </button>
+                              }}
+                              style={{
+                                padding: '0.5rem 1.25rem',
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: 700,
+                                fontSize: '0.8rem',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
+                              }}
+                            >
+                              ✅ Refund Only
+                            </button>
+                            {order.orderType === 'registration' && (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm('Mark refund as PAID and REMOVE the player from the team? This cannot be undone.')) return;
+                                  try {
+                                    const res = await fetch('/api/orders', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ action: 'update-refund-status', orderId: order.id, refundStatus: 'completed', removePlayer: true })
+                                    });
+                                    if (res.ok) {
+                                      const data = await res.json();
+                                      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, refundStatus: 'completed' } : o));
+                                      if (data.removedPlayers?.length > 0) {
+                                        alert('Refund completed. Removed player(s): ' + data.removedPlayers.join(', '));
+                                      }
+                                    } else {
+                                      alert('Failed to update refund status');
+                                    }
+                                  } catch (err) {
+                                    alert('Error: ' + err.message);
+                                  }
+                                }}
+                                style={{
+                                  padding: '0.5rem 1.25rem',
+                                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  fontWeight: 700,
+                                  fontSize: '0.8rem',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                  boxShadow: '0 2px 8px rgba(239,68,68,0.3)'
+                                }}
+                              >
+                                🗑️ Refund & Remove Player
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}

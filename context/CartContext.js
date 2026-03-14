@@ -26,10 +26,10 @@ export function CartProvider({ children }) {
     localStorage.setItem('cricket-cart', JSON.stringify(cart));
   }, [cart, cartLoaded]);
 
-  const addToCart = (product, selectedSize = null, autoOpen = false) => {
+  const addToCart = (product, selectedSize = null, autoOpen = false, personalization = null) => {
     setCart(prevCart => {
       const existingItemIndex = prevCart.findIndex(
-        item => item.id === product.id && item.selectedSize === selectedSize
+        item => item.id === product.id && item.selectedSize === selectedSize && (item.personalization || null) === personalization
       );
 
       if (existingItemIndex > -1) {
@@ -39,7 +39,9 @@ export function CartProvider({ children }) {
         return newCart;
       } else {
         // New item
-        return [...prevCart, { ...product, quantity: 1, selectedSize }];
+        const newItem = { ...product, quantity: 1, selectedSize };
+        if (personalization) newItem.personalization = personalization;
+        return [...prevCart, newItem];
       }
     });
     if (autoOpen) {
@@ -47,25 +49,25 @@ export function CartProvider({ children }) {
     }
   };
 
-  const removeFromCart = (productId, selectedSize = null) => {
+  const removeFromCart = (productId, selectedSize = null, personalization = null) => {
     // Basic kit is required and cannot be removed
     if (productId === 'basic-kit') return;
     setCart(prevCart => 
-      prevCart.filter(item => !(item.id === productId && item.selectedSize === selectedSize))
+      prevCart.filter(item => !(item.id === productId && item.selectedSize === selectedSize && (item.personalization || null) === personalization))
     );
   };
 
-  const updateQuantity = (productId, selectedSize = null, newQuantity) => {
+  const updateQuantity = (productId, selectedSize = null, newQuantity, personalization = null) => {
     // Basic kit is required — cannot go below 1
     if (productId === 'basic-kit' && newQuantity < 1) return;
     if (newQuantity <= 0) {
-      removeFromCart(productId, selectedSize);
+      removeFromCart(productId, selectedSize, personalization);
       return;
     }
 
     setCart(prevCart => 
       prevCart.map(item => 
-        item.id === productId && item.selectedSize === selectedSize
+        item.id === productId && item.selectedSize === selectedSize && (item.personalization || null) === personalization
           ? { ...item, quantity: newQuantity }
           : item
       )

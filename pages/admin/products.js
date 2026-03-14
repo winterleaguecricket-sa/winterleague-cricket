@@ -13,12 +13,13 @@ export default function AdminProducts() {
   const [shirtDesigns, setShirtDesigns] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
-    category: 'premium',
+    category: '',
     price: '',
     cost: '',
     description: '',
     stock: '',
     featured: false,
+    soldOut: false,
     sizes: [],
     image: '',
     images: [],
@@ -238,12 +239,13 @@ export default function AdminProducts() {
         setProducts(data.products);
         setFormData({
           name: '',
-          category: 'premium',
+          category: categories[0]?.slug || '',
           price: '',
           cost: '',
           description: '',
           stock: '',
           featured: false,
+          soldOut: false,
           sizes: [],
           image: '',
             images: [],
@@ -269,6 +271,7 @@ export default function AdminProducts() {
       description: product.description,
       stock: product.stock.toString(),
       featured: product.featured,
+      soldOut: product.soldOut || false,
       sizes: product.sizes || [],
       image: (product.images && product.images.length > 0 ? product.images[0] : product.image) || '',
       images: product.images && product.images.length > 0 ? product.images : (product.image ? [product.image] : []),
@@ -288,6 +291,7 @@ export default function AdminProducts() {
           description: full.description,
           stock: full.stock.toString(),
           featured: full.featured,
+          soldOut: full.soldOut || false,
           sizes: full.sizes || [],
           image: (full.images && full.images.length > 0 ? full.images[0] : full.image) || '',
           images: full.images && full.images.length > 0 ? full.images : (full.image ? [full.image] : []),
@@ -324,12 +328,13 @@ export default function AdminProducts() {
         setEditingProduct(null);
         setFormData({
           name: '',
-          category: 'premium',
+          category: categories[0]?.slug || '',
           price: '',
           cost: '',
           description: '',
           stock: '',
           featured: false,
+          soldOut: false,
           sizes: [],
           image: '',
             images: [],
@@ -404,12 +409,13 @@ export default function AdminProducts() {
     setShowAddForm(false);
     setFormData({
       name: '',
-      category: 'premium',
+      category: categories[0]?.slug || '',
       price: '',
       cost: '',
       description: '',
       stock: '',
       featured: false,
+      soldOut: false,
       sizes: [],
       image: '',
       images: [],
@@ -720,6 +726,18 @@ export default function AdminProducts() {
               </label>
             </div>
 
+            <div className={styles.checkboxGroup}>
+              <label>
+                <input
+                  type="checkbox"
+                  name="soldOut"
+                  checked={formData.soldOut}
+                  onChange={handleInputChange}
+                />
+                <span>Sold Out</span>
+              </label>
+            </div>
+
             <div className={styles.formActions}>
               <button type="button" onClick={cancelEdit} className={styles.cancelButton}>
                 Cancel
@@ -742,7 +760,6 @@ export default function AdminProducts() {
           <div className={styles.productsTable}>
           {categories.map(category => {
             const categoryProducts = products.filter(p => p.category === category.slug);
-            if (categoryProducts.length === 0) return null;
             
             return (
               <div key={category.id} className={styles.categorySection}>
@@ -794,11 +811,18 @@ export default function AdminProducts() {
                         <th>Stock</th>
                         <th>Sizes</th>
                         <th style={{ textAlign: 'center' }}>Featured</th>
+                        <th style={{ textAlign: 'center' }}>Sold Out</th>
                         <th style={{ textAlign: 'right' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {categoryProducts.map(product => (
+                      {categoryProducts.length === 0 ? (
+                        <tr>
+                          <td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: '#6b7280', fontSize: '0.9rem', fontStyle: 'italic' }}>
+                            No products in this category yet. Click &quot;+ Add New Product&quot; to add one.
+                          </td>
+                        </tr>
+                      ) : categoryProducts.map(product => (
                         <tr key={product.id} 
                           className={styles.mobileClickableRow}
                           style={{
@@ -838,6 +862,12 @@ export default function AdminProducts() {
                           <td style={{ padding: '0.65rem', textAlign: 'center' }}>
                             {product.featured ? 
                               <span className={styles.featuredBadge}>✓</span> : 
+                              <span className={styles.featuredBadgeOff}>—</span>
+                            }
+                          </td>
+                          <td style={{ padding: '0.65rem', textAlign: 'center' }}>
+                            {product.soldOut ? 
+                              <span style={{ background: '#dc2626', color: '#fff', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>SOLD OUT</span> : 
                               <span className={styles.featuredBadgeOff}>—</span>
                             }
                           </td>

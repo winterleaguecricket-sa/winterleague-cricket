@@ -9,12 +9,27 @@ import { useCart } from '../../context/CartContext';
 export default function CheckoutSuccess() {
   const router = useRouter();
   const { clearCart } = useCart();
-  const { order, gateway } = router.query;
+  const { order, gateway, source } = router.query;
+  const isParentStore = source === 'parent-store';
   const [countdown, setCountdown] = useState(8);
   const [verifyStatus, setVerifyStatus] = useState(null); // null = pending, 'verified', 'pending', 'verifying'
 
   useEffect(() => {
     if (order) {
+      // Only clear items relevant to the store that completed checkout
+      if (typeof window !== 'undefined') {
+        try {
+          const raw = localStorage.getItem('cricket-cart');
+          const allItems = raw ? JSON.parse(raw) : [];
+          if (isParentStore) {
+            const remaining = allItems.filter(item => item.source !== 'parent-store');
+            localStorage.setItem('cricket-cart', JSON.stringify(remaining));
+          } else {
+            const remaining = allItems.filter(item => item.source === 'parent-store');
+            localStorage.setItem('cricket-cart', JSON.stringify(remaining));
+          }
+        } catch (e) {}
+      }
       clearCart();
 
       // If Yoco gateway, verify the payment server-side
@@ -65,9 +80,9 @@ export default function CheckoutSuccess() {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     } else {
-      router.push('/parent-portal');
+      router.push(isParentStore ? '/parent-portal?tab=apparel-store' : '/parent-portal');
     }
-  }, [countdown, router]);
+  }, [countdown, router, isParentStore]);
 
   return (
     <div className={styles.container}>
@@ -131,9 +146,9 @@ export default function CheckoutSuccess() {
             A confirmation email has been sent to your email address.
           </p>
           <p style={{ color: '#dc0000', fontWeight: 700, marginBottom: '2rem' }}>
-            Redirecting to Parent Portal in {countdown} seconds...
+            Redirecting in {countdown} seconds...
           </p>
-          <Link href="/parent-portal" style={{ 
+          <Link href={isParentStore ? '/parent-portal?tab=apparel-store' : '/parent-portal'} style={{ 
             padding: '1rem 2rem', 
             background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
             color: 'white',
@@ -142,7 +157,7 @@ export default function CheckoutSuccess() {
             fontWeight: 700,
             display: 'inline-block'
           }}>
-            Go to Parent Portal
+            {isParentStore ? 'Back to Apparel Store' : 'Go to Parent Portal'}
           </Link>
         </div>
       </main>

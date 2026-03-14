@@ -61,6 +61,7 @@ function rowToProduct(row) {
     description: row.description || '',
     stock: row.stock || 0,
     featured: row.featured || false,
+    soldOut: row.sold_out || false,
     sizes: row.sizes || [],
     images: row.images || [],
     image: row.image || (row.images && row.images[0]) || '/images/placeholder.svg',
@@ -79,6 +80,7 @@ function productToLite(product, allowImages) {
     price: product.price,
     stock: product.stock,
     featured: product.featured,
+    soldOut: product.soldOut || false,
     sizes: product.sizes || [],
     image: allowImages
       ? (product.image || (product.images && product.images[0]) || '/images/placeholder.svg')
@@ -98,7 +100,7 @@ export default async function handler(req, res) {
   try {
     switch (method) {
       case 'GET': {
-        const { category, featured, lite, noImages, id } = req.query;
+        const { category, featured, lite, noImages, id, teamId, teamName, submissionUuid } = req.query;
 
         // Get single product by ID
         if (id) {
@@ -107,6 +109,54 @@ export default async function handler(req, res) {
             return res.status(404).json({ success: false, error: 'Product not found' });
           }
           return res.status(200).json({ success: true, product: rowToProduct(result.rows[0]) });
+        }
+
+        // Upsell query: resolve a Form 1 submission UUID → team → Hoodie + Scuba products
+        if (submissionUuid && category === 'coach-apparel') {
+          const teamResult = await query(
+            'SELECT id, team_name FROM teams WHERE form_submission_uuid = $1',
+            [submissionUuid]
+          );
+          const team = teamResult.rows[0];
+          if (!team) {
+            return res.status(200).json({ success: true, products: [] });
+          }
+          const productResult = await query(
+            `SELECT * FROM products WHERE active = true AND category = 'coach-apparel'
+             AND name ILIKE $1 || ' %'
+             AND (name ILIKE '%Hoodie' OR name ILIKE '%Scuba')
+             ORDER BY price DESC`,
+            [(team.team_name || '').trim()]
+          );
+          const products = productResult.rows.map(rowToProduct);
+          return res.status(200).json({ success: true, products, teamName: team.team_name });
+        }
+
+        // Coach-apparel team-filtered query: returns team-specific + generic products
+        if (category === 'coach-apparel' && (teamId || teamName)) {
+          let resolvedTeamName = teamName ? teamName.trim() : teamName;
+          if (teamId && !teamName) {
+            const teamResult = await query('SELECT team_name FROM teams WHERE id = $1', [parseInt(teamId)]);
+            resolvedTeamName = (teamResult.rows[0]?.team_name || '').trim();
+          }
+
+          // Get team-specific products (name starts with team name) + generic products (cap, beanie, limited hoodie)
+          const result = await query(
+            `SELECT * FROM products WHERE active = true AND category = 'coach-apparel'
+             AND (
+               name ILIKE $1 || ' %'
+               OR name ILIKE 'Winter League%'
+               OR name ILIKE 'Limited%'
+             )
+             ORDER BY name ASC`,
+            [resolvedTeamName]
+          );
+          let products = result.rows.map(rowToProduct);
+          if (lite === 'true') {
+            const allowImages = noImages !== 'true';
+            products = products.map(p => productToLite(p, allowImages));
+          }
+          return res.status(200).json({ success: true, products });
         }
 
         // Build query for listing
@@ -227,7 +277,8 @@ export default async function handler(req, res) {
           `UPDATE products SET
             name = $1, category = $2, price = $3, cost = $4,
             description = $5, stock = $6, featured = $7,
-            sizes = $8, images = $9, image = $10, design_id = $11
+            sizes = $8, images = $9, image = $10, design_id = $11,
+            sold_out = $13
           WHERE id = $12
           RETURNING *`,
           [
@@ -244,7 +295,8 @@ export default async function handler(req, res) {
             JSON.stringify(savedImages),
             coverImage,
             updates.designId !== undefined ? updates.designId : old.design_id,
-            productId
+            productId,
+            updates.soldOut !== undefined ? updates.soldOut : (old.sold_out || false)
           ]
         );
 

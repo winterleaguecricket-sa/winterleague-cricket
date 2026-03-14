@@ -357,7 +357,14 @@ function camelToSnake(str) {
 async function formatTeam(row) {
   // Fetch related data — return ALL players with paymentStatus, let UI filter
   const [playersResult, revenueResult, messagesResult] = await Promise.all([
-    query(`SELECT * FROM team_players WHERE team_id = $1 ORDER BY created_at`, [row.id]),
+    query(`SELECT tp.*, 
+                  mb.status as batch_status, 
+                  mb.batch_number,
+                  mb.paid_at as batch_paid_at
+           FROM team_players tp
+           LEFT JOIN manufacturing_batch_players mbp ON mbp.team_player_id = tp.id
+           LEFT JOIN manufacturing_batches mb ON mb.id = mbp.batch_id
+           WHERE tp.team_id = $1 ORDER BY tp.created_at`, [row.id]),
     query(`SELECT tr.*, tp.player_name
            FROM team_revenue tr
            LEFT JOIN team_players tp 
@@ -407,6 +414,12 @@ async function formatTeam(row) {
       position: p.position,
       registrationData: typeof p.registration_data === 'string' ? JSON.parse(p.registration_data) : p.registration_data,
       paymentStatus: p.payment_status || 'pending_payment',
+      productionStatus: p.batch_status === 'paid' ? 'in_production' 
+        : p.batch_status === 'submitted' ? 'submitted' 
+        : p.batch_status === 'created' ? 'batched' 
+        : null,
+      batchNumber: p.batch_number || null,
+      batchPaidAt: p.batch_paid_at || null,
       createdAt: p.created_at,
       addedAt: p.created_at
     })),

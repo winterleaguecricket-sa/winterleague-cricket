@@ -10,9 +10,13 @@ import { siteConfig } from '../data/products';
 import { trackCheckoutView, trackPaymentStart } from '../lib/analytics';
 
 export default function Checkout() {
-  const { cart, cartLoaded, getCartTotal, clearCart } = useCart();
+  const { cart, cartLoaded, getCartTotal, clearCart, addToCart } = useCart();
   const [step, setStep] = useState('payment'); // payment, processing
   const [customerProfile, setCustomerProfile] = useState(null);
+  const [upsellProducts, setUpsellProducts] = useState([]);
+  const [upsellSizes, setUpsellSizes] = useState({});
+  const [upsellDismissed, setUpsellDismissed] = useState(false);
+  const [upsellAdded, setUpsellAdded] = useState({});
   const [profileFormData, setProfileFormData] = useState({
     email: '',
     firstName: '',
@@ -37,6 +41,19 @@ export default function Checkout() {
         if (data.success && data.gateway) setActiveGateway(data.gateway);
       })
       .catch(() => {});
+  }, []);
+
+  // Load upsell products for this team
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const teamId = localStorage.getItem('upsell_teamId');
+    if (!teamId) return;
+    fetch(`/api/upsell-products?teamId=${encodeURIComponent(teamId)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.products?.length > 0) setUpsellProducts(data.products);
+      })
+      .catch(() => {}); // fail-safe
   }, []);
 
   // Load customer data from localStorage and create/verify DB profile
@@ -722,6 +739,117 @@ export default function Checkout() {
                         </div>
                       )}
                     </div>
+
+                    {/* Upsell Section — last chance before payment */}
+                    {upsellProducts.length > 0 && !upsellDismissed && (() => {
+                      const cartIds = new Set(cart.map(item => String(item.id)));
+                      const available = upsellProducts.filter(p => !cartIds.has(String(p.id)) && !upsellAdded[p.id]);
+                      if (available.length === 0) return null;
+                      return (
+                        <div style={{
+                          background: 'linear-gradient(135deg, rgba(220, 0, 0, 0.08) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                          border: '1px solid rgba(220, 0, 0, 0.35)',
+                          borderRadius: '16px',
+                          padding: '1.5rem',
+                          marginBottom: '1.5rem'
+                        }}>
+                          <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                            <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#f9fafb' }}>🔥 Before you pay — don't miss out!</span>
+                            <p style={{ color: '#94a3b8', margin: '0.35rem 0 0', fontSize: '0.9rem' }}>Popular items from your team's apparel shop</p>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: available.length > 1 ? 'repeat(2, 1fr)' : '1fr', gap: '1rem' }}>
+                            {available.map(product => {
+                              const sizes = Array.isArray(product.sizes) ? product.sizes : [];
+                              const selectedSize = upsellSizes[product.id] || '';
+                              return (
+                                <div key={product.id} style={{
+                                  background: '#0b1220',
+                                  borderRadius: '12px',
+                                  border: '1px solid rgba(148, 163, 184, 0.2)',
+                                  overflow: 'hidden',
+                                  display: 'flex',
+                                  flexDirection: 'column'
+                                }}>
+                                  {product.image_url && (
+                                    <div style={{ width: '100%', aspectRatio: '1', overflow: 'hidden', background: '#1e293b' }}>
+                                      <img
+                                        src={product.image_url}
+                                        alt={product.product_name}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        loading="lazy"
+                                      />
+                                    </div>
+                                  )}
+                                  <div style={{ padding: '0.75rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <div style={{ fontWeight: 700, color: '#f9fafb', fontSize: '0.95rem' }}>{product.product_name}</div>
+                                    <div style={{ fontWeight: 800, color: '#f87171', fontSize: '1.1rem' }}>R{product.sell_price.toFixed(2)}</div>
+                                    {sizes.length > 0 && (
+                                      <select
+                                        value={selectedSize}
+                                        onChange={(e) => setUpsellSizes(prev => ({ ...prev, [product.id]: e.target.value }))}
+                                        style={{
+                                          padding: '0.5rem',
+                                          borderRadius: '8px',
+                                          border: '1px solid rgba(148, 163, 184, 0.35)',
+                                          background: '#0f172a',
+                                          color: '#f9fafb',
+                                          fontSize: '0.9rem',
+                                          width: '100%'
+                                        }}
+                                      >
+                                        <option value="">Select size</option>
+                                        {sizes.map(s => <option key={s} value={s}>{s}</option>)}
+                                      </select>
+                                    )}
+                                    <button
+                                      type="button"
+                                      disabled={sizes.length > 0 && !selectedSize}
+                                      onClick={() => {
+                                        addToCart(
+                                          { id: product.id, name: product.product_name, price: product.sell_price },
+                                          selectedSize || null
+                                        );
+                                        setUpsellAdded(prev => ({ ...prev, [product.id]: true }));
+                                      }}
+                                      style={{
+                                        width: '100%',
+                                        padding: '0.6rem',
+                                        borderRadius: '8px',
+                                        border: 'none',
+                                        background: (sizes.length > 0 && !selectedSize) ? '#4b5563' : 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                                        color: 'white',
+                                        fontWeight: 700,
+                                        fontSize: '0.85rem',
+                                        cursor: (sizes.length > 0 && !selectedSize) ? 'not-allowed' : 'pointer',
+                                        marginTop: 'auto'
+                                      }}
+                                    >
+                                      Add to Order
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setUpsellDismissed(true)}
+                            style={{
+                              display: 'block',
+                              margin: '1rem auto 0',
+                              background: 'none',
+                              border: 'none',
+                              color: '#64748b',
+                              fontSize: '0.85rem',
+                              cursor: 'pointer',
+                              textDecoration: 'underline'
+                            }}
+                          >
+                            No thanks, continue to payment
+                          </button>
+                        </div>
+                      );
+                    })()}
 
                     <button 
                       type="button"

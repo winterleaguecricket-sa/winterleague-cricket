@@ -7,8 +7,9 @@ import { query } from '../../lib/db';
 const MANUFACTURER_KIT_COST = 433.50;
 
 function parseSize(selectedSize) {
-  // "Player 1 - Name | Shirt: Medium / Pants: Medium"
-  const shirtMatch = selectedSize?.match(/Shirt:\s*([^/]+)/i);
+  // Use " / Pants:" as the delimiter instead of "/" to avoid splitting youth sizes like "9/10 years"
+  const shirtMatch = selectedSize?.match(/Shirt:\s*(.+?)\s*\/\s*Pants:/i)
+    || selectedSize?.match(/Shirt:\s*(.+)/i);
   const pantsMatch = selectedSize?.match(/Pants:\s*(.+)/i);
   return {
     shirt: shirtMatch ? shirtMatch[1].trim() : '',
@@ -20,6 +21,33 @@ function parsePlayerName(selectedSize) {
   // "Player 1 - Name | Shirt: ..."
   const match = selectedSize?.match(/Player \d+ - (.+?)\s*\|/);
   return match ? match[1].trim() : '';
+}
+
+// Age verification cutoffs — players who fail cannot be batched
+const AGE_CUTOFFS = {
+  'U9':  2017, 'U11': 2015, 'U13': 2013, 'U15': 2011, 'U17': 2009,
+};
+
+function checkPlayerAgeVerification(dob, subTeam) {
+  // Parse age group and gender from sub_team "Team Name (Male - U13)"
+  const match = subTeam?.match(/\((\w+)\s*-\s*(\w+)\)\s*$/);
+  if (!match) return 'pass'; // can't determine — allow
+  const gender = match[1];
+  const ageGroup = match[2];
+  if (ageGroup === 'Senior') return 'pass';
+  if (!dob) return 'error';
+  const today = new Date().toISOString().slice(0, 10);
+  const birthYear = parseInt(dob.substring(0, 4), 10);
+  if (isNaN(birthYear)) return 'error';
+  if (dob > today) return 'error';
+  if (birthYear > new Date().getFullYear() - 4) return 'error';
+  if (birthYear < 1990) return 'error';
+  const baseCutoff = AGE_CUTOFFS[ageGroup];
+  if (!baseCutoff) return 'error';
+  const isFemale = ['female', 'girls'].includes(gender.toLowerCase());
+  const cutoff = isFemale ? baseCutoff - 2 : baseCutoff;
+  if (birthYear < cutoff) return 'fail';
+  return 'pass';
 }
 
 export default async function handler(req, res) {
@@ -101,27 +129,55 @@ export default async function handler(req, res) {
       }
 
       // Get unbatched players for a team (paid but not in any batch)
+      // Excludes players who fail age verification
       if (action === 'unbatched-players' && teamId) {
         const players = await query(`
           SELECT tp.id, tp.player_name, tp.player_email, tp.sub_team, tp.jersey_size, tp.jersey_number,
-                 tp.registration_data, tp.team_id, t.team_name
+                 tp.registration_data, tp.team_id, t.team_name,
+                 fs.data->>'10' as dob
           FROM team_players tp
           JOIN teams t ON t.id = tp.team_id
           LEFT JOIN manufacturing_batch_players mbp ON mbp.team_player_id = tp.id
+          LEFT JOIN form_submissions fs ON fs.id::text = tp.registration_data->>'formSubmissionId' AND fs.form_id = '2'
           WHERE tp.team_id = $1 AND tp.payment_status = 'paid' AND mbp.id IS NULL
           ORDER BY tp.sub_team, tp.player_name
         `, [teamId]);
 
+        // Filter out players who fail age verification
+        const eligiblePlayers = players.rows.filter(p => {
+          const ageStatus = checkPlayerAgeVerification(p.dob, p.sub_team);
+          return ageStatus === 'pass';
+        });
+
+        // Filter out players with duplicate jersey numbers within their sub-team
+        const subTeamJerseyCount = {};
+        eligiblePlayers.forEach(p => {
+          const st = p.sub_team || '';
+          const num = p.jersey_number;
+          if (num != null && num !== '') {
+            const key = `${st}|||${num}`;
+            subTeamJerseyCount[key] = (subTeamJerseyCount[key] || 0) + 1;
+          }
+        });
+        const filteredPlayers = eligiblePlayers.filter(p => {
+          const st = p.sub_team || '';
+          const num = p.jersey_number;
+          if (num == null || num === '') return true; // allow players without a number
+          const key = `${st}|||${num}`;
+          return subTeamJerseyCount[key] <= 1;
+        });
+
         // Enrich with order data (sizes, additional items)
         const enriched = [];
-        for (const player of players.rows) {
+        for (const player of filteredPlayers) {
           const parentEmail = player.registration_data?.parentEmail || player.player_email;
           
-          // Find matching order
+          // Find matching registration/additional-apparel order (not store orders — those are handled separately)
           const orderResult = await query(`
             SELECT o.id, o.order_number, o.customer_name, o.customer_phone, o.items, o.total_amount
             FROM orders o
             WHERE LOWER(o.customer_email) = LOWER($1) AND o.payment_status = 'paid'
+              AND o.order_type IN ('registration', 'additional-apparel')
             ORDER BY o.created_at DESC
             LIMIT 1
           `, [parentEmail]);
@@ -158,6 +214,27 @@ export default async function handler(req, res) {
                 const sizes = parseSize(basicKit.selectedSize);
                 shirtSize = sizes.shirt;
                 pantsSize = sizes.pants;
+              }
+            }
+          }
+
+          // Also include items from coach-store and parent-apparel orders for same email
+          const storeOrdersResult = await query(`
+            SELECT o.items FROM orders o
+            WHERE LOWER(o.customer_email) = LOWER($1) AND o.payment_status = 'paid'
+              AND o.order_type IN ('product', 'parent-apparel')
+            ORDER BY o.created_at DESC
+          `, [parentEmail]);
+          for (const storeOrder of storeOrdersResult.rows) {
+            const storeItems = typeof storeOrder.items === 'string' ? JSON.parse(storeOrder.items) : (storeOrder.items || []);
+            for (const item of storeItems) {
+              if (item.id !== 'basic-kit') {
+                additionalItems.push({
+                  name: item.name,
+                  size: item.selectedSize,
+                  quantity: item.quantity,
+                  price: item.price
+                });
               }
             }
           }
@@ -236,24 +313,67 @@ export default async function handler(req, res) {
 
         let batchTotalCost = 0;
 
+        // Pre-check: identify players with duplicate jersey numbers in their sub-team
+        const dupCheckResult = await query(`
+          SELECT tp.id, tp.sub_team, tp.jersey_number FROM team_players tp
+          WHERE tp.id = ANY($1) AND tp.jersey_number IS NOT NULL
+        `, [playerIds]);
+        const subTeamJerseyMap = {};
+        dupCheckResult.rows.forEach(p => {
+          const key = `${p.sub_team || ''}|||${p.jersey_number}`;
+          subTeamJerseyMap[key] = (subTeamJerseyMap[key] || 0) + 1;
+        });
+        // Also check against ALL paid players in the same team (not just this batch)
+        const allTeamPlayersResult = await query(`
+          SELECT id, sub_team, jersey_number FROM team_players 
+          WHERE team_id = $1 AND payment_status = 'paid' AND jersey_number IS NOT NULL
+        `, [teamId]);
+        const fullSubTeamJersey = {};
+        allTeamPlayersResult.rows.forEach(p => {
+          const key = `${p.sub_team || ''}|||${p.jersey_number}`;
+          if (!fullSubTeamJersey[key]) fullSubTeamJersey[key] = [];
+          fullSubTeamJersey[key].push(p.id);
+        });
+        const dupJerseyPlayerIds = new Set();
+        Object.values(fullSubTeamJersey).forEach(ids => {
+          if (ids.length > 1) ids.forEach(id => dupJerseyPlayerIds.add(id));
+        });
+
         // Get player details with order data to snapshot
+        let skippedAgeVerif = 0;
+        let skippedDupJersey = 0;
         for (const playerId of playerIds) {
           const playerResult = await query(`
             SELECT tp.id, tp.player_name, tp.player_email, tp.sub_team, tp.jersey_size,
-                   tp.registration_data
+                   tp.registration_data, fs.data->>'10' as dob
             FROM team_players tp
+            LEFT JOIN form_submissions fs ON fs.id::text = tp.registration_data->>'formSubmissionId' AND fs.form_id = '2'
             WHERE tp.id = $1 AND tp.payment_status = 'paid'
           `, [playerId]);
           const player = playerResult.rows[0];
           if (!player) continue;
 
+          // Block players who fail age verification
+          const ageStatus = checkPlayerAgeVerification(player.dob, player.sub_team);
+          if (ageStatus !== 'pass') {
+            skippedAgeVerif++;
+            continue;
+          }
+
+          // Block players with duplicate jersey numbers in their sub-team
+          if (dupJerseyPlayerIds.has(player.id)) {
+            skippedDupJersey++;
+            continue;
+          }
+
           const parentEmail = player.registration_data?.parentEmail || player.player_email;
 
-          // Find matching order
+          // Find matching registration/additional-apparel order (not store orders — those are handled separately)
           const orderResult = await query(`
             SELECT o.id, o.customer_name, o.customer_phone, o.items
             FROM orders o
             WHERE LOWER(o.customer_email) = LOWER($1) AND o.payment_status = 'paid'
+              AND o.order_type IN ('registration', 'additional-apparel')
             ORDER BY o.created_at DESC LIMIT 1
           `, [parentEmail]);
           const order = orderResult.rows[0];
@@ -284,6 +404,27 @@ export default async function handler(req, res) {
                 const sizes = parseSize(basicKit.selectedSize);
                 shirtSize = sizes.shirt;
                 pantsSize = sizes.pants;
+              }
+            }
+          }
+
+          // Also include items from coach-store and parent-apparel orders for same email
+          const storeOrdersResult = await query(`
+            SELECT o.items FROM orders o
+            WHERE LOWER(o.customer_email) = LOWER($1) AND o.payment_status = 'paid'
+              AND o.order_type IN ('product', 'parent-apparel')
+            ORDER BY o.created_at DESC
+          `, [parentEmail]);
+          for (const storeOrder of storeOrdersResult.rows) {
+            const storeItems = typeof storeOrder.items === 'string' ? JSON.parse(storeOrder.items) : (storeOrder.items || []);
+            for (const item of storeItems) {
+              if (item.id !== 'basic-kit') {
+                additionalItems.push({
+                  name: item.name,
+                  size: item.selectedSize,
+                  quantity: item.quantity,
+                  price: item.price
+                });
               }
             }
           }
@@ -320,10 +461,18 @@ export default async function handler(req, res) {
           batchTotalCost += MANUFACTURER_KIT_COST + playerAdditionalCost;
         }
 
-        // Update batch with total cost
-        await query('UPDATE manufacturing_batches SET total_cost = $1 WHERE id = $2', [batchTotalCost, batch.id]);
+        // Update batch with actual player count and total cost
+        const actualPlayers = playerIds.length - skippedAgeVerif - skippedDupJersey;
+        await query('UPDATE manufacturing_batches SET total_cost = $1, total_players = $2 WHERE id = $3', [batchTotalCost, actualPlayers, batch.id]);
 
-        return res.status(200).json({ batch: { ...batch, total_cost: batchTotalCost }, message: `Batch #${batchNumber} created with ${playerIds.length} players. Manufacturer cost: R${batchTotalCost.toFixed(2)}` });
+        let msg = `Batch #${batchNumber} created with ${actualPlayers} players. Manufacturer cost: R${batchTotalCost.toFixed(2)}`;
+        if (skippedAgeVerif > 0) {
+          msg += `. ${skippedAgeVerif} player(s) skipped due to age verification issues.`;
+        }
+        if (skippedDupJersey > 0) {
+          msg += `. ${skippedDupJersey} player(s) skipped due to duplicate shirt numbers in their sub-team.`;
+        }
+        return res.status(200).json({ batch: { ...batch, total_cost: batchTotalCost, total_players: actualPlayers }, skippedAgeVerification: skippedAgeVerif, skippedDuplicateJersey: skippedDupJersey, message: msg });
       }
 
       // Mark batch as submitted to manufacturer
@@ -396,6 +545,68 @@ export default async function handler(req, res) {
         `, [batchId]);
         if (!result.rows[0]) return res.status(404).json({ error: 'Batch not found or already submitted/paid' });
         return res.status(200).json({ message: 'Batch deleted' });
+      }
+
+      // Unbatch: remove all players from a batch and delete it (works for ANY status)
+      if (action === 'unbatch') {
+        const { batchId } = req.body;
+        if (!batchId) return res.status(400).json({ error: 'batchId required' });
+
+        // Get batch info first
+        const batchResult = await query(`
+          SELECT mb.*, t.team_name
+          FROM manufacturing_batches mb
+          JOIN teams t ON t.id = mb.team_id
+          WHERE mb.id = $1
+        `, [batchId]);
+        if (!batchResult.rows[0]) return res.status(404).json({ error: 'Batch not found' });
+        const batch = batchResult.rows[0];
+
+        let revertedOrders = 0;
+
+        // If batch was paid, revert parent orders from in_production back to confirmed
+        if (batch.status === 'paid') {
+          const batchPlayerOrders = await query(`
+            SELECT DISTINCT order_id FROM manufacturing_batch_players
+            WHERE batch_id = $1 AND order_id IS NOT NULL
+          `, [batchId]);
+
+          for (const row of batchPlayerOrders.rows) {
+            const orderResult = await query(`
+              UPDATE orders SET
+                status = 'confirmed',
+                status_history = COALESCE(status_history, '[]'::jsonb) || $1::jsonb,
+                updated_at = CURRENT_TIMESTAMP
+              WHERE id = $2 AND status = 'in_production'
+              RETURNING id
+            `, [
+              JSON.stringify([{
+                status: 'confirmed',
+                timestamp: new Date().toISOString(),
+                note: `Manufacturing batch #${batch.batch_number} was unbatched — reverting to confirmed`
+              }]),
+              row.order_id
+            ]);
+            if (orderResult.rows[0]) revertedOrders++;
+          }
+        }
+
+        // Count players being unbatched
+        const playerCount = await query(
+          'SELECT COUNT(*) as count FROM manufacturing_batch_players WHERE batch_id = $1',
+          [batchId]
+        );
+        const unbatchedCount = parseInt(playerCount.rows[0].count);
+
+        // Delete batch (CASCADE will remove manufacturing_batch_players rows)
+        await query('DELETE FROM manufacturing_batches WHERE id = $1', [batchId]);
+
+        let msg = `Batch #${batch.batch_number} unbatched — ${unbatchedCount} player${unbatchedCount !== 1 ? 's' : ''} returned to unbatched pool.`;
+        if (revertedOrders > 0) {
+          msg += ` ${revertedOrders} parent order${revertedOrders !== 1 ? 's' : ''} reverted to "Confirmed".`;
+        }
+
+        return res.status(200).json({ message: msg, unbatchedCount, revertedOrders });
       }
 
       return res.status(400).json({ error: 'Unknown action' });

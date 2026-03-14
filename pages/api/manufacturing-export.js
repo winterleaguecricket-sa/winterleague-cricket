@@ -9,7 +9,9 @@ async function getExcelJS() {
 }
 
 function parseSize(selectedSize) {
-  const shirtMatch = selectedSize?.match(/Shirt:\s*([^/]+)/i);
+  // Use " / Pants:" as the delimiter instead of "/" to avoid splitting youth sizes like "9/10 years"
+  const shirtMatch = selectedSize?.match(/Shirt:\s*(.+?)\s*\/\s*Pants:/i)
+    || selectedSize?.match(/Shirt:\s*(.+)/i);
   const pantsMatch = selectedSize?.match(/Pants:\s*(.+)/i);
   return {
     shirt: shirtMatch ? shirtMatch[1].trim() : '',
@@ -17,9 +19,31 @@ function parseSize(selectedSize) {
   };
 }
 
+// Normalize youth shirt/pants sizes: "9" → "9/10 years", "11" → "11/12 years", etc.
+function normalizeYouthSize(size) {
+  if (!size) return size;
+  const youthSizeMap = {
+    '7': '7/8 years', '8': '7/8 years', '7/8': '7/8 years',
+    '9': '9/10 years', '10': '9/10 years', '9/10': '9/10 years',
+    '11': '11/12 years', '12': '11/12 years', '11/12': '11/12 years',
+    '13': '13/14 years', '14': '13/14 years', '13/14': '13/14 years'
+  };
+  const trimmed = size.trim();
+  return youthSizeMap[trimmed] || trimmed;
+}
+
 function parsePlayerName(selectedSize) {
   const match = selectedSize?.match(/Player \d+ - (.+?)\s*\|/);
   return match ? match[1].trim() : '';
+}
+
+// Extract birth year from DOB string and format as player code
+function formatPlayerCode(dob) {
+  if (!dob || typeof dob !== 'string') return '';
+  // Try to extract a 4-digit year from various date formats
+  const yearMatch = dob.match(/(\d{4})/);
+  if (yearMatch) return `WLQC-${yearMatch[1]}`;
+  return '';
 }
 
 export default async function handler(req, res) {
@@ -51,24 +75,31 @@ export default async function handler(req, res) {
       fileName = `${teamName.replace(/[^a-zA-Z0-9]/g, '_')}_Batch_${batch.rows[0].batch_number}`;
 
       const batchPlayers = await query(`
-        SELECT mbp.*, tp.jersey_number
+        SELECT mbp.*, tp.jersey_number,
+               tp.registration_data->>'formSubmissionId' as fs_id
         FROM manufacturing_batch_players mbp
         LEFT JOIN team_players tp ON tp.id = mbp.team_player_id
         WHERE mbp.batch_id = $1
         ORDER BY mbp.sub_team, mbp.player_name
       `, [batchId]);
 
-      players = batchPlayers.rows.map(p => ({
-        player_name: p.player_name,
-        sub_team: p.sub_team || '',
-        shirt_size: p.shirt_size || '',
-        pants_size: p.pants_size || '',
-        jersey_number: p.jersey_number || '',
-        additional_items: p.additional_items || [],
-        parent_name: p.parent_name || '',
-        parent_email: p.parent_email || '',
-        parent_phone: p.parent_phone || ''
-      }));
+      // Look up DOB from form_submissions for each player
+      for (const p of batchPlayers.rows) {
+        let dob = '';
+        if (p.fs_id) {
+          const fsResult = await query(`SELECT data->>'10' as dob FROM form_submissions WHERE id = $1`, [p.fs_id]);
+          dob = fsResult.rows[0]?.dob || '';
+        }
+        players.push({
+          player_name: p.player_name,
+          sub_team: p.sub_team || '',
+          shirt_size: normalizeYouthSize(p.shirt_size || ''),
+          pants_size: normalizeYouthSize(p.pants_size || ''),
+          jersey_number: p.jersey_number || '',
+          additional_items: p.additional_items || [],
+          player_code: formatPlayerCode(dob)
+        });
+      }
     } else {
       // Export all unbatched paid players for a team
       const teamResult = await query('SELECT team_name FROM teams WHERE id = $1', [teamId]);
@@ -78,9 +109,11 @@ export default async function handler(req, res) {
 
       const unbatched = await query(`
         SELECT tp.id, tp.player_name, tp.player_email, tp.sub_team, tp.jersey_size, tp.jersey_number,
-               tp.registration_data
+               tp.registration_data,
+               fs.data->>'10' as dob
         FROM team_players tp
         LEFT JOIN manufacturing_batch_players mbp ON mbp.team_player_id = tp.id
+        LEFT JOIN form_submissions fs ON fs.id::text = tp.registration_data->>'formSubmissionId'
         WHERE tp.team_id = $1 AND tp.payment_status = 'paid' AND mbp.id IS NULL
         ORDER BY tp.sub_team, tp.player_name
       `, [teamId]);
@@ -128,13 +161,11 @@ export default async function handler(req, res) {
         players.push({
           player_name: player.player_name,
           sub_team: player.sub_team || '',
-          shirt_size: shirtSize || player.jersey_size || '',
-          pants_size: pantsSize || '',
+          shirt_size: normalizeYouthSize(shirtSize || player.jersey_size || ''),
+          pants_size: normalizeYouthSize(pantsSize || ''),
           jersey_number: player.jersey_number || '',
           additional_items: additionalItems,
-          parent_name: order?.customer_name || '',
-          parent_email: parentEmail,
-          parent_phone: order?.customer_phone || ''
+          player_code: formatPlayerCode(player.dob || '')
         });
       }
     }
@@ -152,18 +183,16 @@ export default async function handler(req, res) {
     const headerFont = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
     const headerAlignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
-    // Define columns 
+    // Define columns (parent details removed, player code added)
     sheet.columns = [
       { header: '#', key: 'num', width: 5 },
       { header: 'Player Name', key: 'player_name', width: 28 },
+      { header: 'Player Code', key: 'player_code', width: 16 },
       { header: 'Age Group / Sub-Team', key: 'sub_team', width: 35 },
       { header: 'Shirt Size', key: 'shirt_size', width: 15 },
       { header: 'Pants Size', key: 'pants_size', width: 15 },
       { header: 'Shirt Number', key: 'jersey_number', width: 14 },
-      { header: 'Additional Items', key: 'additional', width: 35 },
-      { header: 'Parent Name', key: 'parent_name', width: 22 },
-      { header: 'Parent Email', key: 'parent_email', width: 30 },
-      { header: 'Parent Phone', key: 'parent_phone', width: 18 }
+      { header: 'Additional Items', key: 'additional', width: 50 }
     ];
 
     // Style header row
@@ -177,22 +206,28 @@ export default async function handler(req, res) {
 
     // Add data rows
     players.forEach((player, idx) => {
-      const additionalStr = (player.additional_items || [])
+      const additionalItems = player.additional_items || [];
+      const additionalStr = additionalItems
         .map(item => `${item.name} (${item.size}) x${item.quantity}`)
-        .join(', ');
+        .join('\n');
 
       const row = sheet.addRow({
         num: idx + 1,
         player_name: player.player_name,
+        player_code: player.player_code,
         sub_team: player.sub_team,
         shirt_size: player.shirt_size,
         pants_size: player.pants_size,
         jersey_number: player.jersey_number,
-        additional: additionalStr,
-        parent_name: player.parent_name,
-        parent_email: player.parent_email,
-        parent_phone: player.parent_phone
+        additional: additionalStr
       });
+
+      // Enable text wrapping on the additional items cell and auto-height for rows with multiple items
+      const additionalCell = row.getCell('additional');
+      additionalCell.alignment = { vertical: 'top', wrapText: true };
+      if (additionalItems.length > 1) {
+        row.height = Math.max(20, additionalItems.length * 15);
+      }
 
       // Alternate row colors
       if (idx % 2 === 0) {
@@ -207,21 +242,19 @@ export default async function handler(req, res) {
     const summaryRow = sheet.addRow({
       num: '',
       player_name: `Total Players: ${players.length}`,
+      player_code: '',
       sub_team: `Team: ${teamName}`,
       shirt_size: '',
       pants_size: '',
       jersey_number: '',
-      additional: `Generated: ${new Date().toLocaleDateString('en-ZA')}`,
-      parent_name: '',
-      parent_email: '',
-      parent_phone: ''
+      additional: `Generated: ${new Date().toLocaleDateString('en-ZA')}`
     });
     summaryRow.eachCell((cell) => {
       cell.font = { bold: true, size: 10 };
     });
 
     // Auto-filter
-    sheet.autoFilter = { from: 'A1', to: `J${players.length + 1}` };
+    sheet.autoFilter = { from: 'A1', to: `H${players.length + 1}` };
 
     // Freeze header
     sheet.views = [{ state: 'frozen', ySplit: 1 }];

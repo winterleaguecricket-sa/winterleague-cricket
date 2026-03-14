@@ -178,6 +178,11 @@ async function getFlaggedPlayers() {
         ELSE NULL
       END as team_name,
       CASE 
+        WHEN fs.data->>'34' IS NOT NULL AND fs.data->>'34' != '' 
+        THEN (fs.data->>'34')::jsonb->>'gender'
+        ELSE NULL
+      END as gender,
+      CASE 
         WHEN o.id IS NOT NULL AND o.payment_status = 'paid' THEN true
         ELSE false
       END as paid,
@@ -186,7 +191,7 @@ async function getFlaggedPlayers() {
         ELSE false
       END as has_account
     FROM form_submissions fs
-    LEFT JOIN orders o ON LOWER(o.customer_email) = LOWER(fs.customer_email) 
+    INNER JOIN orders o ON LOWER(o.customer_email) = LOWER(fs.customer_email) 
       AND o.payment_status = 'paid'
     LEFT JOIN customers c ON LOWER(c.email) = LOWER(fs.customer_email)
     WHERE fs.form_id = '2'
@@ -221,10 +226,14 @@ async function getFlaggedPlayers() {
         status = 'error';
         reason = `Unusually old birth year (${birthYear})`;
       } else if (ageGroup && ageGroup !== 'Senior') {
-        const cutoff = AGE_CUTOFFS[ageGroup];
+        // Girls are allowed to be 2 years older than boys
+        const gender = (row.gender || '').toLowerCase();
+        const isFemale = gender === 'female' || gender === 'girls';
+        const baseCutoff = AGE_CUTOFFS[ageGroup];
+        const cutoff = baseCutoff ? (isFemale ? baseCutoff - 2 : baseCutoff) : null;
         if (cutoff && birthYear < cutoff) {
           status = 'fail';
-          reason = `Born in ${birthYear}, but the ${ageGroup} age group requires birth year ${cutoff} or later. ${playerName} is too old for ${ageGroup} by ${cutoff - birthYear} year(s)`;
+          reason = `Born in ${birthYear}, but the ${ageGroup} age group requires birth year ${cutoff} or later${isFemale ? ' (female +2yr grace applied)' : ''}. ${playerName} is too old for ${ageGroup} by ${cutoff - birthYear} year(s)`;
         }
       }
     }

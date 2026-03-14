@@ -105,6 +105,63 @@ export default async function handler(req, res) {
     try {
       const { action, id, subTeam, playerName, playerEmail, playerPhone, idNumber, jerseySize, jerseyNumber, position, playerId, roles } = req.body;
 
+      // Update jersey number — with sub-team uniqueness check
+      if (action === 'updateJerseyNumber') {
+        const targetId = playerId || id;
+        if (!targetId) {
+          return res.status(400).json({ error: 'Player ID is required' });
+        }
+        const newNumber = parseInt(jerseyNumber, 10);
+        if (isNaN(newNumber) || newNumber < 0 || newNumber > 999) {
+          return res.status(400).json({ error: 'Jersey number must be between 0 and 999' });
+        }
+
+        // Get the player's sub_team and team_id
+        const playerResult = await query(
+          'SELECT id, team_id, sub_team, registration_data FROM team_players WHERE id = $1',
+          [targetId]
+        );
+        if (playerResult.rows.length === 0) {
+          return res.status(404).json({ error: 'Player not found' });
+        }
+        const player = playerResult.rows[0];
+
+        // Check uniqueness within the same sub-team
+        const dupeCheck = await query(
+          `SELECT id, player_name FROM team_players 
+           WHERE team_id = $1 AND sub_team = $2 AND jersey_number = $3 
+             AND id != $4 AND payment_status = 'paid'`,
+          [player.team_id, player.sub_team, newNumber, targetId]
+        );
+        if (dupeCheck.rows.length > 0) {
+          return res.status(409).json({ 
+            error: `Jersey number #${newNumber} is already taken by ${dupeCheck.rows[0].player_name} in this sub-team` 
+          });
+        }
+
+        // Update the jersey number in team_players
+        const updateResult = await query(
+          'UPDATE team_players SET jersey_number = $1 WHERE id = $2 RETURNING *',
+          [newNumber, targetId]
+        );
+
+        // Also update field 36 (jersey number) in form_submissions if linked
+        const regData = typeof player.registration_data === 'string'
+          ? JSON.parse(player.registration_data)
+          : (player.registration_data || {});
+        if (regData.formSubmissionId) {
+          await query(
+            `UPDATE form_submissions SET data = jsonb_set(data, '{36}', $1::jsonb) WHERE id::text = $2`,
+            [JSON.stringify(String(newNumber)), regData.formSubmissionId]
+          );
+        }
+
+        return res.status(200).json({
+          success: true,
+          player: formatPlayer(updateResult.rows[0])
+        });
+      }
+
       if (action === 'updateRoles') {
         const targetId = playerId || id;
         if (!targetId) {

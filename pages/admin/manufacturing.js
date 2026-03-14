@@ -186,6 +186,38 @@ export default function ManufacturingBatches() {
     setActionLoading(false);
   };
 
+  const unbatchBatch = async (batchId, batchNumber, status) => {
+    const statusWarning = status === 'paid'
+      ? '\n\n⚠️ This batch is PAID — parent orders will be reverted from "In Production" back to "Confirmed".'
+      : status === 'submitted'
+      ? '\n\n⚠️ This batch has been SUBMITTED to the manufacturer.'
+      : '';
+    if (!confirm(`Unbatch Batch #${batchNumber}? All players will be returned to the unbatched pool.${statusWarning}`)) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/manufacturing-batches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'unbatch', batchId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showMessage(data.message || 'Batch unbatched successfully');
+        if (view === 'batch-detail') {
+          setView('team-detail');
+          loadTeamDetail(selectedTeam.id);
+        } else {
+          loadTeamDetail(selectedTeam.id);
+        }
+      } else {
+        showMessage(data.error || 'Failed to unbatch', 'error');
+      }
+    } catch (err) {
+      showMessage('Error unbatching', 'error');
+    }
+    setActionLoading(false);
+  };
+
   const downloadExcel = (params) => {
     const qs = new URLSearchParams(params).toString();
     window.open(`/api/manufacturing-export?${qs}`, '_blank');
@@ -212,14 +244,283 @@ export default function ManufacturingBatches() {
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#f9fafb' }}>
       <Head>
         <title>Manufacturing Batches - Admin</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
+      {/* Mobile responsive styles */}
+      <style jsx global>{`
+        .mfg-header {
+          background: #111827;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+          padding: 1rem 2rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .mfg-header-left {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+        .mfg-main {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 2rem 1.5rem;
+        }
+        .mfg-summary-banner {
+          background: linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(17,24,39,0.95) 50%, rgba(139,92,246,0.08) 100%);
+          border-radius: 16px;
+          padding: 1.5rem 2rem;
+          margin-bottom: 1.5rem;
+          border: 1px solid rgba(139,92,246,0.2);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .mfg-summary-inner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+        .mfg-summary-stats {
+          display: flex;
+          gap: 1rem;
+        }
+        .mfg-stat-box {
+          text-align: center;
+          border-radius: 10px;
+          padding: 0.75rem 1.25rem;
+        }
+        .mfg-teams-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+          gap: 1rem;
+        }
+        .mfg-section-card {
+          background: #111827;
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.08);
+          padding: 1.25rem;
+          margin-bottom: 1rem;
+          border-left: 4px solid #fbbf24;
+        }
+        .mfg-section-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+        .mfg-section-actions {
+          display: flex;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+        }
+        .mfg-table-wrap {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .mfg-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 0.85rem;
+        }
+        .mfg-table th {
+          text-align: left;
+          padding: 0.6rem 0.75rem;
+          color: #94a3b8;
+          font-weight: 700;
+          font-size: 0.78rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          white-space: nowrap;
+        }
+        .mfg-table td {
+          padding: 0.6rem 0.75rem;
+        }
+        /* Mobile player cards - hidden on desktop, shown on mobile */
+        .mfg-mobile-cards { display: none; }
+        .mfg-desktop-table { display: block; }
+
+        .mfg-batch-card {
+          background: #111827;
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.08);
+          padding: 1.25rem;
+          margin-bottom: 0.75rem;
+        }
+        .mfg-batch-inner {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+        }
+        .mfg-batch-actions {
+          display: flex;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+        }
+        .mfg-detail-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1.5rem;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+        }
+        .mfg-detail-actions {
+          display: flex;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+        }
+        .mfg-payment-inner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+        .mfg-payment-right {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+        .mfg-create-batch-row {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+
+        /* MOBILE BREAKPOINT */
+        @media (max-width: 768px) {
+          .mfg-header {
+            padding: 0.75rem 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+          }
+          .mfg-header-left {
+            gap: 0.5rem;
+            flex-wrap: wrap;
+          }
+          .mfg-header-left h1 {
+            font-size: 1rem !important;
+            width: 100%;
+          }
+          .mfg-main {
+            padding: 1rem 0.75rem;
+          }
+          .mfg-summary-banner {
+            padding: 1rem;
+            border-radius: 12px;
+          }
+          .mfg-summary-inner {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .mfg-summary-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.5rem;
+          }
+          .mfg-stat-box {
+            padding: 0.5rem 0.4rem;
+          }
+          .mfg-stat-box .stat-num {
+            font-size: 1.2rem !important;
+          }
+          .mfg-stat-box .stat-label {
+            font-size: 0.6rem !important;
+          }
+          .mfg-teams-grid {
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+          }
+          .mfg-section-card {
+            padding: 0.85rem;
+            border-radius: 10px;
+          }
+          .mfg-section-header {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .mfg-section-actions {
+            width: 100%;
+          }
+          .mfg-section-actions button {
+            flex: 1;
+            min-width: 0;
+            font-size: 0.78rem !important;
+            padding: 0.45rem 0.6rem !important;
+          }
+          /* Hide desktop table, show mobile cards */
+          .mfg-desktop-table { display: none !important; }
+          .mfg-mobile-cards { display: block !important; }
+
+          .mfg-batch-card {
+            padding: 1rem;
+          }
+          .mfg-batch-inner {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .mfg-batch-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.4rem;
+          }
+          .mfg-batch-actions button {
+            text-align: center;
+            font-size: 0.75rem !important;
+            padding: 0.5rem 0.5rem !important;
+          }
+          .mfg-detail-header {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .mfg-detail-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.4rem;
+          }
+          .mfg-detail-actions button {
+            text-align: center;
+            font-size: 0.78rem !important;
+            padding: 0.5rem 0.5rem !important;
+          }
+          .mfg-payment-inner {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .mfg-payment-right {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .mfg-payment-right > div {
+            text-align: center !important;
+          }
+          .mfg-payment-right button {
+            width: 100%;
+          }
+          .mfg-create-batch-row {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .mfg-create-batch-row input {
+            min-width: 0 !important;
+            width: 100% !important;
+          }
+          .mfg-create-batch-row button {
+            width: 100%;
+          }
+        }
+      `}</style>
+
       {/* Header */}
-      <header style={{
-        background: '#111827', borderBottom: '1px solid rgba(255,255,255,0.08)',
-        padding: '1rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <header className="mfg-header">
+        <div className="mfg-header-left">
           {view !== 'teams' && (
             <button onClick={goBack} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: '#d1d5db', borderRadius: '6px', padding: '0.4rem 0.8rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>
               ← Back
@@ -235,7 +536,7 @@ export default function ManufacturingBatches() {
         </nav>
       </header>
 
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem' }}>
+      <main className="mfg-main">
 
         {/* Message */}
         {message.text && (
@@ -260,34 +561,30 @@ export default function ManufacturingBatches() {
         {!isLoading && view === 'teams' && (
           <div>
             {/* Summary banner */}
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(17,24,39,0.95) 50%, rgba(139,92,246,0.08) 100%)',
-              borderRadius: '16px', padding: '1.5rem 2rem', marginBottom: '1.5rem',
-              border: '1px solid rgba(139,92,246,0.2)', boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+            <div className="mfg-summary-banner">
+              <div className="mfg-summary-inner">
                 <div>
                   <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 900, color: '#f9fafb' }}>Teams Overview</h2>
                   <p style={{ margin: '0.25rem 0 0', color: '#9ca3af', fontSize: '0.85rem' }}>{teams.length} teams with paid players</p>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <div style={{ textAlign: 'center', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '10px', padding: '0.75rem 1.25rem' }}>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fbbf24' }}>{teams.reduce((s, t) => s + parseInt(t.unbatched_players || 0), 0)}</div>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#fcd34d', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unbatched</div>
+                <div className="mfg-summary-stats">
+                  <div className="mfg-stat-box" style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)' }}>
+                    <div className="stat-num" style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fbbf24' }}>{teams.reduce((s, t) => s + parseInt(t.unbatched_players || 0), 0)}</div>
+                    <div className="stat-label" style={{ fontSize: '0.7rem', fontWeight: 700, color: '#fcd34d', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unbatched</div>
                   </div>
-                  <div style={{ textAlign: 'center', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: '10px', padding: '0.75rem 1.25rem' }}>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#34d399' }}>{teams.reduce((s, t) => s + parseInt(t.batched_players || 0), 0)}</div>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Batched</div>
+                  <div className="mfg-stat-box" style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)' }}>
+                    <div className="stat-num" style={{ fontSize: '1.5rem', fontWeight: 900, color: '#34d399' }}>{teams.reduce((s, t) => s + parseInt(t.batched_players || 0), 0)}</div>
+                    <div className="stat-label" style={{ fontSize: '0.7rem', fontWeight: 700, color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Batched</div>
                   </div>
-                  <div style={{ textAlign: 'center', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)', borderRadius: '10px', padding: '0.75rem 1.25rem' }}>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#60a5fa' }}>{teams.reduce((s, t) => s + parseInt(t.total_paid_players || 0), 0)}</div>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Paid</div>
+                  <div className="mfg-stat-box" style={{ background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)' }}>
+                    <div className="stat-num" style={{ fontSize: '1.5rem', fontWeight: 900, color: '#60a5fa' }}>{teams.reduce((s, t) => s + parseInt(t.total_paid_players || 0), 0)}</div>
+                    <div className="stat-label" style={{ fontSize: '0.7rem', fontWeight: 700, color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Paid</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+            <div className="mfg-teams-grid">
               {teams.map(team => (
                 <div
                   key={team.id}
@@ -338,20 +635,17 @@ export default function ManufacturingBatches() {
 
             {/* Unbatched Players Section */}
             {unbatchedPlayers.length > 0 && (
-              <div style={{
-                background: '#111827', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)',
-                padding: '1.25rem', marginBottom: '1rem', borderLeft: '4px solid #fbbf24'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div className="mfg-section-card">
+                <div className="mfg-section-header">
                   <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#fcd34d' }}>
                     ⏳ Unbatched Players ({unbatchedPlayers.length})
                   </h3>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <div className="mfg-section-actions">
                     <button onClick={() => downloadExcel({ teamId: selectedTeam.id })} style={{
                       padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)',
                       background: 'rgba(255,255,255,0.06)', color: '#d1d5db', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer'
                     }}>
-                      📥 Download Excel (Unbatched)
+                      📥 Excel
                     </button>
                     <button onClick={selectAllPlayers} style={{
                       padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)',
@@ -362,15 +656,16 @@ export default function ManufacturingBatches() {
                   </div>
                 </div>
 
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <div className="mfg-desktop-table">
+                <div className="mfg-table-wrap">
+                  <table className="mfg-table">
                     <thead>
                       <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                        <th style={{ textAlign: 'left', padding: '0.6rem 0.75rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em', width: '40px' }}>
+                        <th style={{ width: '40px' }}>
                           <input type="checkbox" checked={selectedPlayerIds.length === unbatchedPlayers.length && unbatchedPlayers.length > 0} onChange={selectAllPlayers} style={{ accentColor: '#dc0000' }} />
                         </th>
-                        {['Player', 'Sub-Team', 'Shirt Size', 'Pants Size', 'Shirt Number', 'Additional', 'Parent'].map(h => (
-                          <th key={h} style={{ textAlign: 'left', padding: '0.6rem 0.75rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                        {['Player', 'Sub-Team', 'Shirt', 'Pants', '#', 'Additional', 'Parent'].map(h => (
+                          <th key={h}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -406,11 +701,50 @@ export default function ManufacturingBatches() {
                     </tbody>
                   </table>
                 </div>
+                </div>
+
+                {/* Mobile card layout for unbatched players */}
+                <div className="mfg-mobile-cards">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', padding: '0.5rem 0' }}>
+                    <input type="checkbox" checked={selectedPlayerIds.length === unbatchedPlayers.length && unbatchedPlayers.length > 0} onChange={selectAllPlayers} style={{ accentColor: '#dc0000', width: '18px', height: '18px' }} />
+                    <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: 600 }}>Select All</span>
+                  </div>
+                  {unbatchedPlayers.map((player) => (
+                    <div
+                      key={player.id}
+                      onClick={() => togglePlayerSelection(player.id)}
+                      style={{
+                        background: selectedPlayerIds.includes(player.id) ? 'rgba(220,0,0,0.1)' : 'rgba(255,255,255,0.03)',
+                        border: selectedPlayerIds.includes(player.id) ? '1px solid rgba(220,0,0,0.3)' : '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: '10px', padding: '0.85rem', marginBottom: '0.5rem', cursor: 'pointer', transition: 'all 0.15s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
+                        <input type="checkbox" checked={selectedPlayerIds.includes(player.id)} onChange={() => {}} style={{ accentColor: '#dc0000', width: '16px', height: '16px' }} />
+                        <strong style={{ fontSize: '0.92rem', color: '#f1f5f9' }}>{player.player_name}</strong>
+                        {(player.shirt_number || player.jersey_number) && (
+                          <span style={{ fontSize: '0.75rem', color: '#94a3b8', background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>#{player.shirt_number || player.jersey_number}</span>
+                        )}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem 1rem', fontSize: '0.78rem', paddingLeft: '1.6rem' }}>
+                        <div><span style={{ color: '#6b7280' }}>Shirt:</span> <span style={{ color: '#d1d5db' }}>{player.shirt_size || '—'}</span></div>
+                        <div><span style={{ color: '#6b7280' }}>Pants:</span> <span style={{ color: '#d1d5db' }}>{player.pants_size || '—'}</span></div>
+                        {player.sub_team && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#6b7280' }}>Team:</span> <span style={{ color: '#94a3b8' }}>{player.sub_team}</span></div>}
+                        {player.parent_name && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#6b7280' }}>Parent:</span> <span style={{ color: '#94a3b8' }}>{player.parent_name}</span></div>}
+                        {(player.additional_items || []).length > 0 && (
+                          <div style={{ gridColumn: '1 / -1', color: '#94a3b8' }}>
+                            <span style={{ color: '#6b7280' }}>Extras:</span> {player.additional_items.map(i => `${i.name} (${i.size})`).join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
                 {/* Create Batch Controls */}
                 {selectedPlayerIds.length > 0 && (
                   <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(16,185,129,0.08)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.25)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div className="mfg-create-batch-row">
                       <span style={{ fontWeight: 700, color: '#6ee7b7' }}>
                         {selectedPlayerIds.length} player{selectedPlayerIds.length !== 1 ? 's' : ''} selected
                       </span>
@@ -451,11 +785,8 @@ export default function ManufacturingBatches() {
               <div style={{ marginTop: '1.5rem' }}>
                 <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 800, color: '#f9fafb' }}>📦 Batches ({batches.length})</h3>
                 {batches.map(batch => (
-                  <div key={batch.id} style={{
-                    background: '#111827', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)',
-                    padding: '1.25rem', marginBottom: '0.75rem',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem'
-                  }}>
+                  <div key={batch.id} className="mfg-batch-card">
+                    <div className="mfg-batch-inner">
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.3rem' }}>
                         <strong style={{ fontSize: '1rem', color: '#f1f5f9' }}>Batch #{batch.batch_number}</strong>
@@ -468,7 +799,7 @@ export default function ManufacturingBatches() {
                       </div>
                       {batch.notes && <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '0.2rem' }}>📝 {batch.notes}</div>}
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <div className="mfg-batch-actions">
                       <button onClick={() => downloadExcel({ batchId: batch.id })} style={{
                         padding: '0.45rem 0.85rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)',
                         background: 'rgba(255,255,255,0.06)', color: '#d1d5db', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer'
@@ -487,6 +818,10 @@ export default function ManufacturingBatches() {
                             padding: '0.45rem 0.85rem', borderRadius: '6px', border: 'none',
                             background: 'linear-gradient(135deg, #059669, #10b981)', color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer'
                           }}>💰 Paid</button>
+                          <button onClick={() => unbatchBatch(batch.id, batch.batch_number, batch.status)} disabled={actionLoading} style={{
+                            padding: '0.45rem 0.85rem', borderRadius: '6px', border: '1px solid rgba(251,191,36,0.4)',
+                            background: 'rgba(251,191,36,0.1)', color: '#fcd34d', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer'
+                          }}>↩ Unbatch</button>
                           <button onClick={() => deleteBatch(batch.id)} disabled={actionLoading} style={{
                             padding: '0.45rem 0.85rem', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.4)',
                             background: 'rgba(239,68,68,0.1)', color: '#fca5a5', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer'
@@ -494,11 +829,24 @@ export default function ManufacturingBatches() {
                         </>
                       )}
                       {batch.status === 'submitted' && (
-                        <button onClick={() => markBatchStatus(batch.id, 'mark-paid')} disabled={actionLoading} style={{
-                          padding: '0.45rem 0.85rem', borderRadius: '6px', border: 'none',
-                          background: 'linear-gradient(135deg, #059669, #10b981)', color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer'
-                        }}>💰 Mark Paid</button>
+                        <>
+                          <button onClick={() => markBatchStatus(batch.id, 'mark-paid')} disabled={actionLoading} style={{
+                            padding: '0.45rem 0.85rem', borderRadius: '6px', border: 'none',
+                            background: 'linear-gradient(135deg, #059669, #10b981)', color: '#fff', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer'
+                          }}>💰 Mark Paid</button>
+                          <button onClick={() => unbatchBatch(batch.id, batch.batch_number, batch.status)} disabled={actionLoading} style={{
+                            padding: '0.45rem 0.85rem', borderRadius: '6px', border: '1px solid rgba(251,191,36,0.4)',
+                            background: 'rgba(251,191,36,0.1)', color: '#fcd34d', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer'
+                          }}>↩ Unbatch</button>
+                        </>
                       )}
+                      {batch.status === 'paid' && (
+                        <button onClick={() => unbatchBatch(batch.id, batch.batch_number, batch.status)} disabled={actionLoading} style={{
+                          padding: '0.45rem 0.85rem', borderRadius: '6px', border: '1px solid rgba(251,191,36,0.4)',
+                          background: 'rgba(251,191,36,0.1)', color: '#fcd34d', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer'
+                        }}>↩ Unbatch</button>
+                      )}
+                    </div>
                     </div>
                   </div>
                 ))}
@@ -510,7 +858,7 @@ export default function ManufacturingBatches() {
         {/* BATCH DETAIL VIEW */}
         {!isLoading && view === 'batch-detail' && selectedBatch && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div className="mfg-detail-header">
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.3rem' }}>
                   <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#f9fafb' }}>
@@ -523,7 +871,7 @@ export default function ManufacturingBatches() {
                   {selectedBatch.notes && ` · ${selectedBatch.notes}`}
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div className="mfg-detail-actions">
                 <button onClick={() => downloadExcel({ batchId: selectedBatch.id })} style={{
                   padding: '0.5rem 1.25rem', borderRadius: '8px', border: 'none',
                   background: 'linear-gradient(135deg, #000 0%, #dc0000 100%)', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
@@ -535,19 +883,24 @@ export default function ManufacturingBatches() {
                     background: 'linear-gradient(135deg, #d97706, #f59e0b)', color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer'
                   }}>📤 Submitted</button>
                 )}
+                <button onClick={() => unbatchBatch(selectedBatch.id, selectedBatch.batch_number, selectedBatch.status)} disabled={actionLoading} style={{
+                  padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.4)',
+                  background: 'rgba(251,191,36,0.1)', color: '#fcd34d', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer'
+                }}>↩ Unbatch</button>
               </div>
             </div>
 
-            {/* Player table */}
+            {/* Player table - Desktop */}
+            <div className="mfg-desktop-table">
             <div style={{
               background: '#111827', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)',
-              padding: '1.25rem', overflowX: 'auto'
+              padding: '1.25rem', overflowX: 'auto', WebkitOverflowScrolling: 'touch'
             }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                    {['#', 'Player Name', 'Sub-Team / Age Group', 'Shirt Size', 'Pants Size', 'Shirt Number', 'Additional Items', 'Parent Name', 'Parent Contact'].map(h => (
-                      <th key={h} style={{ textAlign: 'left', padding: '0.75rem 1rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                    {['#', 'Player', 'Sub-Team', 'Shirt', 'Pants', '#', 'Additional', 'Parent', 'Contact'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '0.75rem 1rem', color: '#94a3b8', fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -579,6 +932,38 @@ export default function ManufacturingBatches() {
                 </tbody>
               </table>
             </div>
+            </div>
+
+            {/* Player cards - Mobile */}
+            <div className="mfg-mobile-cards">
+              {batchPlayers.map((player, idx) => (
+                <div key={player.id} style={{
+                  background: idx % 2 === 0 ? 'rgba(255,255,255,0.03)' : '#111827',
+                  border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px',
+                  padding: '0.85rem', marginBottom: '0.5rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 700, minWidth: '1.5rem' }}>{idx + 1}</span>
+                    <strong style={{ fontSize: '0.92rem', color: '#f1f5f9' }}>{player.player_name}</strong>
+                    {(player.shirt_number || player.jersey_number) && (
+                      <span style={{ fontSize: '0.75rem', color: '#94a3b8', background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>#{player.shirt_number || player.jersey_number}</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem 1rem', fontSize: '0.78rem', paddingLeft: '2rem' }}>
+                    <div><span style={{ color: '#6b7280' }}>Shirt:</span> <span style={{ color: '#d1d5db' }}>{player.shirt_size || '—'}</span></div>
+                    <div><span style={{ color: '#6b7280' }}>Pants:</span> <span style={{ color: '#d1d5db' }}>{player.pants_size || '—'}</span></div>
+                    {player.sub_team && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#6b7280' }}>Team:</span> <span style={{ color: '#94a3b8' }}>{player.sub_team}</span></div>}
+                    {player.parent_name && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#6b7280' }}>Parent:</span> <span style={{ color: '#94a3b8' }}>{player.parent_name}</span></div>}
+                    {player.parent_email && <div style={{ gridColumn: '1 / -1' }}><span style={{ color: '#6b7280' }}>Contact:</span> <span style={{ color: '#94a3b8', wordBreak: 'break-all' }}>{player.parent_email}</span></div>}
+                    {(player.additional_items || []).length > 0 && (
+                      <div style={{ gridColumn: '1 / -1', color: '#94a3b8' }}>
+                        <span style={{ color: '#6b7280' }}>Extras:</span> {player.additional_items.map(i => `${i.name} (${i.size}) x${i.quantity}`).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
 
             {/* Manufacturer Payment Card */}
             {selectedBatch.status !== 'paid' && (
@@ -587,7 +972,7 @@ export default function ManufacturingBatches() {
                 background: 'linear-gradient(135deg, rgba(251,191,36,0.1) 0%, rgba(17,24,39,0.95) 50%, rgba(251,191,36,0.06) 100%)',
                 border: '1px solid rgba(251,191,36,0.25)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                <div className="mfg-payment-inner">
                   <div>
                     <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 800, color: '#fcd34d' }}>💳 Manufacturer Payment</h3>
                     <p style={{ margin: 0, color: '#9ca3af', fontSize: '0.82rem' }}>
@@ -598,7 +983,7 @@ export default function ManufacturingBatches() {
                       })()}
                     </p>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div className="mfg-payment-right">
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Due to Manufacturer</div>
                       <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#fbbf24' }}>

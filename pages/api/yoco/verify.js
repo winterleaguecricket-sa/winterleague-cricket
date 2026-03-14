@@ -6,6 +6,7 @@ import { getYocoConfig } from './config';
 import { sendParentPaymentSuccessEmail } from '../../../lib/parentEmailHelper';
 import { logPaymentEvent, logApiError } from '../../../lib/logger';
 import { createTeamPlayersFromSubmissions } from '../../../lib/createTeamPlayersFromSubmissions';
+import { splitOrderForSuppliers } from '../supplier-orders';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -361,6 +362,13 @@ export default async function handler(req, res) {
             }
           } catch (playerErr) {
             console.error('Yoco verify: error creating team players from submissions:', playerErr.message);
+          }
+
+          // Split order for suppliers (non-blocking)
+          try {
+            await splitOrderForSuppliers(order.id, orderId);
+          } catch (splitErr) {
+            console.error('Yoco verify: supplier order split error (non-blocking):', splitErr.message);
           }
 
           // Send parent payment success email (non-blocking)

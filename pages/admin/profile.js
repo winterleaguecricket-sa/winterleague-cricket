@@ -71,6 +71,13 @@ export default function AdminProfile() {
         <circle cx="12" cy="15" r="1" />
       </svg>
     ),
+    'supplier-portal': (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+        <line x1="12" y1="22.08" x2="12" y2="12" />
+      </svg>
+    ),
     'parent-emails': (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 6h16v12H4z" />
@@ -365,6 +372,7 @@ export default function AdminProfile() {
             <option value="team-portal">👥︎ Team Portal</option>
             <option value="parent-portal">👤︎ Parent Portal</option>
             <option value="manufacturer-portal">🏭︎ Manufacturer Portal</option>
+            <option value="supplier-portal">📦︎ Supplier Portal</option>
             <option value="email-config">⚙︎ Email Config</option>
           </select>
         </div>
@@ -401,6 +409,7 @@ export default function AdminProfile() {
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className={styles.input}
                   placeholder="Enter current password"
+                  autoComplete="current-password"
                 />
               </div>
 
@@ -414,6 +423,7 @@ export default function AdminProfile() {
                   onChange={(e) => setPassword(e.target.value)}
                   className={styles.input}
                   placeholder="Enter new password"
+                  autoComplete="new-password"
                 />
               </div>
 
@@ -427,6 +437,7 @@ export default function AdminProfile() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className={styles.input}
                   placeholder="Confirm new password"
+                  autoComplete="new-password"
                 />
               </div>
 
@@ -1091,6 +1102,179 @@ export default function AdminProfile() {
                 <li>Browse registered teams and their requirements</li>
                 <li>Track production progress and delivery status</li>
                 <li>Update account details and change password</li>
+                <li>Admin bypass mode via ?admin=true parameter</li>
+              </ul>
+            </div>
+          </div>
+        )}
+        {/* Supplier Portal Tab */}
+        {activeTab === 'supplier-portal' && (
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Supplier Portal Management</h2>
+
+            <div style={{
+              padding: '1.25rem',
+              background: '#f0f9ff',
+              border: '2px solid #0ea5e9',
+              borderRadius: '10px',
+              marginBottom: '1.5rem'
+            }}>
+              <p style={{ fontSize: '0.95rem', color: '#0c4a6e', marginBottom: '0.75rem', fontWeight: '600' }}>
+                📦 Supplier Portal Overview
+              </p>
+              <p style={{ fontSize: '0.85rem', color: '#075985', marginBottom: 0 }}>
+                The Supplier Portal allows third-party cricket equipment suppliers to register, list products (with cost prices), receive orders, track profits, and operate under an SLA. Suppliers set their cost price and admin sets the final sell price upon product approval.
+              </p>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gap: '1rem',
+              marginBottom: '1.5rem'
+            }}>
+              <div style={{
+                background: 'white',
+                padding: '1.25rem',
+                border: '2px solid #e5e7eb',
+                borderRadius: '10px'
+              }}>
+                <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#111827', fontWeight: '700' }}>
+                  🔗 Portal URLs
+                </h3>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.25rem' }}>Supplier Registration Page</div>
+                  <div style={{
+                    padding: '0.75rem',
+                    background: '#f9fafb',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontFamily: 'monospace',
+                    fontSize: '0.9rem',
+                    color: '#374151'
+                  }}>
+                    /become-a-supplier
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.25rem' }}>Supplier Portal Dashboard</div>
+                  <div style={{
+                    padding: '0.75rem',
+                    background: '#f9fafb',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontFamily: 'monospace',
+                    fontSize: '0.9rem',
+                    color: '#374151'
+                  }}>
+                    /supplier-portal
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: '0.5rem 0 0' }}>
+                  Share the registration link with potential suppliers. Approved suppliers use the portal dashboard.
+                </p>
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '1rem'
+              }}>
+                <div style={{
+                  background: 'white',
+                  padding: '1.25rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '10px'
+                }}>
+                  <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#111827', fontWeight: '700' }}>
+                    📦 Access Supplier Portal
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '1rem' }}>
+                    Preview the supplier dashboard as suppliers see it. Use admin mode to browse supplier accounts.
+                  </p>
+                  <a
+                    href="/supplier-portal?admin=true"
+                    style={{
+                      display: 'inline-block',
+                      padding: '0.75rem 1.5rem',
+                      background: 'linear-gradient(135deg, #000000 0%, #dc0000 100%)',
+                      color: 'white',
+                      textDecoration: 'none',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s',
+                      boxShadow: '0 4px 12px rgba(220, 0, 0, 0.2)'
+                    }}
+                  >
+                    Open Supplier Portal →
+                  </a>
+                </div>
+
+                <div style={{
+                  background: 'white',
+                  padding: '1.25rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '10px'
+                }}>
+                  <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#111827', fontWeight: '700' }}>
+                    📝 Supplier Applications
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '1rem' }}>
+                    Review pending supplier applications, approve or reject registrations.
+                  </p>
+                  <a
+                    href="/become-a-supplier"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-block',
+                      padding: '0.75rem 1.5rem',
+                      background: 'linear-gradient(135deg, #334155 0%, #475569 100%)',
+                      color: 'white',
+                      textDecoration: 'none',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                    }}
+                  >
+                    View Registration Form →
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              background: '#fef3c7',
+              border: '2px solid #f59e0b',
+              borderRadius: '10px',
+              padding: '1.25rem'
+            }}>
+              <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: '#92400e', fontWeight: '700' }}>
+                💡 Supplier Portal Features
+              </h3>
+              <ul style={{ 
+                fontSize: '0.85rem', 
+                color: '#78350f', 
+                margin: 0,
+                paddingLeft: '1.5rem',
+                lineHeight: '1.8'
+              }}>
+                <li>Supplier self-registration with CK/CIPC verification</li>
+                <li>Admin approval workflow with quality rating</li>
+                <li>Supplier sets cost price, admin sets sell price</li>
+                <li>Product listing with admin approval before going live</li>
+                <li>Order tracking and fulfillment management</li>
+                <li>Financial dashboard with earnings and payout tracking</li>
+                <li>SLA monitoring (Standard: 24h response, 3-day dispatch)</li>
+                <li>10% team commission on team-referred purchases</li>
+                <li>Configurable payout frequency (weekly/bi-weekly/monthly)</li>
+                <li>Document management (CK docs, VAT certs, BEE certificates)</li>
                 <li>Admin bypass mode via ?admin=true parameter</li>
               </ul>
             </div>

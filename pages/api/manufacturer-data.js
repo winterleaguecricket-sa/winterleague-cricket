@@ -69,7 +69,8 @@ export default async function handler(req, res) {
       JOIN teams t ON t.id = tp.team_id
       CROSS JOIN LATERAL jsonb_array_elements(o.items) WITH ORDINALITY AS item(value, item_idx)
       WHERE o.payment_status = 'paid'
-        AND o.order_type IN ('registration', 'additional-apparel')
+        AND (o.refund_status IS NULL OR o.refund_status != 'completed')
+        AND o.order_type IN ('registration', 'additional-apparel', 'product', 'parent-apparel')
         AND t.status NOT IN ('archived')
         AND tp.payment_status = 'paid'
         AND COALESCE(item.value->>'_pendingPayment', 'false') != 'true'
@@ -78,24 +79,58 @@ export default async function handler(req, res) {
       ORDER BY tp.team_id, tp.player_name, item.value->>'name'
     `);
 
+    // ── GROSS YOCO TRANSACTION TOTAL ──
+    const yocoTotalResult = await pool.query(`
+      SELECT COALESCE(SUM(total_amount), 0) as gross_total,
+             COUNT(*) as paid_orders
+      FROM orders WHERE payment_status = 'paid'
+        AND (refund_status IS NULL OR refund_status != 'completed')
+    `);
+    const yocoGrossTotal = parseFloat(yocoTotalResult.rows[0]?.gross_total) || 0;
+    const yocoPaidOrders = parseInt(yocoTotalResult.rows[0]?.paid_orders) || 0;
+
+    // ── BASIC KIT COUNT from paid orders (excl refunds) ──
+    const basicKitResult = await pool.query(`
+      SELECT COALESCE(SUM((item.value->>'quantity')::int), 0) as kit_count
+      FROM orders o
+      CROSS JOIN LATERAL jsonb_array_elements(o.items) AS item(value)
+      WHERE o.payment_status = 'paid'
+        AND (o.refund_status IS NULL OR o.refund_status != 'completed')
+        AND item.value->>'id' = 'basic-kit'
+    `);
+    const totalBasicKitsSold = parseInt(basicKitResult.rows[0]?.kit_count) || 0;
+
+    // ── REFUNDED ORDERS ──
+    const refundResult = await pool.query(`
+      SELECT COALESCE(SUM(total_amount), 0) as refund_total,
+             COUNT(*) as refund_count
+      FROM orders WHERE payment_status = 'paid'
+        AND refund_status = 'completed'
+    `);
+    const refundTotal = parseFloat(refundResult.rows[0]?.refund_total) || 0;
+    const refundCount = parseInt(refundResult.rows[0]?.refund_count) || 0;
+
     // ── ADDITIONAL APPAREL REVENUE (cost-based) ──
     // Query all non-basic-kit items from paid orders, join with products table for cost prices
-    // Includes both player registration items and supporter items
+    // Includes player registration items, supporter items, coach apparel, and parent apparel
     const apparelRevenueResult = await pool.query(`
       SELECT
         item.value->>'id' as item_id,
         item.value->>'name' as item_name,
         (item.value->>'price')::numeric as sale_price,
         SUM((item.value->>'quantity')::int) as total_qty,
-        COALESCE(p.cost, 0) as unit_cost
+        COALESCE(p.cost, 0) as unit_cost,
+        COALESCE(p.category, '') as category,
+        o.order_type
       FROM orders o
       CROSS JOIN LATERAL jsonb_array_elements(o.items) AS item(value)
       LEFT JOIN products p ON p.id::text = item.value->>'id'
         OR (item.value->>'id' LIKE 'supporter_%' AND p.id::text = REPLACE(item.value->>'id', 'supporter_', ''))
       WHERE o.payment_status = 'paid'
+        AND (o.refund_status IS NULL OR o.refund_status != 'completed')
         AND item.value->>'id' != 'basic-kit'
         AND COALESCE(item.value->>'_addon', 'false') != 'true'
-      GROUP BY item.value->>'id', item.value->>'name', item.value->>'price', p.cost
+      GROUP BY item.value->>'id', item.value->>'name', item.value->>'price', p.cost, p.category, o.order_type
       ORDER BY item.value->>'name'
     `);
 
@@ -112,9 +147,18 @@ export default async function handler(req, res) {
         salePrice: parseFloat(r.sale_price) || 0,
         unitCost,
         qtySold: qty,
-        totalCostRevenue: lineTotal
+        totalCostRevenue: lineTotal,
+        category: r.category || '',
+        orderType: r.order_type || ''
       };
     });
+
+    // Split apparel items by category for separate reporting
+    // Parent-apparel orders (order_type='parent-apparel') count as additional apparel, not coach apparel
+    const coachApparelItems = apparelItems.filter(i => i.category === 'coach-apparel' && i.orderType !== 'parent-apparel');
+    const additionalApparelItems = apparelItems.filter(i => i.category !== 'coach-apparel' || i.orderType === 'parent-apparel');
+    const totalAdditionalApparelRevenue = additionalApparelItems.reduce((s, i) => s + i.totalCostRevenue, 0);
+    const totalCoachApparelRevenue = coachApparelItems.reduce((s, i) => s + i.totalCostRevenue, 0);
 
     // ── Shirt design catalog for fallback images ──
     let shirtDesignCatalog = [];
@@ -239,10 +283,19 @@ export default async function handler(req, res) {
       teams,
       totalTeams: teams.length,
       totalPlayers: totalPaidPlayers,
+      totalBasicKitsSold,
       apparelRevenue: {
-        total: totalApparelRevenue,
-        items: apparelItems
-      }
+        total: totalAdditionalApparelRevenue,
+        items: additionalApparelItems
+      },
+      coachApparelRevenue: {
+        total: totalCoachApparelRevenue,
+        items: coachApparelItems
+      },
+      yocoGrossTotal,
+      yocoPaidOrders,
+      refundTotal,
+      refundCount
     });
   } catch (err) {
     console.error('Manufacturer data error:', err);

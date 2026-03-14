@@ -11,10 +11,12 @@ const getCategoryColumns = async () => {
   return cachedCategoryColumns;
 };
 
+const slugify = (value) => (value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
 const formatCategory = (row) => ({
   id: row.id,
   name: row.name,
-  slug: row.slug,
+  slug: row.slug || slugify(row.name),
   description: row.description,
   icon: row.icon,
   parentId: row.parent_id,

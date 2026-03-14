@@ -282,6 +282,14 @@ export default function TeamPortal() {
   const [paidBatches, setPaidBatches] = useState([]);
   const [expandedBatchId, setExpandedBatchId] = useState(null);
   const [dismissedBatchIds, setDismissedBatchIds] = useState([]);
+  // Age verification state
+  const [ageVerification, setAgeVerification] = useState({ players: [], summary: { total: 0, passed: 0, failed: 0, errors: 0 } });
+  const [ageVerifLoading, setAgeVerifLoading] = useState(false);
+  const [ageVerifGenderConfirming, setAgeVerifGenderConfirming] = useState(null);
+  // Duplicate jersey number state
+  const [editingJerseyNumber, setEditingJerseyNumber] = useState(null); // { playerId, value }
+  const [jerseyNumberSaving, setJerseyNumberSaving] = useState(false);
+  const [jerseyNumberError, setJerseyNumberError] = useState('');
   // Competition state
   const [competitionData, setCompetitionData] = useState(null);
   const [competitionLoading, setCompetitionLoading] = useState(false);
@@ -486,6 +494,70 @@ export default function TeamPortal() {
     };
     loadPaidBatches();
   }, [team?.id, refreshKey]);
+
+  // Load age verification data for this team
+  useEffect(() => {
+    if (!team?.id) return;
+    const loadAgeVerification = async () => {
+      setAgeVerifLoading(true);
+      try {
+        const res = await fetch(`/api/age-verification?teamId=${team.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAgeVerification(data);
+        }
+      } catch (err) {
+        console.error('Error loading age verification:', err);
+      } finally {
+        setAgeVerifLoading(false);
+      }
+    };
+    loadAgeVerification();
+  }, [team?.id, refreshKey]);
+
+  const handleGenderConfirm = async (teamPlayerId, gender) => {
+    setAgeVerifGenderConfirming(teamPlayerId);
+    try {
+      const res = await fetch('/api/age-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'confirm-gender', teamPlayerId, gender, teamId: team.id })
+      });
+      if (res.ok) {
+        setRefreshKey(k => k + 1);
+      }
+    } catch (err) {
+      console.error('Gender confirm error:', err);
+    } finally {
+      setAgeVerifGenderConfirming(null);
+    }
+  };
+
+  // Handle jersey number update for duplicate resolution
+  const handleJerseyNumberUpdate = async (playerId, newNumber) => {
+    if (isPreviewMode) return;
+    setJerseyNumberSaving(true);
+    setJerseyNumberError('');
+    try {
+      const res = await fetch('/api/team-players', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateJerseyNumber', playerId, jerseyNumber: newNumber })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEditingJerseyNumber(null);
+        const updatedTeam = await apiHelpers.getTeamById(team.id);
+        setTeam(updatedTeam);
+      } else {
+        setJerseyNumberError(data.error || 'Failed to update');
+      }
+    } catch (err) {
+      setJerseyNumberError('Network error');
+    } finally {
+      setJerseyNumberSaving(false);
+    }
+  };
 
   // Load competition data for this team
   useEffect(() => {
@@ -1987,6 +2059,267 @@ export default function TeamPortal() {
                 </div>
               ))}
 
+              {/* Age Verification Alerts */}
+              {(() => {
+                const flaggedPlayers = ageVerification.players.filter(p => p.status === 'fail' || p.status === 'error');
+                if (flaggedPlayers.length === 0 && !ageVerifLoading) return null;
+                return (
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(239,68,68,0.08) 0%, rgba(17,24,39,0.95) 50%, rgba(245,158,11,0.06) 100%)',
+                    borderRadius: '14px',
+                    border: '1px solid rgba(239,68,68,0.25)',
+                    marginBottom: '1.5rem',
+                    overflow: 'hidden',
+                    boxShadow: '0 4px 24px rgba(239,68,68,0.1)'
+                  }}>
+                    {/* Header */}
+                    <div style={{
+                      padding: '1.25rem 1.5rem',
+                      display: 'flex', alignItems: 'center', gap: '1rem',
+                      borderBottom: '1px solid rgba(239,68,68,0.15)',
+                      flexWrap: 'wrap'
+                    }}>
+                      <div style={{
+                        width: '48px', height: '48px', borderRadius: '14px',
+                        background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '1.4rem', flexShrink: 0
+                      }}>🛡️</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 800, color: '#fca5a5', fontSize: '1.05rem' }}>
+                          Age Verification — Action Required
+                        </div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '0.2rem' }}>
+                          {ageVerifLoading ? 'Checking player registrations...' : (
+                            <>
+                              <strong style={{ color: '#fca5a5' }}>{ageVerification.summary.failed} failed</strong>
+                              {' and '}
+                              <strong style={{ color: '#fde68a' }}>{ageVerification.summary.errors} data error{ageVerification.summary.errors !== 1 ? 's' : ''}</strong>
+                              {' found. These players cannot be sent for kit manufacturing until resolved.'}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Info Banner */}
+                    <div style={{
+                      padding: '0.85rem 1.5rem',
+                      background: 'rgba(245,158,11,0.06)',
+                      borderBottom: '1px solid rgba(239,68,68,0.1)',
+                      fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.5
+                    }}>
+                      💡 <strong style={{ color: '#fde68a' }}>Why am I seeing this?</strong> Parents registered these players with incorrect date of birth or data issues.
+                      Please ask the parent to log into their <strong>Parent Portal</strong> and correct the issue.
+                      If a failed player is actually a <strong>girl</strong> (girls may play 2 years above their age group), you can confirm this below.
+                    </div>
+
+                    {/* Player List */}
+                    {!ageVerifLoading && flaggedPlayers.length > 0 && (
+                      <div style={{ padding: '1rem 1.5rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          {flaggedPlayers.map((player, idx) => {
+                            const isFail = player.status === 'fail';
+                            const couldBeGirl = isFail && player.gender && player.gender.toLowerCase() !== 'female' && player.gender.toLowerCase() !== 'girls';
+                            const confirming = ageVerifGenderConfirming === player.teamPlayerId;
+                            return (
+                              <div key={player.teamPlayerId || player.id || idx} style={{
+                                background: isFail ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)',
+                                borderRadius: '10px',
+                                border: `1px solid ${isFail ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.25)'}`,
+                                padding: '1rem 1.25rem'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                  <div style={{ flex: 1, minWidth: '200px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
+                                      <span style={{ fontWeight: 700, color: '#f9fafb', fontSize: '0.95rem' }}>{player.playerName}</span>
+                                      <span style={{
+                                        padding: '0.1rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700,
+                                        background: isFail ? '#dc2626' : '#d97706', color: '#fff', textTransform: 'uppercase'
+                                      }}>
+                                        {isFail ? 'AGE FAIL' : 'DATA ERROR'}
+                                      </span>
+                                      <span style={{
+                                        padding: '0.1rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600,
+                                        background: 'rgba(99,102,241,0.2)', color: '#a5b4fc'
+                                      }}>{player.ageGroup}</span>
+                                      {player.gender && (
+                                        <span style={{
+                                          padding: '0.1rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600,
+                                          background: 'rgba(148,163,184,0.12)', color: '#94a3b8'
+                                        }}>{player.gender}</span>
+                                      )}
+                                    </div>
+                                    <div style={{ fontSize: '0.82rem', color: isFail ? '#fca5a5' : '#fde68a', fontWeight: 600, marginBottom: '0.3rem' }}>
+                                      {player.reason}
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', fontSize: '0.8rem', color: '#64748b' }}>
+                                      {player.dob && <span>DOB: {player.dob}</span>}
+                                      {player.email && <span>Parent: {player.email}</span>}
+                                    </div>
+                                  </div>
+
+                                  {/* Gender correction button for failed players registered as Male */}
+                                  {couldBeGirl && player.teamPlayerId && (
+                                    <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'flex-end' }}>
+                                      <div style={{ fontSize: '0.72rem', color: '#94a3b8', textAlign: 'right', maxWidth: '200px' }}>
+                                        Is this player a girl? Females get a 2-year age grace.
+                                      </div>
+                                      <button
+                                        onClick={() => handleGenderConfirm(player.teamPlayerId, 'Female')}
+                                        disabled={confirming}
+                                        style={{
+                                          padding: '0.4rem 0.85rem', borderRadius: '6px',
+                                          border: '1px solid rgba(251,113,133,0.4)',
+                                          background: confirming ? 'rgba(251,113,133,0.1)' : 'rgba(251,113,133,0.15)',
+                                          color: '#fda4af', fontWeight: 700, fontSize: '0.78rem',
+                                          cursor: confirming ? 'wait' : 'pointer',
+                                          opacity: confirming ? 0.6 : 1
+                                        }}
+                                      >
+                                        {confirming ? 'Updating...' : '♀ Confirm Female'}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Action guidance */}
+                                <div style={{
+                                  marginTop: '0.6rem', padding: '0.5rem 0.75rem',
+                                  background: 'rgba(255,255,255,0.03)', borderRadius: '6px',
+                                  fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5
+                                }}>
+                                  {isFail ? (
+                                    couldBeGirl
+                                      ? <>⚡ If this player is a girl, click "Confirm Female" above. Otherwise, ask the parent to correct the date of birth on their <strong style={{ color: '#94a3b8' }}>Parent Portal</strong>.</>
+                                      : <>📩 Please contact the parent at <strong style={{ color: '#94a3b8' }}>{player.email}</strong> and ask them to log into their <strong style={{ color: '#94a3b8' }}>Parent Portal</strong> to correct the date of birth.</>
+                                  ) : (
+                                    <>📩 Please contact the parent at <strong style={{ color: '#94a3b8' }}>{player.email}</strong> and ask them to log into their <strong style={{ color: '#94a3b8' }}>Parent Portal</strong> to correct the registration data.</>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Summary footer */}
+                        <div style={{
+                          marginTop: '1rem', padding: '0.75rem 1rem',
+                          background: 'rgba(239,68,68,0.06)', borderRadius: '8px',
+                          fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.5
+                        }}>
+                          ⚠️ <strong style={{ color: '#fca5a5' }}>Important:</strong> Players with age verification issues are <strong>blocked from kit manufacturing</strong> until their data is corrected.
+                          Once a parent fixes the issue on their Parent Portal, the player will automatically pass verification and become eligible for the next manufacturing batch.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Duplicate Jersey Numbers Alert */}
+              {(() => {
+                const paidPlayers = team.players?.filter(p => p.paymentStatus !== 'pending_payment') || [];
+                // Build duplicates map per sub-team
+                const subTeamNumbers = {};
+                paidPlayers.forEach(p => {
+                  const st = (p.subTeam || '').trim();
+                  const num = p.shirtNumber || p.jerseyNumber;
+                  if (!st || num == null || num === '') return;
+                  if (!subTeamNumbers[st]) subTeamNumbers[st] = {};
+                  if (!subTeamNumbers[st][num]) subTeamNumbers[st][num] = [];
+                  subTeamNumbers[st][num].push(p);
+                });
+                const duplicateGroups = [];
+                Object.entries(subTeamNumbers).forEach(([st, nums]) => {
+                  Object.entries(nums).forEach(([num, players]) => {
+                    if (players.length > 1) {
+                      duplicateGroups.push({ subTeam: st, number: num, players });
+                    }
+                  });
+                });
+                if (duplicateGroups.length === 0) return null;
+
+                const totalAffected = duplicateGroups.reduce((sum, g) => sum + g.players.length, 0);
+
+                return (
+                  <div style={{
+                    background: '#111827',
+                    borderRadius: '14px',
+                    border: '1px solid rgba(245,158,11,0.25)',
+                    marginBottom: '1.5rem',
+                    overflow: 'hidden',
+                    boxShadow: '0 4px 24px rgba(245,158,11,0.1)'
+                  }}>
+                    <div style={{
+                      padding: '1.25rem 1.5rem',
+                      display: 'flex', alignItems: 'center', gap: '1rem',
+                      borderBottom: '1px solid rgba(245,158,11,0.15)',
+                      flexWrap: 'wrap'
+                    }}>
+                      <div style={{
+                        width: '48px', height: '48px', borderRadius: '14px',
+                        background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '1.4rem', flexShrink: 0
+                      }}>👕</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 800, color: '#fbbf24', fontSize: '1.05rem' }}>
+                          Duplicate Shirt Numbers — Action Required
+                        </div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '0.2rem' }}>
+                          <strong style={{ color: '#fbbf24' }}>{duplicateGroups.length} duplicate{duplicateGroups.length !== 1 ? 's' : ''}</strong>
+                          {' '}affecting <strong style={{ color: '#fbbf24' }}>{totalAffected} players</strong> across your sub-teams.
+                          Players with duplicate numbers are <strong>blocked from manufacturing</strong>.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setActiveTab('players'); setPlayersView('roster'); }}
+                        style={{
+                          background: '#f59e0b', color: '#1e1b4b', border: 'none',
+                          padding: '0.6rem 1.2rem', borderRadius: '8px',
+                          fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer'
+                        }}
+                      >
+                        Go to Player Roster →
+                      </button>
+                    </div>
+
+                    <div style={{ padding: '1rem 1.5rem' }}>
+                      {duplicateGroups.map((group, gi) => (
+                        <div key={gi} style={{
+                          background: 'rgba(245,158,11,0.06)',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(245,158,11,0.12)',
+                          padding: '0.75rem 1rem',
+                          marginBottom: gi < duplicateGroups.length - 1 ? '0.5rem' : 0
+                        }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fbbf24', marginBottom: '0.35rem' }}>
+                            {group.subTeam} — Shirt #{group.number}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: '#d1d5db' }}>
+                            {group.players.map(p => p.name || p.playerName).join(', ')}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                            📩 Contact parents to agree on new numbers, then update on the Player Roster tab.
+                          </div>
+                        </div>
+                      ))}
+
+                      <div style={{
+                        marginTop: '1rem', padding: '0.75rem 1rem',
+                        background: 'rgba(245,158,11,0.06)', borderRadius: '8px',
+                        fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.5
+                      }}>
+                        ⚠️ <strong style={{ color: '#fbbf24' }}>Important:</strong> Players with duplicate shirt numbers within the same sub-team are <strong>blocked from kit manufacturing</strong>.
+                        Go to the <strong>Player Roster</strong> tab to edit the duplicate numbers. Only duplicate numbers are editable.
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div
                 className="teamDashboardGrid"
                 style={{
@@ -2528,11 +2861,29 @@ export default function TeamPortal() {
                       {Object.entries(playersGrouped).map(([subTeamName, group]) => {
                         if (group.players.length === 0) return null;
                         
+                        // Detect duplicate jersey numbers within this sub-team
+                        const jerseyCount = {};
+                        group.players.forEach(p => {
+                          const num = p.shirtNumber || p.jerseyNumber;
+                          if (num != null && num !== '' && num !== '-') {
+                            if (!jerseyCount[num]) jerseyCount[num] = [];
+                            jerseyCount[num].push(p.id);
+                          }
+                        });
+                        const duplicateJerseyNumbers = new Set();
+                        const duplicatePlayerIds = new Set();
+                        Object.entries(jerseyCount).forEach(([num, ids]) => {
+                          if (ids.length > 1) {
+                            duplicateJerseyNumbers.add(String(num));
+                            ids.forEach(id => duplicatePlayerIds.add(id));
+                          }
+                        });
+
                         return (
                           <div key={subTeamName} style={{
                             background: '#111827',
                             borderRadius: '12px',
-                            border: '2px solid rgba(255,255,255,0.08)',
+                            border: duplicatePlayerIds.size > 0 ? '2px solid rgba(245,158,11,0.4)' : '2px solid rgba(255,255,255,0.08)',
                             overflow: 'hidden'
                           }}>
                             {/* Sub-team header */}
@@ -2627,6 +2978,28 @@ export default function TeamPortal() {
                                 </div>
                               </div>
                             )}
+
+                            {/* Duplicate jersey number warning */}
+                            {duplicatePlayerIds.size > 0 && (
+                              <div style={{
+                                background: 'linear-gradient(135deg, rgba(120, 53, 15, 0.45) 0%, rgba(92, 45, 5, 0.55) 100%)',
+                                borderLeft: '4px solid #f59e0b',
+                                padding: '0.75rem 1rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem'
+                              }}>
+                                <div style={{ fontSize: '1.25rem', lineHeight: 1 }}>👕</div>
+                                <div style={{ flex: 1 }}>
+                                  <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fef3c7' }}>
+                                    Duplicate shirt numbers: {[...duplicateJerseyNumbers].map(n => `#${n}`).join(', ')} •
+                                  </span>
+                                  <span style={{ fontSize: '0.85rem', color: '#fde68a', marginLeft: '0.5rem' }}>
+                                    Click the highlighted numbers below to change them. Contact parents first to agree on new numbers.
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                             
                             {/* Players table */}
                             <div className="playersTableWrap">
@@ -2708,17 +3081,84 @@ export default function TeamPortal() {
                                       ) : '-'}
                                     </td>
                                     <td style={{ padding: '0.75rem', fontSize: '0.9rem', color: '#e2e8f0' }}>
-                                      <span style={{
-                                        display: 'inline-block',
-                                        background: '#1f2937',
-                                        padding: '0.25rem 0.75rem',
-                                        borderRadius: '6px',
-                                        fontWeight: '700',
-                                        color: '#f9fafb',
-                                        border: '1px solid rgba(255,255,255,0.08)'
-                                      }}>
-                                        #{player.shirtNumber || player.jerseyNumber || '-'}
-                                      </span>
+                                      {(() => {
+                                        const playerNum = player.shirtNumber || player.jerseyNumber;
+                                        const isDuplicate = duplicatePlayerIds.has(player.id);
+                                        const isEditing = editingJerseyNumber?.playerId === player.id;
+
+                                        if (isEditing) {
+                                          return (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                max="999"
+                                                value={editingJerseyNumber.value}
+                                                onChange={e => setEditingJerseyNumber({ ...editingJerseyNumber, value: e.target.value })}
+                                                onKeyDown={e => {
+                                                  if (e.key === 'Enter') handleJerseyNumberUpdate(player.id, editingJerseyNumber.value);
+                                                  if (e.key === 'Escape') { setEditingJerseyNumber(null); setJerseyNumberError(''); }
+                                                }}
+                                                autoFocus
+                                                style={{
+                                                  width: '60px', padding: '0.3rem 0.5rem',
+                                                  background: '#1e293b', color: '#f9fafb', border: '2px solid #f59e0b',
+                                                  borderRadius: '6px', fontSize: '0.9rem', fontWeight: 700,
+                                                  outline: 'none', textAlign: 'center'
+                                                }}
+                                              />
+                                              <button
+                                                onClick={() => handleJerseyNumberUpdate(player.id, editingJerseyNumber.value)}
+                                                disabled={jerseyNumberSaving}
+                                                style={{
+                                                  background: '#10b981', color: 'white', border: 'none',
+                                                  padding: '0.3rem 0.5rem', borderRadius: '4px',
+                                                  fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer'
+                                                }}
+                                              >
+                                                {jerseyNumberSaving ? '...' : '✓'}
+                                              </button>
+                                              <button
+                                                onClick={() => { setEditingJerseyNumber(null); setJerseyNumberError(''); }}
+                                                style={{
+                                                  background: '#6b7280', color: 'white', border: 'none',
+                                                  padding: '0.3rem 0.5rem', borderRadius: '4px',
+                                                  fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer'
+                                                }}
+                                              >
+                                                ✕
+                                              </button>
+                                              {jerseyNumberError && (
+                                                <div style={{ fontSize: '0.7rem', color: '#f87171', maxWidth: '120px' }}>{jerseyNumberError}</div>
+                                              )}
+                                            </div>
+                                          );
+                                        }
+
+                                        return (
+                                          <span
+                                            onClick={isDuplicate && (isAdminMode || isAuthenticated) ? () => {
+                                              setEditingJerseyNumber({ playerId: player.id, value: playerNum || '' });
+                                              setJerseyNumberError('');
+                                            } : undefined}
+                                            title={isDuplicate ? 'Click to change this duplicate number' : undefined}
+                                            style={{
+                                              display: 'inline-block',
+                                              background: isDuplicate ? 'rgba(245,158,11,0.15)' : '#1f2937',
+                                              padding: '0.25rem 0.75rem',
+                                              borderRadius: '6px',
+                                              fontWeight: '700',
+                                              color: isDuplicate ? '#fbbf24' : '#f9fafb',
+                                              border: isDuplicate ? '2px solid rgba(245,158,11,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                                              cursor: isDuplicate && (isAdminMode || isAuthenticated) ? 'pointer' : 'default',
+                                              animation: isDuplicate ? 'none' : 'none'
+                                            }}
+                                          >
+                                            #{playerNum || '-'}
+                                            {isDuplicate && <span style={{ marginLeft: '0.3rem', fontSize: '0.7rem' }}>⚠️</span>}
+                                          </span>
+                                        );
+                                      })()}
                                     </td>
                                     <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#94a3b8' }}>
                                       {player.addedAt || player.createdAt ? new Date(player.addedAt || player.createdAt).toLocaleDateString() : '—'}
@@ -3589,6 +4029,7 @@ export default function TeamPortal() {
                     const hasPers = supportsPersonalization(product.name);
                     const cartKey = product.id;
                     const items = coachCart[cartKey] || [{ size: product.sizes?.[0] || '', personalization: 'None' }];
+                    const isCoachSoldOut = product.soldOut || product.sold_out;
 
                     return (
                       <div key={product.id} style={{
@@ -3625,7 +4066,7 @@ export default function TeamPortal() {
                           />
 
                           {/* Quantity Badge */}
-                          {items.length > 0 && (
+                          {items.length > 0 && !isCoachSoldOut && (
                             <div style={{
                               position: 'absolute', top: '0.75rem', left: '0.75rem',
                               background: 'rgba(139,92,246,0.9)', color: '#fff',
@@ -3634,6 +4075,15 @@ export default function TeamPortal() {
                             }}>
                               Qty: {items.length}
                             </div>
+                          )}
+                          {isCoachSoldOut && (
+                            <div style={{
+                              position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10,
+                              background: '#dc2626', color: 'white', fontWeight: 900,
+                              fontSize: '0.8rem', padding: '0.3rem 0.8rem', borderRadius: '6px',
+                              letterSpacing: '1px', textTransform: 'uppercase',
+                              boxShadow: '0 4px 12px rgba(220, 38, 38, 0.4)'
+                            }}>SOLD OUT</div>
                           )}
                         </div>
 
@@ -3657,6 +4107,14 @@ export default function TeamPortal() {
                             R{product.price.toFixed(2)}
                           </div>
 
+                          {isCoachSoldOut ? (
+                            <div style={{
+                              padding: '0.75rem', borderRadius: '8px',
+                              background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)',
+                              color: '#fca5a5', fontSize: '0.88rem', fontWeight: 700, textAlign: 'center'
+                            }}>Sold Out — No longer available</div>
+                          ) : (
+                          <>
                           {/* Per-Item Sizing Rows */}
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -3794,6 +4252,8 @@ export default function TeamPortal() {
                           >
                             Add {items.length} {items.length === 1 ? 'Item' : 'Items'} to Cart
                           </button>
+                          </>
+                          )}
                         </div>
                       </div>
                     );

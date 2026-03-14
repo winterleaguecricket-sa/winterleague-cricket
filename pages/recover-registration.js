@@ -47,74 +47,69 @@ export default function RecoverRegistration() {
 
         setStatus('found');
 
-        // Check if submission already exists
-        const checkRes = await fetch(`/api/form-submissions?formId=2`);
-        const checkData = await checkRes.json();
-        const submissions = checkData.submissions || checkData || [];
-        const existing = Array.isArray(submissions) && submissions.some(s =>
-          s.customerEmail === parentEmail ||
-          s.customer_email === parentEmail ||
-          (s.data && (s.data[38] === parentEmail || s.data['38'] === parentEmail))
-        );
+        // Check if a form submission already exists for this email
+        const checkRes = await fetch(`/api/form-submissions?formId=2&checkOnly=true&email=${encodeURIComponent(parentEmail)}`);
+        const checkData = await checkRes.ok ? await checkRes.json() : {};
+        const submissionExists = checkData.exists === true;
 
-        if (existing) {
-          setStatus('already-exists');
-          setMessage(`Registration for ${parentEmail} already exists. No recovery needed.`);
-          // Clear the draft since it's already been processed
-          return;
-        }
-
-        // Submit the form data to create the missing submission + team_player
         setStatus('recovering');
 
-        const submissionPayload = {
-          formId: 2,
-          data: formData
-        };
+        // If no submission exists yet, create one first
+        if (!submissionExists) {
+          const submissionPayload = {
+            formId: 2,
+            data: formData
+          };
 
-        // Include cart items if available
-        if (cart && cart.length > 0) {
-          submissionPayload.cartItems = cart.map(item => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-            selectedSize: item.selectedSize || null
-          }));
-          submissionPayload.cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        } else if (formData._cartItems) {
-          submissionPayload.cartItems = formData._cartItems;
-          submissionPayload.cartTotal = formData._cartTotal || 0;
+          // Include cart items if available
+          if (cart && cart.length > 0) {
+            submissionPayload.cartItems = cart.map(item => ({
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              selectedSize: item.selectedSize || null
+            }));
+            submissionPayload.cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+          } else if (formData._cartItems) {
+            submissionPayload.cartItems = formData._cartItems;
+            submissionPayload.cartTotal = formData._cartTotal || 0;
+          }
+
+          const createRes = await fetch('/api/form-submissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(submissionPayload)
+          });
+
+          if (!createRes.ok) {
+            const errText = await createRes.text();
+            let errMsg = 'Unknown error';
+            try { errMsg = JSON.parse(errText).error || errMsg; } catch { errMsg = errText || errMsg; }
+            setStatus('error');
+            setMessage(`Recovery failed: ${errMsg}. Please contact support.`);
+            return;
+          }
         }
 
-        const createRes = await fetch('/api/form-submissions', {
+        // Now ensure team_player exists and is marked paid
+        const paymentRes = await fetch('/api/recovery-update-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(submissionPayload)
+          body: JSON.stringify({ email: parentEmail })
         });
+        const paymentData = paymentRes.ok ? await paymentRes.json() : {};
 
-        if (createRes.ok) {
-          const result = await createRes.json();
+        if (paymentData.success && (paymentData.created > 0 || paymentData.updated > 0)) {
           setStatus('success');
           setMessage(`Registration for ${playerName} has been successfully recovered!`);
-          
-          // Now also update the team_player payment status to match the paid order
-          try {
-            await fetch('/api/recovery-update-payment', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                email: parentEmail,
-                playerName 
-              })
-            });
-          } catch (paymentUpdateError) {
-            console.log('Payment status update will be done manually');
-          }
+        } else if (paymentData.success) {
+          // No players created or updated — might be no paid order or team_player already existed as paid
+          setStatus('success');
+          setMessage(`Registration recovery completed for ${playerName}. If your player does not appear on the team portal, please contact support.`);
         } else {
-          const errData = await createRes.json().catch(() => ({}));
           setStatus('error');
-          setMessage(`Recovery failed: ${errData.error || 'Unknown error'}. Please contact support.`);
+          setMessage(`Recovery encountered an issue: ${paymentData.error || 'Unknown error'}. Please contact support.`);
         }
       } catch (e) {
         console.error('Recovery error:', e);

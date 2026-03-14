@@ -42,11 +42,16 @@ export default function Cart({ hideCheckout = false }) {
             </div>
           ) : (
             cart.map((item) => (
-              <div key={`${item.id}-${item.selectedSize}`} className={styles.item}>
+              <div key={`${item.id}-${item.selectedSize}-${item.personalization || ''}`} className={styles.item}>
                 <div className={styles.itemInfo}>
                   <h4>{item.name}</h4>
                   {item.selectedSize && (
                     <span className={styles.size}>Size: {item.selectedSize}</span>
+                  )}
+                  {item.personalization && (
+                    <span className={styles.size} style={{ marginLeft: '0.5rem', color: '#a78bfa' }}>
+                      • {item.personalization}
+                    </span>
                   )}
                   <p className={styles.itemPrice}>R{item.price.toFixed(2)}</p>
                 </div>
@@ -54,7 +59,7 @@ export default function Cart({ hideCheckout = false }) {
                 <div className={styles.itemActions}>
                   <div className={styles.quantity}>
                     <button 
-                      onClick={() => updateQuantity(item.id, item.selectedSize, item.quantity - 1)}
+                      onClick={() => updateQuantity(item.id, item.selectedSize, item.quantity - 1, item.personalization || null)}
                       className={styles.quantityButton}
                       disabled={item.id === 'basic-kit' && item.quantity <= 1}
                     >
@@ -62,7 +67,7 @@ export default function Cart({ hideCheckout = false }) {
                     </button>
                     <span className={styles.quantityValue}>{item.quantity}</span>
                     <button 
-                      onClick={() => updateQuantity(item.id, item.selectedSize, item.quantity + 1)}
+                      onClick={() => updateQuantity(item.id, item.selectedSize, item.quantity + 1, item.personalization || null)}
                       className={styles.quantityButton}
                     >
                       +
@@ -71,7 +76,7 @@ export default function Cart({ hideCheckout = false }) {
                   
                   {item.id !== 'basic-kit' ? (
                     <button 
-                      onClick={() => removeFromCart(item.id, item.selectedSize)}
+                      onClick={() => removeFromCart(item.id, item.selectedSize, item.personalization || null)}
                       className={styles.removeButton}
                     >
                       Remove

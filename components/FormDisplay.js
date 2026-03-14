@@ -1413,6 +1413,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
               
               // Calculate if all sizes are selected for current quantity
               const allSizesSelected = sizes.length === 0 || (selection.quantity > 0 && selection.sizes.filter(s => s).length === selection.quantity);
+              const isSoldOut = product.soldOut || product.sold_out;
 
               return (
                 <div
@@ -1508,6 +1509,15 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                       </div>
                     )}
                   </div>
+                  {isSoldOut && (
+                    <div style={{
+                      position: 'absolute', top: '12px', right: '12px', zIndex: 10,
+                      background: '#dc2626', color: 'white', fontWeight: 900,
+                      fontSize: '0.85rem', padding: '0.35rem 0.9rem', borderRadius: '6px',
+                      letterSpacing: '1px', textTransform: 'uppercase',
+                      boxShadow: '0 4px 12px rgba(220, 38, 38, 0.4)'
+                    }}>SOLD OUT</div>
+                  )}
                   <div style={{ padding: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                     <div
                       style={{ cursor: 'pointer' }}
@@ -1542,10 +1552,18 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                         Tap to view details
                       </div>
                     </div>
-                    <div style={{ fontWeight: '800', fontSize: '1.1rem', color: '#22c55e' }}>
+                    <div style={{ fontWeight: '800', fontSize: '1.1rem', color: isSoldOut ? '#9ca3af' : '#22c55e' }}>
                       R{Number(product.price || 0).toFixed(2)}
                     </div>
 
+                    {isSoldOut ? (
+                      <div style={{
+                        padding: '0.7rem', borderRadius: '8px',
+                        background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)',
+                        color: '#fca5a5', fontSize: '0.85rem', fontWeight: 700, textAlign: 'center'
+                      }}>Sold Out — No longer available</div>
+                    ) : (
+                    <>
                     {/* Quantity selector */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>Qty:</span>
@@ -1706,6 +1724,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                       </button>
                     )}
 
+                    </>
+                    )}
                     {/* Show what's in cart */}
                     {hasItemsInCart && (
                       <div style={{
@@ -1929,9 +1949,19 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                   const totalInCartModal = cartItemsForModal.reduce((sum, item) => sum + item.quantity, 0);
                   const hasItemsInCartModal = totalInCartModal > 0;
                   const allModalSizesSelected = modalSizes.length === 0 || (modalSelection.quantity > 0 && modalSelection.sizes.filter(s => s).length === modalSelection.quantity);
+                  const isModalSoldOut = activeApparelModal.soldOut || activeApparelModal.sold_out;
                   
                   return (
                     <>
+                      {isModalSoldOut ? (
+                        <div style={{
+                          padding: '1rem', borderRadius: '10px',
+                          background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)',
+                          color: '#fca5a5', fontSize: '1rem', fontWeight: 700, textAlign: 'center',
+                          marginBottom: '12px'
+                        }}>SOLD OUT &mdash; No longer available</div>
+                      ) : (
+                      <>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '12px' }}>
                         <span style={{ fontSize: '0.95rem', color: '#9ca3af', fontWeight: '600' }}>Quantity:</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -2121,6 +2151,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                         </div>
                       )}
                     </>
+                      )}
+                    </>
                   );
                 })()}
 
@@ -2306,6 +2338,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                 ? detailRecord.images[0]
                 : (product.images && product.images.length > 0 ? product.images[0] : (product.image || '/images/placeholder.svg'));
               const supporterName = `${product.name} - Supporter`;
+              const isSupporterSoldOut = product.soldOut || product.sold_out;
 
               return (
                 <div
@@ -2361,6 +2394,7 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                     e.currentTarget.style.border = inCart ? '2px solid #dc0000' : '1px solid rgba(255, 255, 255, 0.08)';
                   }}
                 >
+                  <div style={{ position: 'relative' }}>
                   {product.id >= 67 && product.id <= 86 ? (
                     <div className={styles.productCardImage} style={{
                       width: '100%',
@@ -2395,6 +2429,16 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                       />
                     </div>
                   )}
+                  {isSupporterSoldOut && (
+                    <div style={{
+                      position: 'absolute', top: '12px', right: '12px', zIndex: 10,
+                      background: '#dc2626', color: 'white', fontWeight: 900,
+                      fontSize: '0.85rem', padding: '0.35rem 0.9rem', borderRadius: '6px',
+                      letterSpacing: '1px', textTransform: 'uppercase',
+                      boxShadow: '0 4px 12px rgba(220, 38, 38, 0.4)'
+                    }}>SOLD OUT</div>
+                  )}
+                  </div>
                   <div style={{ padding: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                     <div>
                       <h5 style={{ margin: 0, fontSize: '1rem', color: '#f8fafc', fontWeight: '700' }}>{supporterName}</h5>
@@ -2402,10 +2446,18 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                         Tap to view details
                       </div>
                     </div>
-                    <div style={{ fontWeight: '800', fontSize: '1.1rem', color: '#22c55e' }}>
+                    <div style={{ fontWeight: '800', fontSize: '1.1rem', color: isSupporterSoldOut ? '#9ca3af' : '#22c55e' }}>
                       R{Number(product.price || 0).toFixed(2)}
                     </div>
 
+                    {isSupporterSoldOut ? (
+                      <div style={{
+                        padding: '0.7rem', borderRadius: '8px',
+                        background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)',
+                        color: '#fca5a5', fontSize: '0.85rem', fontWeight: 700, textAlign: 'center'
+                      }}>Sold Out — No longer available</div>
+                    ) : (
+                    <>
                     {sizes.length > 0 && (
                       <select
                         value={selectedSize}
@@ -2461,6 +2513,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                     >
                       {inCart ? '✓ Added' : 'Add to Cart'}
                     </button>
+                    </>
+                    )}
                   </div>
                 </div>
               );
@@ -2643,7 +2697,16 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                   </span>
                 </div>
 
-                {/* Size selector - directly after price */}
+                {/* Size selector + Add to cart - or Sold Out message */}
+                {(activeApparelModal.soldOut || activeApparelModal.sold_out) ? (
+                  <div style={{
+                    padding: '1rem', borderRadius: '10px',
+                    background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)',
+                    color: '#fca5a5', fontSize: '1rem', fontWeight: 800, textAlign: 'center',
+                    marginBottom: '4px'
+                  }}>SOLD OUT — No longer available</div>
+                ) : (
+                <>
                 {modalSizes.length > 0 && (
                   <div style={{ marginBottom: '12px' }}>
                     <select
@@ -2702,6 +2765,8 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
                 >
                   Add to Cart
                 </button>
+                </>
+                )}
 
                 {/* Description - LAST, after add to cart */}
                 <p style={{
@@ -3628,6 +3693,12 @@ export default function FormDisplay({ form: initialForm, onSubmitSuccess, landin
         } catch (lsErr) {
           console.error('[FormDisplay] localStorage.setItem failed:', lsErr);
         }
+        // Store team ID for checkout upsell (fail-safe — never blocks redirect)
+        try {
+          if (selectedTeamData?.id) {
+            localStorage.setItem('upsell_teamId', String(selectedTeamData.id));
+          }
+        } catch {}
         // Don't clear formDraft yet — checkout page needs it for customer profile
         if (onSubmitSuccess) {
           onSubmitSuccess(result.submission);

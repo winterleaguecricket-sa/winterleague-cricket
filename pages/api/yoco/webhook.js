@@ -4,6 +4,7 @@ import { query } from '../../../lib/db';
 import { sendParentPaymentSuccessEmail } from '../../../lib/parentEmailHelper';
 import { logPaymentEvent, logApiError } from '../../../lib/logger';
 import { createTeamPlayersFromSubmissions } from '../../../lib/createTeamPlayersFromSubmissions';
+import { splitOrderForSuppliers } from '../supplier-orders';
 
 // Yoco sends JSON webhooks
 export const config = {
@@ -110,6 +111,13 @@ export default async function handler(req, res) {
           await createTeamPlayersFromSubmissions(order.customer_email, 'Yoco webhook');
         } catch (playerErr) {
           console.error('Yoco webhook: failed to create/update team_players:', playerErr.message);
+        }
+
+        // Split order for suppliers (non-blocking)
+        try {
+          await splitOrderForSuppliers(order.id, orderId);
+        } catch (splitErr) {
+          console.error('Yoco webhook: supplier order split error (non-blocking):', splitErr.message);
         }
 
         // Send parent payment success email (non-blocking)
